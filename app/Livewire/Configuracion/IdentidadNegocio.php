@@ -1,0 +1,112 @@
+<?php
+
+namespace App\Livewire\Configuracion;
+
+use App\Models\Negocio;
+use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
+
+class IdentidadNegocio extends Component
+{
+    use WithFileUploads;
+
+    public string $nombre_comercial = '';
+
+    public ?string $eslogan = null;
+
+    /** @var TemporaryUploadedFile|null */
+    public $logo_nuevo = null;
+
+    public ?string $logo_actual = null;
+
+    public bool $confirmarEliminacionLogo = false;
+
+    public function mount(): void
+    {
+        $negocio = $this->negocioDelUsuario();
+
+        $this->nombre_comercial = $negocio->nombre_comercial;
+        $this->eslogan = $negocio->eslogan;
+        $this->logo_actual = $negocio->logo;
+    }
+
+    /**
+     * Update the visual identity of the authenticated user's business.
+     */
+    public function guardar(): void
+    {
+        $negocio = $this->negocioDelUsuario();
+
+        $this->authorize('update', $negocio);
+
+        $this->validate([
+            'nombre_comercial' => ['required', 'string', 'min:2', 'max:120'],
+            'eslogan' => ['nullable', 'string', 'max:160'],
+            'logo_nuevo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ], [], [
+            'nombre_comercial' => 'nombre comercial',
+            'eslogan' => 'eslogan',
+            'logo_nuevo' => 'logo',
+        ]);
+
+        if ($this->logo_nuevo !== null) {
+            if ($negocio->logo !== null) {
+                Storage::disk('public')->delete($negocio->logo);
+            }
+
+            $negocio->logo = $this->logo_nuevo->store('logos', 'public');
+        }
+
+        $negocio->nombre_comercial = trim($this->nombre_comercial);
+        $negocio->eslogan = $this->eslogan !== null && trim($this->eslogan) !== ''
+            ? trim($this->eslogan)
+            : null;
+        $negocio->save();
+
+        $this->logo_actual = $negocio->logo;
+        $this->logo_nuevo = null;
+        $this->confirmarEliminacionLogo = false;
+
+        session()->flash('status', 'La identidad del negocio se guardó correctamente.');
+    }
+
+    /**
+     * Remove the current logo and fall back to the default icon.
+     */
+    public function eliminarLogo(): void
+    {
+        $negocio = $this->negocioDelUsuario();
+
+        $this->authorize('update', $negocio);
+
+        if ($negocio->logo !== null) {
+            Storage::disk('public')->delete($negocio->logo);
+            $negocio->logo = null;
+            $negocio->save();
+        }
+
+        $this->logo_actual = null;
+        $this->logo_nuevo = null;
+        $this->confirmarEliminacionLogo = false;
+
+        session()->flash('status', 'El logo se eliminó correctamente.');
+    }
+
+    public function render(): View
+    {
+        return view('livewire.configuracion.identidad-negocio');
+    }
+
+    private function negocioDelUsuario(): Negocio
+    {
+        $negocio = Auth::user()?->negocio;
+
+        abort_if($negocio === null, 403, 'Tu usuario no tiene un negocio asignado.');
+
+        return $negocio;
+    }
+}

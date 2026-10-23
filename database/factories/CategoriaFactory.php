@@ -1,0 +1,35 @@
+<?php
+
+namespace Database\Factories;
+
+use App\Models\Categoria;
+use App\Models\Negocio;
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+/**
+ * @extends Factory<Categoria>
+ */
+class CategoriaFactory extends Factory
+{
+    /**
+     * Define the model's default state.
+     *
+     * @return array<string, mixed>
+     */
+    public function definition(): array
+    {
+        return [
+            'negocio_id' => Negocio::factory(),
+            'nombre' => fake()->unique()->words(2, true),
+            'activa' => true,
+            'orden' => 0,
+        ];
+    }
+
+    public function inactiva(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'activa' => false,
+        ]);
+    }
+}
