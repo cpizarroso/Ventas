@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\Rol;
+use App\Models\AceptacionTerminos;
 use App\Models\Negocio;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -39,6 +40,16 @@ class UserFactory extends Factory
             'rol' => Rol::Cajero,
             'negocio_id' => Negocio::factory(),
         ];
+    }
+
+    public function configure(): static
+    {
+        return $this->afterCreating(function (User $user): void {
+            AceptacionTerminos::factory()->create([
+                'user_id' => $user->id,
+                'version' => config('jibas.terminos.version'),
+            ]);
+        });
     }
 
     /**

@@ -11,7 +11,9 @@
             <div>
                 <h1 class="text-xl font-semibold text-stone-900 dark:text-stone-100 sm:text-2xl">Reportes de ventas</h1>
                 <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">
-                    Ventas por rango de fechas y cajero, con detalle y resumen por producto.
+                    {{ $puedeFiltrarPorCajero
+                        ? 'Ventas por rango de fechas y cajero, con detalle y resumen por producto.'
+                        : 'Tus ventas por rango de fechas, con detalle y resumen por producto.' }}
                 </p>
             </div>
         </div>
@@ -46,21 +48,23 @@
                         @enderror
                     </div>
 
-                    <div>
-                        <label for="cajero_id" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Cajero</label>
-                        <select id="cajero_id" name="cajero_id"
-                                class="rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:[color-scheme:dark]">
-                            <option value="">Todos los cajeros</option>
-                            @foreach ($cajeros as $cajero)
-                                <option value="{{ $cajero->id }}" @selected((string) old('cajero_id', $cajeroId) === (string) $cajero->id)>
-                                    {{ $cajero->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('cajero_id')
-                            <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
-                        @enderror
-                    </div>
+                    @if ($puedeFiltrarPorCajero)
+                        <div>
+                            <label for="cajero_id" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Cajero</label>
+                            <select id="cajero_id" name="cajero_id"
+                                    class="rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:[color-scheme:dark]">
+                                <option value="">Todos los cajeros</option>
+                                @foreach ($cajeros as $cajero)
+                                    <option value="{{ $cajero->id }}" @selected((string) old('cajero_id', $cajeroId) === (string) $cajero->id)>
+                                        {{ $cajero->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('cajero_id')
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    @endif
 
                     <button type="submit"
                             class="rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-500 dark:bg-amber-500 dark:text-stone-900 dark:hover:bg-amber-400">
@@ -74,12 +78,17 @@
                         <span class="font-semibold text-stone-900 dark:text-stone-100">{{ $desde->format('d/m/Y') }} — {{ $hasta->format('d/m/Y') }}</span>
                         <span class="mx-1 text-stone-300 dark:text-stone-600">·</span>
                         @if ($cajeroSeleccionado !== null)
-                            Cajero: <span class="font-semibold text-stone-900 dark:text-stone-100">{{ $cajeroSeleccionado->name }}</span>
+                            {{ $puedeFiltrarPorCajero ? 'Cajero:' : 'Ventas de:' }}
+                            <span class="font-semibold text-stone-900 dark:text-stone-100">{{ $cajeroSeleccionado->name }}</span>
                         @else
                             <span class="font-semibold text-stone-900 dark:text-stone-100">Todos los cajeros</span>
                         @endif
                     </p>
-                    <a href="{{ route('reportes.export', array_filter(['desde' => request('desde'), 'hasta' => request('hasta'), 'cajero_id' => request('cajero_id')])) }}"
+                    <a href="{{ route('reportes.export', array_filter([
+                        'desde' => request('desde'),
+                        'hasta' => request('hasta'),
+                        'cajero_id' => $puedeFiltrarPorCajero ? request('cajero_id') : null,
+                    ])) }}"
                        class="inline-flex items-center gap-2 rounded-xl border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-900/30">
                         <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" />

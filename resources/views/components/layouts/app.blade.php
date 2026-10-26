@@ -68,17 +68,22 @@
                     @endauth
                 </div>
 
-                <div class="flex items-center gap-1.5 sm:gap-2">
+                <div class="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
                     @auth
-                        @if (auth()->user()->puedeGestionarConfiguracion())
-                            <a href="{{ route('reportes.index') }}"
-                               class="rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-700 dark:hover:text-white">
+                        <x-nav-link :href="route('ventas.index')" :active="request()->routeIs('ventas.*')">
+                            Ventas
+                        </x-nav-link>
+
+                        @can('ver-reportes')
+                            <x-nav-link :href="route('reportes.index')" :active="request()->routeIs('reportes.*')">
                                 Reportes
-                            </a>
-                            <a href="{{ route('configuracion.index') }}"
-                               class="rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-700 dark:hover:text-white">
+                            </x-nav-link>
+                        @endcan
+
+                        @if (auth()->user()->puedeGestionarConfiguracion())
+                            <x-nav-link :href="route('configuracion.index')" :active="request()->routeIs('configuracion.*')">
                                 Configuración
-                            </a>
+                            </x-nav-link>
                         @endif
 
                         <span class="hidden max-w-40 truncate text-sm text-stone-500 dark:text-stone-400 sm:inline">
@@ -118,7 +123,13 @@
         </main>
 
         <footer class="border-t border-stone-200 py-4 text-center text-xs text-stone-500 dark:border-stone-700 dark:text-stone-400">
-            <p>&copy; {{ date('Y') }} SofCruz. Todos los derechos reservados.</p>
+            <p>
+                &copy; {{ date('Y') }} SofCruz. Todos los derechos reservados.
+                <span aria-hidden="true">·</span>
+                <a href="{{ route('terminos.index') }}" class="underline decoration-stone-300 underline-offset-4 hover:text-stone-800 dark:decoration-stone-600 dark:hover:text-stone-200">
+                    Términos y privacidad
+                </a>
+            </p>
         </footer>
     </div>
 

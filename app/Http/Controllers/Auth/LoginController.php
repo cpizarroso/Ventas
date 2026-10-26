@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Negocio;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +18,12 @@ class LoginController extends Controller
      */
     public function create(): View
     {
-        return view('auth.login');
+        $negocio = Negocio::query()->oldest('id')->first();
+
+        return view('auth.login', [
+            'negocio' => $negocio,
+            'nombreComercial' => $negocio?->nombre_comercial ?? config('app.name'),
+        ]);
     }
 
     /**

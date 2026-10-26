@@ -21,6 +21,7 @@ class NegocioFactory extends Factory
             'nombre_comercial' => fake()->unique()->company(),
             'eslogan' => fake()->optional()->sentence(4),
             'logo' => null,
+            'qr_pago' => null,
         ];
     }
 }

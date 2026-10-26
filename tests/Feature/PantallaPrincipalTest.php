@@ -52,6 +52,18 @@ class PantallaPrincipalTest extends TestCase
             ->assertSee('href="'.route('ventas.index').'"', false);
     }
 
+    public function test_la_cabecera_muestra_el_enlace_ventas_activo_para_cajeros(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $cajero = $this->cajeroDe($negocio);
+
+        $this->actingAs($cajero)
+            ->get(route('ventas.index'))
+            ->assertOk()
+            ->assertSee('aria-current="page"', false)
+            ->assertSee('href="'.route('ventas.index').'"', false);
+    }
+
     public function test_las_categorias_inactivas_no_aparecen_en_la_pantalla_principal(): void
     {
         $negocio = Negocio::factory()->create();

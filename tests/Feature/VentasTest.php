@@ -520,4 +520,49 @@ class VentasTest extends TestCase
             ->call('disminuirCarrito', $producto->id)
             ->assertSee('Bs 5.00');
     }
+
+    public function test_al_elegir_qr_se_muestra_la_imagen_configurada(): void
+    {
+        $negocio = Negocio::factory()->create(['qr_pago' => 'qrs/pago.png']);
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'precio' => 12,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('seleccionar', $categoria->id)
+            ->call('incrementar', $producto->id)
+            ->call('aceptar')
+            ->call('seleccionarMetodoPago', 'qr')
+            ->assertSee('storage/qrs/pago.png', false)
+            ->assertSee('Ampliar QR de pago', false)
+            ->assertSee('Toca la imagen para ampliarla')
+            ->assertSee('Escanea el QR para pagar');
+    }
+
+    public function test_al_elegir_qr_sin_configuracion_muestra_aviso_y_permite_cobrar(): void
+    {
+        $negocio = Negocio::factory()->create(['qr_pago' => null]);
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'precio' => 12,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('seleccionar', $categoria->id)
+            ->call('incrementar', $producto->id)
+            ->call('aceptar')
+            ->call('seleccionarMetodoPago', 'qr')
+            ->assertSee('Este negocio no tiene un QR configurado')
+            ->call('cobrar')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseCount('ventas', 1);
+    }
 }

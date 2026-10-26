@@ -43,6 +43,18 @@ class User extends Authenticatable
         return $this->hasMany(Venta::class);
     }
 
+    public function aceptacionesTerminos(): HasMany
+    {
+        return $this->hasMany(AceptacionTerminos::class);
+    }
+
+    public function haAceptadoTerminosActuales(): bool
+    {
+        return $this->aceptacionesTerminos()
+            ->where('version', config('jibas.terminos.version'))
+            ->exists();
+    }
+
     public function esSuperadmin(): bool
     {
         return $this->rol === Rol::Superadmin;
@@ -61,5 +73,10 @@ class User extends Authenticatable
     public function puedeGestionarConfiguracion(): bool
     {
         return $this->rol?->puedeGestionarConfiguracion() ?? false;
+    }
+
+    public function puedeVerReportes(): bool
+    {
+        return $this->rol?->puedeVerReportes() ?? false;
     }
 }

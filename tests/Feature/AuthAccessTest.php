@@ -15,6 +15,7 @@ class AuthAccessTest extends TestCase
     public function test_las_rutas_protegiden_redirigen_al_login(): void
     {
         $this->get(route('ventas.index'))->assertRedirect(route('login'));
+        $this->get(route('reportes.index'))->assertRedirect(route('login'));
         $this->get(route('configuracion.index'))->assertRedirect(route('login'));
     }
 

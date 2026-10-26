@@ -24,5 +24,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('gestionar-configuracion', function (User $user): bool {
             return $user->puedeGestionarConfiguracion();
         });
+
+        Gate::define('ver-reportes', function (User $user): bool {
+            return $user->puedeVerReportes();
+        });
     }
 }

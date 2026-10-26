@@ -21,4 +21,11 @@ enum Rol: string
     {
         return $this === self::Superadmin || $this === self::Admin;
     }
+
+    public function puedeVerReportes(): bool
+    {
+        return match ($this) {
+            self::Superadmin, self::Admin, self::Cajero => true,
+        };
+    }
 }

@@ -78,25 +78,33 @@ class ReporteController extends Controller
      *     cantidadVentas: int,
      *     itemsVendidos: int,
      *     ticketPromedio: float,
+     *     puedeFiltrarPorCajero: bool,
      *     desde: CarbonImmutable,
      *     hasta: CarbonImmutable
      * }
      */
     private function reporte(Request $request): array
     {
-        $negocio = Auth::user()?->negocio;
+        $user = Auth::user();
+        $negocio = $user?->negocio;
+        $esCajero = $user?->esCajero() ?? false;
 
-        $datos = $request->validate([
+        $reglas = [
             'desde' => ['nullable', 'date_format:Y-m-d', 'required_with:hasta'],
             'hasta' => ['nullable', 'date_format:Y-m-d', 'required_with:desde', 'after_or_equal:desde'],
-            'cajero_id' => [
+        ];
+
+        if (! $esCajero) {
+            $reglas['cajero_id'] = [
                 'nullable',
                 'integer',
                 Rule::exists('users', 'id')
                     ->where('negocio_id', $negocio?->id)
                     ->where('rol', Rol::Cajero->value),
-            ],
-        ]);
+            ];
+        }
+
+        $datos = $request->validate($reglas);
 
         $hoy = CarbonImmutable::now();
         $desde = isset($datos['desde'])
@@ -106,18 +114,22 @@ class ReporteController extends Controller
             ? CarbonImmutable::createFromFormat('Y-m-d', $datos['hasta'])->endOfDay()
             : $hoy->endOfMonth();
 
-        $cajeroId = isset($datos['cajero_id']) ? (int) $datos['cajero_id'] : null;
+        $cajeroId = $esCajero
+            ? $user->id
+            : (isset($datos['cajero_id']) ? (int) $datos['cajero_id'] : null);
 
         $cajeros = $negocio === null
             ? collect()
-            : $negocio->usuarios()
-                ->where('rol', Rol::Cajero)
-                ->orderBy('name')
-                ->get();
+            : ($esCajero
+                ? collect([$user])
+                : $negocio->usuarios()
+                    ->where('rol', Rol::Cajero)
+                    ->orderBy('name')
+                    ->get());
 
-        $cajeroSeleccionado = $cajeroId !== null
-            ? $cajeros->firstWhere('id', $cajeroId)
-            : null;
+        $cajeroSeleccionado = $esCajero
+            ? $user
+            : ($cajeroId !== null ? $cajeros->firstWhere('id', $cajeroId) : null);
 
         $ventas = $negocio === null
             ? collect()
@@ -159,6 +171,7 @@ class ReporteController extends Controller
             'cantidadVentas' => $ventas->count(),
             'itemsVendidos' => (int) $ventas->sum(fn (Venta $venta) => $venta->detalles->sum('cantidad')),
             'ticketPromedio' => $ventas->isEmpty() ? 0.0 : $totalVendido / $ventas->count(),
+            'puedeFiltrarPorCajero' => ! $esCajero,
             'desde' => $desde,
             'hasta' => $hasta,
         ];

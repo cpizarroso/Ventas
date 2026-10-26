@@ -201,4 +201,100 @@ class IdentidadNegocioTest extends TestCase
             ->test(IdentidadNegocio::class)
             ->assertSee('Elegir logo');
     }
+
+    public function test_un_admin_puede_subir_un_qr_de_pago_valido(): void
+    {
+        Storage::fake('public');
+        $negocio = Negocio::factory()->create(['qr_pago' => null]);
+        $admin = $this->adminDe($negocio);
+
+        Livewire::actingAs($admin)
+            ->test(IdentidadNegocio::class)
+            ->set('qr_nuevo', UploadedFile::fake()->image('qr.png', 300, 300))
+            ->call('guardar')
+            ->assertHasNoErrors();
+
+        $negocio->refresh();
+
+        $this->assertNotNull($negocio->qr_pago);
+        $this->assertStringStartsWith('qrs/', $negocio->qr_pago);
+        Storage::disk('public')->assertExists($negocio->qr_pago);
+    }
+
+    public function test_al_reemplazar_el_qr_se_elimina_el_anterior(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('qrs/anterior.png', 'qr anterior');
+        $negocio = Negocio::factory()->create(['qr_pago' => 'qrs/anterior.png']);
+        $admin = $this->adminDe($negocio);
+
+        Livewire::actingAs($admin)
+            ->test(IdentidadNegocio::class)
+            ->set('qr_nuevo', UploadedFile::fake()->image('nuevo.png', 300, 300))
+            ->call('guardar')
+            ->assertHasNoErrors();
+
+        $negocio->refresh();
+
+        $this->assertNotSame('qrs/anterior.png', $negocio->qr_pago);
+        Storage::disk('public')->assertMissing('qrs/anterior.png');
+        Storage::disk('public')->assertExists($negocio->qr_pago);
+    }
+
+    public function test_se_rechaza_un_qr_con_formato_no_permitido(): void
+    {
+        Storage::fake('public');
+        $negocio = Negocio::factory()->create(['qr_pago' => null]);
+        $admin = $this->adminDe($negocio);
+
+        Livewire::actingAs($admin)
+            ->test(IdentidadNegocio::class)
+            ->set('qr_nuevo', UploadedFile::fake()->create('documento.pdf', 100, 'application/pdf'))
+            ->call('guardar')
+            ->assertHasErrors(['qr_nuevo']);
+
+        $this->assertNull($negocio->fresh()->qr_pago);
+    }
+
+    public function test_se_rechaza_un_qr_demasiado_grande(): void
+    {
+        Storage::fake('public');
+        $negocio = Negocio::factory()->create(['qr_pago' => null]);
+        $admin = $this->adminDe($negocio);
+
+        Livewire::actingAs($admin)
+            ->test(IdentidadNegocio::class)
+            ->set('qr_nuevo', UploadedFile::fake()->image('qr.png', 300, 300)->size(3000))
+            ->call('guardar')
+            ->assertHasErrors(['qr_nuevo']);
+
+        $this->assertNull($negocio->fresh()->qr_pago);
+    }
+
+    public function test_un_admin_puede_eliminar_el_qr_de_pago(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('qrs/actual.png', 'qr actual');
+        $negocio = Negocio::factory()->create(['qr_pago' => 'qrs/actual.png']);
+        $admin = $this->adminDe($negocio);
+
+        Livewire::actingAs($admin)
+            ->test(IdentidadNegocio::class)
+            ->call('eliminarQr')
+            ->assertHasNoErrors();
+
+        $this->assertNull($negocio->fresh()->qr_pago);
+        Storage::disk('public')->assertMissing('qrs/actual.png');
+    }
+
+    public function test_un_admin_puede_ver_el_qr_actual(): void
+    {
+        $negocio = Negocio::factory()->create(['qr_pago' => 'qrs/existente.png']);
+        $admin = $this->adminDe($negocio);
+
+        Livewire::actingAs($admin)
+            ->test(IdentidadNegocio::class)
+            ->assertSee('qrs/existente.png', false)
+            ->assertSee('Quitar QR');
+    }
 }

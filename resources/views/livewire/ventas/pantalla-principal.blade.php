@@ -236,9 +236,70 @@
                                     @endif
                                 </div>
                             @elseif ($metodoPago === 'qr')
-                                <p class="mt-3 rounded-lg bg-stone-100 px-3 py-2 text-xs text-stone-600 dark:bg-stone-900/60 dark:text-stone-300">
-                                    El cliente paga el total de Bs {{ $totalCarrito }} por QR.
-                                </p>
+                                @if ($negocio->qr_pago)
+                                    <div class="mt-3 rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-600 dark:bg-stone-900/40"
+                                         x-data="{ qrAmpliado: false }">
+                                        <p class="text-center text-xs text-stone-600 dark:text-stone-300">
+                                            Escanea el QR para pagar <strong class="font-semibold">Bs {{ $totalCarrito }}</strong>.
+                                        </p>
+
+                                        <button
+                                            type="button"
+                                            @click="qrAmpliado = true"
+                                            class="mx-auto mt-3 block rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                            aria-label="Ampliar QR de pago"
+                                        >
+                                            <img
+                                                src="{{ asset('storage/' . $negocio->qr_pago) }}"
+                                                alt="QR de pago de {{ $negocio->nombre_comercial }}"
+                                                class="mx-auto h-56 w-56 rounded-lg bg-white object-contain p-2 ring-1 ring-stone-200 dark:ring-stone-600"
+                                            >
+                                        </button>
+
+                                        <p class="mt-2 text-center text-[11px] text-stone-400 dark:text-stone-500">
+                                            Toca la imagen para ampliarla.
+                                        </p>
+
+                                        <div
+                                            x-cloak
+                                            x-show="qrAmpliado"
+                                            x-transition.opacity
+                                            class="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/80 p-4"
+                                            role="dialog"
+                                            aria-modal="true"
+                                            aria-label="QR de pago ampliado"
+                                            @click.self="qrAmpliado = false"
+                                            @keydown.escape.window="qrAmpliado = false"
+                                        >
+                                            <div class="relative w-full max-w-lg rounded-2xl bg-white p-4 shadow-xl dark:bg-stone-800">
+                                                <button
+                                                    type="button"
+                                                    @click="qrAmpliado = false"
+                                                    class="absolute right-2 top-2 flex size-9 items-center justify-center rounded-full bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-stone-700 dark:text-stone-300 dark:hover:bg-stone-600"
+                                                    aria-label="Cerrar QR ampliado"
+                                                >
+                                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                        <path d="M6 6l12 12M18 6 6 18" />
+                                                    </svg>
+                                                </button>
+
+                                                <img
+                                                    src="{{ asset('storage/' . $negocio->qr_pago) }}"
+                                                    alt="QR de pago ampliado de {{ $negocio->nombre_comercial }}"
+                                                    class="mx-auto max-h-[70vh] w-full rounded-lg bg-white object-contain p-2"
+                                                >
+
+                                                <p class="mt-2 text-center text-sm font-semibold text-stone-800 dark:text-stone-100">
+                                                    Paga Bs {{ $totalCarrito }} escaneando este QR
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @else
+                                    <p class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-300" role="status">
+                                        Este negocio no tiene un QR configurado. Puedes registrar el cobro igualmente o pedir al administrador que lo agregue en Configuración.
+                                    </p>
+                                @endif
                             @else
                                 <p class="mt-3 text-xs text-stone-400 dark:text-stone-500">
                                     Selecciona cómo pagará el cliente para continuar.

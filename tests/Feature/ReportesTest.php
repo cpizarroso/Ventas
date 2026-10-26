@@ -322,18 +322,89 @@ class ReportesTest extends TestCase
         $this->assertStringNotContainsString(';21/10/2026;', $contenido);
     }
 
-    public function test_un_cajero_no_puede_acceder_a_los_reportes_ni_exportarlos(): void
+    public function test_un_cajero_solo_ve_sus_propias_ventas_en_el_reporte(): void
     {
+        $this->travelTo(CarbonImmutable::parse('2026-10-22 12:00:00'));
+
+        $negocio = Negocio::factory()->create();
+        $cajero = User::factory()->cajero()->create([
+            'negocio_id' => $negocio->id,
+            'name' => 'Ana Cajera',
+        ]);
+        $otroCajero = User::factory()->cajero()->create([
+            'negocio_id' => $negocio->id,
+            'name' => 'Luis Cajero',
+        ]);
+
+        $this->ventaDe($negocio, $cajero, '2026-10-22 09:00:00', [['ProductoPropio', 10, 1]]);
+        $this->ventaDe($negocio, $otroCajero, '2026-10-22 10:00:00', [['ProductoAjeno', 20, 1]]);
+
+        $respuesta = $this->actingAs($cajero)
+            ->get(route('reportes.index', ['desde' => '2026-10-22', 'hasta' => '2026-10-22']))
+            ->assertOk()
+            ->assertSee('ProductoPropio')
+            ->assertDontSee('ProductoAjeno')
+            ->assertSee('Ventas de:')
+            ->assertSee('Ana Cajera')
+            ->assertDontSee('name="cajero_id"', false);
+
+        $this->assertFalse($respuesta->viewData('puedeFiltrarPorCajero'));
+        $this->assertSame($cajero->id, $respuesta->viewData('cajeroId'));
+    }
+
+    public function test_un_cajero_no_puede_consultar_las_ventas_de_otro_cajero(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-22 12:00:00'));
+
         $negocio = Negocio::factory()->create();
         $cajero = User::factory()->cajero()->create(['negocio_id' => $negocio->id]);
+        $otroCajero = User::factory()->cajero()->create(['negocio_id' => $negocio->id]);
+
+        $this->ventaDe($negocio, $cajero, '2026-10-22 09:00:00', [['ProductoPropio', 10, 1]]);
+        $this->ventaDe($negocio, $otroCajero, '2026-10-22 10:00:00', [['ProductoAjeno', 20, 1]]);
 
         $this->actingAs($cajero)
-            ->get(route('reportes.index'))
-            ->assertForbidden();
+            ->get(route('reportes.index', [
+                'desde' => '2026-10-22',
+                'hasta' => '2026-10-22',
+                'cajero_id' => $otroCajero->id,
+            ]))
+            ->assertOk()
+            ->assertSee('ProductoPropio')
+            ->assertDontSee('ProductoAjeno');
+    }
 
-        $this->actingAs($cajero)
-            ->get(route('reportes.export'))
-            ->assertForbidden();
+    public function test_un_cajero_exporta_solo_sus_propias_ventas_en_csv(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-22 12:00:00'));
+
+        $negocio = Negocio::factory()->create();
+        $cajero = User::factory()->cajero()->create([
+            'negocio_id' => $negocio->id,
+            'name' => 'Ana Cajera',
+        ]);
+        $otroCajero = User::factory()->cajero()->create([
+            'negocio_id' => $negocio->id,
+            'name' => 'Luis Cajero',
+        ]);
+
+        $ventaPropia = $this->ventaDe($negocio, $cajero, '2026-10-22 09:00:00', [['Café', 10, 1]]);
+        $ventaAjena = $this->ventaDe($negocio, $otroCajero, '2026-10-22 10:00:00', [['Té', 20, 1]]);
+
+        $respuesta = $this->actingAs($cajero)
+            ->get(route('reportes.export', [
+                'desde' => '2026-10-22',
+                'hasta' => '2026-10-22',
+                'cajero_id' => $otroCajero->id,
+            ]))
+            ->assertOk();
+
+        $contenido = $respuesta->streamedContent();
+
+        $this->assertStringContainsString($ventaPropia->id.';22/10/2026;09:00;', $contenido);
+        $this->assertStringContainsString('Ana Cajera', $contenido);
+        $this->assertStringNotContainsString($ventaAjena->id.';22/10/2026;10:00;', $contenido);
+        $this->assertStringNotContainsString('Luis Cajero', $contenido);
     }
 
     public function test_un_superadmin_sin_negocio_ve_el_mensaje_informativo(): void
@@ -346,21 +417,24 @@ class ReportesTest extends TestCase
             ->assertSee('Sin negocio asignado');
     }
 
-    public function test_el_enlace_de_reportes_es_visible_solo_para_quienes_gestionan_configuracion(): void
+    public function test_el_enlace_de_reportes_es_visible_para_admins_y_cajeros(): void
     {
         $negocio = Negocio::factory()->create();
         $admin = $this->adminDe($negocio);
         $cajero = User::factory()->cajero()->create(['negocio_id' => $negocio->id]);
-        $url = route('reportes.index');
+        $urlReportes = route('reportes.index');
+        $urlConfiguracion = route('configuracion.index');
 
         $this->actingAs($admin)
             ->get(route('ventas.index'))
             ->assertOk()
-            ->assertSee('href="'.$url.'"', false);
+            ->assertSee('href="'.$urlReportes.'"', false)
+            ->assertSee('href="'.$urlConfiguracion.'"', false);
 
         $this->actingAs($cajero)
             ->get(route('ventas.index'))
             ->assertOk()
-            ->assertDontSee('href="'.$url.'"', false);
+            ->assertSee('href="'.$urlReportes.'"', false)
+            ->assertDontSee('href="'.$urlConfiguracion.'"', false);
     }
 }

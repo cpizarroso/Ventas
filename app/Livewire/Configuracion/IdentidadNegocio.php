@@ -25,6 +25,13 @@ class IdentidadNegocio extends Component
 
     public bool $confirmarEliminacionLogo = false;
 
+    /** @var TemporaryUploadedFile|null */
+    public $qr_nuevo = null;
+
+    public ?string $qr_actual = null;
+
+    public bool $confirmarEliminacionQr = false;
+
     public function mount(): void
     {
         $negocio = $this->negocioDelUsuario();
@@ -32,6 +39,7 @@ class IdentidadNegocio extends Component
         $this->nombre_comercial = $negocio->nombre_comercial;
         $this->eslogan = $negocio->eslogan;
         $this->logo_actual = $negocio->logo;
+        $this->qr_actual = $negocio->qr_pago;
     }
 
     /**
@@ -47,10 +55,12 @@ class IdentidadNegocio extends Component
             'nombre_comercial' => ['required', 'string', 'min:2', 'max:120'],
             'eslogan' => ['nullable', 'string', 'max:160'],
             'logo_nuevo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'qr_nuevo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ], [], [
             'nombre_comercial' => 'nombre comercial',
             'eslogan' => 'eslogan',
             'logo_nuevo' => 'logo',
+            'qr_nuevo' => 'QR de pago',
         ]);
 
         if ($this->logo_nuevo !== null) {
@@ -59,6 +69,14 @@ class IdentidadNegocio extends Component
             }
 
             $negocio->logo = $this->logo_nuevo->store('logos', 'public');
+        }
+
+        if ($this->qr_nuevo !== null) {
+            if ($negocio->qr_pago !== null) {
+                Storage::disk('public')->delete($negocio->qr_pago);
+            }
+
+            $negocio->qr_pago = $this->qr_nuevo->store('qrs', 'public');
         }
 
         $negocio->nombre_comercial = trim($this->nombre_comercial);
@@ -70,6 +88,9 @@ class IdentidadNegocio extends Component
         $this->logo_actual = $negocio->logo;
         $this->logo_nuevo = null;
         $this->confirmarEliminacionLogo = false;
+        $this->qr_actual = $negocio->qr_pago;
+        $this->qr_nuevo = null;
+        $this->confirmarEliminacionQr = false;
 
         session()->flash('status', 'La identidad del negocio se guardó correctamente.');
     }
@@ -94,6 +115,28 @@ class IdentidadNegocio extends Component
         $this->confirmarEliminacionLogo = false;
 
         session()->flash('status', 'El logo se eliminó correctamente.');
+    }
+
+    /**
+     * Remove the current payment QR image.
+     */
+    public function eliminarQr(): void
+    {
+        $negocio = $this->negocioDelUsuario();
+
+        $this->authorize('update', $negocio);
+
+        if ($negocio->qr_pago !== null) {
+            Storage::disk('public')->delete($negocio->qr_pago);
+            $negocio->qr_pago = null;
+            $negocio->save();
+        }
+
+        $this->qr_actual = null;
+        $this->qr_nuevo = null;
+        $this->confirmarEliminacionQr = false;
+
+        session()->flash('status', 'El QR de pago se eliminó correctamente.');
     }
 
     public function render(): View

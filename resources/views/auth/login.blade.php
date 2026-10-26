@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Iniciar sesión · {{ config('app.name') }}</title>
+    <title>Iniciar sesión · {{ $nombreComercial }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script>
         (function () {
@@ -20,15 +20,21 @@
     <div class="flex flex-1 items-center justify-center px-4 py-12">
         <div class="w-full max-w-sm">
             <div class="mb-8 text-center">
-                <div class="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" aria-hidden="true">
-                    <svg class="size-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 9l1.5-5h15L21 9" />
-                        <path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0" />
-                        <path d="M5 11v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8" />
-                        <path d="M9 20v-5h6v5" />
-                    </svg>
-                </div>
-                <h1 class="text-xl font-semibold text-stone-900 dark:text-stone-100">{{ config('app.name') }}</h1>
+                @if ($negocio?->logo)
+                    <img src="{{ asset('storage/' . $negocio->logo) }}"
+                         alt="Logo de {{ $nombreComercial }}"
+                         class="mx-auto mb-3 block size-14 rounded-2xl object-cover ring-1 ring-stone-200 dark:ring-stone-600">
+                @else
+                    <div class="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" aria-hidden="true">
+                        <svg class="size-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 9l1.5-5h15L21 9" />
+                            <path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0" />
+                            <path d="M5 11v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8" />
+                            <path d="M9 20v-5h6v5" />
+                        </svg>
+                    </div>
+                @endif
+                <h1 class="text-xl font-semibold text-stone-900 dark:text-stone-100">{{ $nombreComercial }}</h1>
                 <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">Inicia sesión para continuar</p>
             </div>
 
@@ -80,6 +86,11 @@
 
     <footer class="px-4 pb-6 text-center text-xs text-stone-500 dark:text-stone-400">
         <p>&copy; {{ date('Y') }} SofCruz. Todos los derechos reservados.</p>
+        <p class="mt-1">
+            <a href="{{ route('terminos.index') }}" class="underline decoration-stone-300 underline-offset-4 hover:text-stone-800 dark:decoration-stone-600 dark:hover:text-stone-200">
+                Términos y privacidad
+            </a>
+        </p>
     </footer>
 </body>
 </html>
