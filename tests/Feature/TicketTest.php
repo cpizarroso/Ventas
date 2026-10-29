@@ -24,6 +24,7 @@ class TicketTest extends TestCase
         MetodoPago $metodo = MetodoPago::Efectivo,
         ?string $montoRecibido = null,
         ?string $cambio = null,
+        ?string $glosa = null,
     ): Venta {
         $venta = Venta::factory()->create([
             'negocio_id' => $negocio->id,
@@ -32,6 +33,7 @@ class TicketTest extends TestCase
             'metodo_pago' => $metodo,
             'monto_recibido' => $montoRecibido,
             'cambio' => $cambio,
+            'glosa' => $glosa,
             'created_at' => '2026-10-22 10:30:00',
             'updated_at' => '2026-10-22 10:30:00',
         ]);
@@ -69,10 +71,24 @@ class TicketTest extends TestCase
             ->assertSee('Bs 50.00')
             ->assertSee('Bs 30.00')
             ->assertSee('Efectivo')
+            ->assertDontSee('Glosa:')
             ->assertSee('Sistema desarrollado por SofCruz')
             ->assertSee('Contacto: 69175481')
             ->assertSee('size: 80mm auto', false)
             ->assertSee('@page', false);
+    }
+
+    public function test_el_ticket_muestra_la_glosa_del_pedido(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $venta = $this->ventaDe($negocio, $admin, glosa: 'Sin cebolla, bien caliente');
+
+        $this->actingAs($admin)
+            ->get(route('ventas.ticket', $venta))
+            ->assertOk()
+            ->assertSee('Glosa:')
+            ->assertSee('Sin cebolla, bien caliente');
     }
 
     public function test_un_cajero_del_mismo_negocio_puede_ver_el_ticket(): void

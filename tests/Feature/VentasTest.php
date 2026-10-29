@@ -197,6 +197,7 @@ class VentasTest extends TestCase
         $this->assertSame(MetodoPago::Qr, $venta->metodo_pago);
         $this->assertSame('35.00', $venta->monto_recibido);
         $this->assertSame('0.00', $venta->cambio);
+        $this->assertNull($venta->glosa);
         $this->assertCount(2, $venta->detalles);
 
         $this->assertDatabaseHas('venta_detalles', [
@@ -216,6 +217,167 @@ class VentasTest extends TestCase
             'cantidad' => 1,
             'subtotal' => 5,
         ]);
+    }
+
+    public function test_la_glosa_se_conserva_entre_categorias_se_edita_en_el_detalle_y_se_guarda_con_la_venta(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $bebidas = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $postres = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $limonada = Producto::factory()->create([
+            'categoria_id' => $bebidas->id,
+            'precio' => 15,
+        ]);
+        $flan = Producto::factory()->create([
+            'categoria_id' => $postres->id,
+            'precio' => 5,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('seleccionar', $bebidas->id)
+            ->assertSee('Glosa')
+            ->assertSee('opcional')
+            ->set('glosa', '  Sin cebolla  ')
+            ->call('incrementar', $limonada->id)
+            ->call('aceptar')
+            ->assertSet('glosa', '  Sin cebolla  ')
+            ->assertSee('Glosa')
+            ->call('volverACategorias')
+            ->call('seleccionar', $postres->id)
+            ->call('incrementar', $flan->id)
+            ->call('aceptar')
+            ->assertSet('glosa', '  Sin cebolla  ')
+            ->set('glosa', 'Sin cebolla, bien caliente')
+            ->call('seleccionarMetodoPago', 'qr')
+            ->call('cobrar')
+            ->assertHasNoErrors()
+            ->assertSet('glosa', '');
+
+        $venta = Venta::query()->firstOrFail();
+
+        $this->assertSame('Sin cebolla, bien caliente', $venta->glosa);
+    }
+
+    public function test_una_glosa_de_mas_de_255_caracteres_bloquea_el_cobro(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'precio' => 10,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('seleccionar', $categoria->id)
+            ->call('incrementar', $producto->id)
+            ->call('aceptar')
+            ->set('glosa', str_repeat('a', 256))
+            ->call('seleccionarMetodoPago', 'qr')
+            ->call('cobrar')
+            ->assertHasErrors('glosa')
+            ->assertSet('carrito', [$producto->id => 1]);
+
+        $this->assertDatabaseCount('ventas', 0);
+    }
+
+    public function test_cobrar_descuenta_el_stock_de_los_items_limitados_y_no_de_los_ilimitados(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $limitado = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Jarra limonada',
+            'precio' => 15,
+            'stock' => 5,
+        ]);
+        $ilimitado = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Flan',
+            'precio' => 5,
+            'stock' => null,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('seleccionar', $categoria->id)
+            ->call('incrementar', $limitado->id)
+            ->call('incrementar', $limitado->id)
+            ->call('incrementar', $ilimitado->id)
+            ->call('aceptar')
+            ->call('seleccionarMetodoPago', 'qr')
+            ->call('cobrar')
+            ->assertHasNoErrors();
+
+        $this->assertSame(3, $limitado->fresh()->stock);
+        $this->assertNull($ilimitado->fresh()->stock);
+        $this->assertDatabaseCount('ventas', 1);
+    }
+
+    public function test_cobrar_mas_unidades_que_el_stock_deja_stock_negativo_y_lo_avisa(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Jarra limonada',
+            'precio' => 15,
+            'stock' => 1,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('seleccionar', $categoria->id)
+            ->call('incrementar', $producto->id)
+            ->call('incrementar', $producto->id)
+            ->call('aceptar')
+            ->call('seleccionarMetodoPago', 'qr')
+            ->call('cobrar')
+            ->assertHasNoErrors()
+            ->assertSee('Atención: stock negativo en Jarra limonada (-1).');
+
+        $this->assertSame(-1, $producto->fresh()->stock);
+        $this->assertDatabaseCount('ventas', 1);
+    }
+
+    public function test_la_pantalla_muestra_el_stock_y_avisa_cuando_se_supera(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $agotado = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Agotado',
+            'precio' => 10,
+            'stock' => 0,
+        ]);
+        $bajo = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Bajo stock',
+            'precio' => 10,
+            'stock' => 4,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('seleccionar', $categoria->id)
+            ->assertSee('Stock: 0')
+            ->assertSee('Agotado')
+            ->assertSee('Stock: 4')
+            ->assertSee('Bajo stock')
+            ->call('incrementar', $agotado->id)
+            ->assertSet('cantidades', [$agotado->id => 1])
+            ->assertSee('quedarán -1 unidades')
+            ->call('incrementar', $agotado->id)
+            ->assertSet('cantidades', [$agotado->id => 2])
+            ->assertSee('quedarán -2 unidades')
+            ->call('aceptar')
+            ->assertSee('Algunos ítems superan el stock disponible');
     }
 
     public function test_tras_cobrar_se_ofrece_imprimir_el_ticket_de_forma_opcional(): void
@@ -362,12 +524,14 @@ class VentasTest extends TestCase
             ->call('incrementar', $producto->id)
             ->call('aceptar')
             ->assertSet('carrito', [$producto->id => 1])
+            ->set('glosa', 'Sin cebolla')
             ->call('seleccionarMetodoPago', 'efectivo')
             ->set('montoRecibido', '20.00')
             ->call('vaciarCarrito')
             ->assertSet('carrito', [])
             ->assertSet('metodoPago', null)
             ->assertSet('montoRecibido', null)
+            ->assertSet('glosa', '')
             ->assertSet('mostrarDetalle', true)
             ->assertSee('El detalle está vacío');
 

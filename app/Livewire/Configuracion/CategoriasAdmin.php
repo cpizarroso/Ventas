@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Configuracion;
 
+use App\Livewire\Concerns\FlashesSavedStatus;
 use App\Models\Categoria;
 use App\Models\Producto;
 use Illuminate\Contracts\View\View;
@@ -12,6 +13,8 @@ use Livewire\Component;
 
 class CategoriasAdmin extends Component
 {
+    use FlashesSavedStatus;
+
     public string $nombre = '';
 
     public ?int $editandoId = null;
@@ -26,11 +29,15 @@ class CategoriasAdmin extends Component
 
     public string $productoPrecio = '';
 
+    public string $productoStock = '';
+
     public ?int $productoEditandoId = null;
 
     public string $productoNombreEdicion = '';
 
     public string $productoPrecioEdicion = '';
+
+    public string $productoStockEdicion = '';
 
     public ?int $productoEliminandoId = null;
 
@@ -57,7 +64,7 @@ class CategoriasAdmin extends Component
 
         $this->reset('nombre');
 
-        session()->flash('status', 'La categoría se creó correctamente.');
+        $this->flashSaved();
     }
 
     /**
@@ -108,7 +115,7 @@ class CategoriasAdmin extends Component
 
         $this->reset('editandoId', 'nombreEdicion');
 
-        session()->flash('status', 'La categoría se actualizó correctamente.');
+        $this->flashSaved();
     }
 
     /**
@@ -188,22 +195,27 @@ class CategoriasAdmin extends Component
                 Rule::unique('productos', 'nombre')->where('categoria_id', $categoria->id),
             ],
             'productoPrecio' => ['required', 'numeric', 'min:0', 'max:99999999.99', 'decimal:0,2'],
+            'productoStock' => ['nullable', 'integer', 'min:0', 'max:999999'],
         ], [
             'productoNombre.unique' => 'Ya existe un ítem con ese nombre en esta categoría.',
             'productoPrecio.decimal' => 'El precio admite como máximo dos decimales.',
+            'productoStock.integer' => 'El stock debe ser un número entero.',
+            'productoStock.min' => 'El stock no puede ser negativo.',
         ], [
             'productoNombre' => 'nombre',
             'productoPrecio' => 'precio',
+            'productoStock' => 'stock',
         ]);
 
         $categoria->productos()->create([
             'nombre' => trim($this->productoNombre),
             'precio' => $this->productoPrecio,
+            'stock' => $this->productoStock === '' ? null : (int) $this->productoStock,
         ]);
 
-        $this->reset('productoNombre', 'productoPrecio');
+        $this->reset('productoNombre', 'productoPrecio', 'productoStock');
 
-        session()->flash('status', 'El ítem se creó correctamente.');
+        $this->flashSaved();
     }
 
     /**
@@ -218,12 +230,13 @@ class CategoriasAdmin extends Component
         $this->productoEditandoId = $producto->id;
         $this->productoNombreEdicion = $producto->nombre;
         $this->productoPrecioEdicion = (string) $producto->precio;
+        $this->productoStockEdicion = $producto->stock === null ? '' : (string) $producto->stock;
         $this->productoEliminandoId = null;
     }
 
     public function cancelarEdicionProducto(): void
     {
-        $this->reset('productoEditandoId', 'productoNombreEdicion', 'productoPrecioEdicion');
+        $this->reset('productoEditandoId', 'productoNombreEdicion', 'productoPrecioEdicion', 'productoStockEdicion');
     }
 
     /**
@@ -246,22 +259,26 @@ class CategoriasAdmin extends Component
                     ->ignore($producto->id),
             ],
             'productoPrecioEdicion' => ['required', 'numeric', 'min:0', 'max:99999999.99', 'decimal:0,2'],
+            'productoStockEdicion' => ['nullable', 'integer', 'min:-999999', 'max:999999'],
         ], [
             'productoNombreEdicion.unique' => 'Ya existe un ítem con ese nombre en esta categoría.',
             'productoPrecioEdicion.decimal' => 'El precio admite como máximo dos decimales.',
+            'productoStockEdicion.integer' => 'El stock debe ser un número entero.',
         ], [
             'productoNombreEdicion' => 'nombre',
             'productoPrecioEdicion' => 'precio',
+            'productoStockEdicion' => 'stock',
         ]);
 
         $producto->update([
             'nombre' => trim($this->productoNombreEdicion),
             'precio' => $this->productoPrecioEdicion,
+            'stock' => $this->productoStockEdicion === '' ? null : (int) $this->productoStockEdicion,
         ]);
 
-        $this->reset('productoEditandoId', 'productoNombreEdicion', 'productoPrecioEdicion');
+        $this->reset('productoEditandoId', 'productoNombreEdicion', 'productoPrecioEdicion', 'productoStockEdicion');
 
-        session()->flash('status', 'El ítem se actualizó correctamente.');
+        $this->flashSaved();
     }
 
     /**
@@ -274,7 +291,7 @@ class CategoriasAdmin extends Component
         $this->authorize('delete', $producto);
 
         $this->productoEliminandoId = $producto->id;
-        $this->reset('productoEditandoId', 'productoNombreEdicion', 'productoPrecioEdicion');
+        $this->reset('productoEditandoId', 'productoNombreEdicion', 'productoPrecioEdicion', 'productoStockEdicion');
     }
 
     public function cancelarEliminacionProducto(): void
@@ -296,6 +313,18 @@ class CategoriasAdmin extends Component
         $this->reset('productoEliminandoId');
 
         session()->flash('status', 'El ítem se eliminó correctamente.');
+    }
+
+    /**
+     * Confirm that the current categories and items are saved.
+     */
+    public function guardarCambios(): void
+    {
+        $this->authorize('create', Categoria::class);
+
+        $this->resetValidation();
+
+        $this->flashSaved();
     }
 
     public function render(): View
@@ -363,9 +392,11 @@ class CategoriasAdmin extends Component
             'productosAbiertosId',
             'productoNombre',
             'productoPrecio',
+            'productoStock',
             'productoEditandoId',
             'productoNombreEdicion',
             'productoPrecioEdicion',
+            'productoStockEdicion',
             'productoEliminandoId',
         );
     }

@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['categoria_id', 'nombre', 'precio'])]
+#[Fillable(['categoria_id', 'nombre', 'precio', 'stock'])]
 class Producto extends Model
 {
     /** @use HasFactory<ProductoFactory> */
@@ -19,6 +19,7 @@ class Producto extends Model
     {
         return [
             'precio' => 'decimal:2',
+            'stock' => 'integer',
         ];
     }
 

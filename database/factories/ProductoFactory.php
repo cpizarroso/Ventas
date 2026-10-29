@@ -22,6 +22,7 @@ class ProductoFactory extends Factory
             'categoria_id' => Categoria::factory(),
             'nombre' => fake()->unique()->words(2, true),
             'precio' => fake()->randomFloat(2, 1, 500),
+            'stock' => null,
         ];
     }
 }

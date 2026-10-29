@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\AceptacionTerminos;
 use App\Models\Negocio;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -45,18 +47,60 @@ class LoginController extends Controller
 
         $campo = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
 
-        if (! Auth::attempt([
+        if (! Auth::validate([
             $campo => $login,
             'password' => $credentials['password'],
-        ], $remember)) {
+        ])) {
             throw ValidationException::withMessages([
                 'login' => __('auth.failed'),
             ]);
         }
 
+        $user = Auth::getLastAttempted();
+
+        if (! $user instanceof User) {
+            throw ValidationException::withMessages([
+                'login' => __('auth.failed'),
+            ]);
+        }
+
+        if (! $user->haAceptadoTerminosActuales()) {
+            if (! $request->boolean('aceptar_terminos')) {
+                return redirect()
+                    ->route('login')
+                    ->withInput($request->only('login', 'remember'))
+                    ->with('requiere_aceptar_terminos', true)
+                    ->withErrors([
+                        'aceptar_terminos' => 'Debes aceptar los Términos y Condiciones y la Política de Privacidad vigentes para iniciar sesión.',
+                    ]);
+            }
+
+            $this->registrarAceptacion($request, $user);
+        }
+
+        Auth::login($user, $remember);
+
         $request->session()->regenerate();
 
-        return redirect()->intended(route('ventas.index', absolute: false));
+        return redirect()->route('ventas.index');
+    }
+
+    /**
+     * Record the acceptance of the current terms version for the user.
+     */
+    private function registrarAceptacion(Request $request, User $user): void
+    {
+        AceptacionTerminos::query()->firstOrCreate(
+            [
+                'user_id' => $user->id,
+                'version' => config('jibas.terminos.version'),
+            ],
+            [
+                'aceptado_en' => now(),
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ],
+        );
     }
 
     /**

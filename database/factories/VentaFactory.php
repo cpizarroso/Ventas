@@ -22,6 +22,7 @@ class VentaFactory extends Factory
             'negocio_id' => Negocio::factory(),
             'user_id' => null,
             'total' => fake()->randomFloat(2, 1, 500),
+            'glosa' => null,
         ];
     }
 }

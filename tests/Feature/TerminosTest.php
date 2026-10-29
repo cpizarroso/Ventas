@@ -21,7 +21,27 @@ class TerminosTest extends TestCase
             ->assertSee('SofCruz')
             ->assertSee('agenciasofcruz@gmail.com')
             ->assertSee('Santa Cruz de la Sierra')
-            ->assertSee('Versión 1.0');
+            ->assertSee('Versión 1.0')
+            ->assertDontSee('Ir a aceptar');
+    }
+
+    public function test_el_login_muestra_el_enlace_y_el_modal_sin_el_checkbox_inicial(): void
+    {
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertSee('Ver términos y condiciones')
+            ->assertSee('modal-terminos', false)
+            ->assertDontSee('name="aceptar_terminos"', false);
+    }
+
+    public function test_el_login_permite_mostrar_y_ocultar_la_contrasena(): void
+    {
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertSee('data-toggle-password="password"', false)
+            ->assertSee('Mostrar contraseña')
+            ->assertSee('data-password-icon-show', false)
+            ->assertSee('data-password-icon-hide', false);
     }
 
     public function test_el_login_y_el_footer_muestran_el_enlace_a_los_terminos(): void
@@ -40,111 +60,128 @@ class TerminosTest extends TestCase
             ->assertSee('Términos y privacidad');
     }
 
-    public function test_un_usuario_sin_aceptacion_es_redirigido_a_los_terminos(): void
+    public function test_un_usuario_que_ya_acepto_inicia_sesion_sin_aceptar_de_nuevo(): void
     {
-        $user = User::factory()->create();
-        $user->aceptacionesTerminos()->delete();
+        $user = User::factory()->create([
+            'email' => 'aceptado@test.com',
+            'password' => 'secret-password',
+        ]);
 
-        $this->actingAs($user)
-            ->get(route('ventas.index'))
-            ->assertRedirect(route('terminos.aceptar'));
+        $this->post(route('login.store'), [
+            'login' => 'aceptado@test.com',
+            'password' => 'secret-password',
+        ])->assertRedirect(route('ventas.index'));
 
-        $this->actingAs($user)
-            ->get(route('reportes.index'))
-            ->assertRedirect(route('terminos.aceptar'));
+        $this->assertAuthenticatedAs($user);
+        $this->assertSame(1, $user->aceptacionesTerminos()->count());
     }
 
-    public function test_la_pantalla_de_aceptacion_muestra_el_documento_y_la_casilla(): void
-    {
-        $user = User::factory()->create();
-        $user->aceptacionesTerminos()->delete();
-
-        $this->actingAs($user)
-            ->get(route('terminos.index'))
-            ->assertOk()
-            ->assertSee('Ir a aceptar');
-
-        $this->actingAs($user)
-            ->get(route('terminos.aceptar'))
-            ->assertOk()
-            ->assertSee('Aceptar y continuar')
-            ->assertSee('name="aceptar"', false)
-            ->assertSee('Versión 1.0');
-    }
-
-    public function test_un_usuario_puede_aceptar_los_terminos_y_acceder_a_ventas(): void
+    public function test_un_usuario_sin_aceptacion_debe_aceptar_los_terminos_para_iniciar_sesion(): void
     {
         $this->freezeTime();
 
-        $user = User::factory()->create();
+        $user = User::factory()->create([
+            'email' => 'pendiente@test.com',
+            'password' => 'secret-password',
+        ]);
         $user->aceptacionesTerminos()->delete();
 
-        $this->actingAs($user)
-            ->post(route('terminos.store'), ['aceptar' => '1'])
-            ->assertRedirect(route('ventas.index'));
+        $this->from(route('login'))
+            ->post(route('login.store'), [
+                'login' => 'pendiente@test.com',
+                'password' => 'secret-password',
+            ])
+            ->assertRedirect(route('login'))
+            ->assertSessionHasErrors('aceptar_terminos')
+            ->assertSessionHas('requiere_aceptar_terminos', true);
+
+        $this->assertGuest();
+
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertSee('name="aceptar_terminos"', false);
+
+        $this->post(route('login.store'), [
+            'login' => 'pendiente@test.com',
+            'password' => 'secret-password',
+            'aceptar_terminos' => '1',
+        ])->assertRedirect(route('ventas.index'));
+
+        $this->assertAuthenticatedAs($user);
 
         $aceptacion = $user->aceptacionesTerminos()->sole();
 
-        $this->assertSame('1.0', $aceptacion->version);
+        $this->assertSame(config('jibas.terminos.version'), $aceptacion->version);
         $this->assertSame(now()->toDateTimeString(), $aceptacion->aceptado_en->toDateTimeString());
         $this->assertNotNull($aceptacion->ip_address);
         $this->assertNotNull($aceptacion->user_agent);
+    }
+
+    public function test_el_login_redirige_a_ventas_aunque_exista_un_destino_previo(): void
+    {
+        User::factory()->create([
+            'email' => 'aceptado@test.com',
+            'password' => 'secret-password',
+        ]);
+
+        $this->withSession(['url.intended' => route('reportes.index')]);
+
+        $this->post(route('login.store'), [
+            'login' => 'aceptado@test.com',
+            'password' => 'secret-password',
+        ])->assertRedirect(route('ventas.index'));
+    }
+
+    public function test_un_usuario_con_la_version_vigente_puede_acceder_a_sus_pantallas(): void
+    {
+        $user = User::factory()->create();
 
         $this->actingAs($user)
             ->get(route('ventas.index'))
             ->assertOk();
     }
 
-    public function test_no_se_puede_aceptar_sin_marcar_la_casilla(): void
-    {
-        $user = User::factory()->create();
-        $user->aceptacionesTerminos()->delete();
-
-        $this->actingAs($user)
-            ->from(route('terminos.aceptar'))
-            ->post(route('terminos.store'))
-            ->assertRedirect(route('terminos.aceptar'))
-            ->assertSessionHasErrors('aceptar');
-
-        $this->assertDatabaseCount('aceptaciones_terminos', 0);
-    }
-
-    public function test_un_invitado_no_puede_aceptar_los_terminos(): void
-    {
-        $this->post(route('terminos.store'), ['aceptar' => '1'])
-            ->assertRedirect(route('login'));
-
-        $this->assertDatabaseCount('aceptaciones_terminos', 0);
-    }
-
-    public function test_una_aceptacion_de_una_version_anterior_obliga_a_aceptar_nuevamente(): void
+    public function test_un_usuario_con_una_aceptacion_vencida_es_deslogueado_y_enviado_al_login(): void
     {
         $user = User::factory()->create();
         $user->aceptacionesTerminos()->update(['version' => '0.9']);
 
         $this->actingAs($user)
             ->get(route('ventas.index'))
-            ->assertRedirect(route('terminos.aceptar'));
+            ->assertRedirect(route('login'))
+            ->assertSessionHasErrors('login');
 
-        $this->actingAs($user)
-            ->post(route('terminos.store'), ['aceptar' => '1'])
-            ->assertRedirect(route('ventas.index'));
+        $this->assertGuest();
+    }
+
+    public function test_un_usuario_puede_volver_a_entrar_despues_de_aceptar_la_nueva_version(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'version@test.com',
+            'password' => 'secret-password',
+        ]);
+        $user->aceptacionesTerminos()->update(['version' => '0.9']);
+
+        $this->post(route('login.store'), [
+            'login' => 'version@test.com',
+            'password' => 'secret-password',
+            'aceptar_terminos' => '1',
+        ])->assertRedirect(route('ventas.index'));
+
+        $this->assertAuthenticatedAs($user);
 
         $this->assertDatabaseHas('aceptaciones_terminos', [
             'user_id' => $user->id,
-            'version' => '1.0',
+            'version' => config('jibas.terminos.version'),
         ]);
 
         $this->assertSame(2, $user->aceptacionesTerminos()->count());
     }
 
-    public function test_un_usuario_con_la_version_vigente_aceptada_no_ve_la_pantalla_de_aceptacion(): void
+    public function test_un_invitado_no_puede_acceder_al_registro_de_aceptaciones(): void
     {
-        $user = User::factory()->create();
-
-        $this->actingAs($user)
-            ->get(route('terminos.aceptar'))
-            ->assertRedirect(route('ventas.index'));
+        $this->get(route('configuracion.aceptaciones.index'))
+            ->assertRedirect(route('login'));
     }
 
     public function test_el_logout_sigue_disponible_para_un_usuario_pendiente(): void

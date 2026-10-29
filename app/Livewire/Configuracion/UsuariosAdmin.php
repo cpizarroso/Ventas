@@ -3,6 +3,7 @@
 namespace App\Livewire\Configuracion;
 
 use App\Enums\Rol;
+use App\Livewire\Concerns\FlashesSavedStatus;
 use App\Models\Negocio;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
@@ -13,6 +14,8 @@ use Livewire\Component;
 
 class UsuariosAdmin extends Component
 {
+    use FlashesSavedStatus;
+
     public string $nombre = '';
 
     public string $cedula = '';
@@ -121,14 +124,11 @@ class UsuariosAdmin extends Component
 
         if ($editando !== null) {
             $editando->update($datos);
-
-            session()->flash('status', 'El usuario se actualizó correctamente.');
         } else {
             $negocio->usuarios()->create($datos);
-
-            session()->flash('status', 'El usuario se creó correctamente.');
         }
 
+        $this->flashSaved();
         $this->resetFormulario();
     }
 

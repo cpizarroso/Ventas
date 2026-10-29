@@ -42,13 +42,29 @@ class CategoriasAdminTest extends TestCase
             ->set('nombre', 'Bebidas')
             ->call('crear')
             ->assertHasNoErrors()
-            ->assertSet('nombre', '');
+            ->assertSet('nombre', '')
+            ->assertSee('Guardado exitosamente')
+            ->assertDispatched('toast', message: 'Guardado exitosamente');
 
         $this->assertDatabaseHas('categorias', [
             'negocio_id' => $negocio->id,
             'nombre' => 'Bebidas',
             'activa' => true,
         ]);
+    }
+
+    public function test_el_boton_guardar_cambios_confirma_el_guardado_de_categorias_e_items(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+
+        Livewire::actingAs($admin)
+            ->test(CategoriasAdmin::class)
+            ->assertSee('Guardar cambios')
+            ->assertSee('Las categorías y los ítems se guardan al instante')
+            ->call('guardarCambios')
+            ->assertSee('Guardado exitosamente')
+            ->assertDispatched('toast', message: 'Guardado exitosamente');
     }
 
     public function test_un_admin_puede_modificar_el_nombre_de_una_categoria(): void
@@ -66,7 +82,8 @@ class CategoriasAdminTest extends TestCase
             ->set('nombreEdicion', 'Refrescos')
             ->call('guardarEdicion')
             ->assertHasNoErrors()
-            ->assertSet('editandoId', null);
+            ->assertSet('editandoId', null)
+            ->assertDispatched('toast', message: 'Guardado exitosamente');
 
         $this->assertDatabaseHas('categorias', [
             'id' => $categoria->id,
@@ -88,7 +105,8 @@ class CategoriasAdminTest extends TestCase
             ->call('confirmarEliminacion', $categoria->id)
             ->assertSet('eliminandoId', $categoria->id)
             ->call('eliminar')
-            ->assertSet('eliminandoId', null);
+            ->assertSet('eliminandoId', null)
+            ->assertNotDispatched('toast');
 
         $this->assertModelMissing($categoria);
     }
@@ -127,6 +145,11 @@ class CategoriasAdminTest extends TestCase
             ->test(CategoriasAdmin::class)
             ->set('nombre', 'Bebidas')
             ->call('crear')
+            ->assertForbidden();
+
+        Livewire::actingAs($cajero)
+            ->test(CategoriasAdmin::class)
+            ->call('guardarCambios')
             ->assertForbidden();
 
         Livewire::actingAs($cajero)

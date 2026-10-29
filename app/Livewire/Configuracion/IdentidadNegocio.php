@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Configuracion;
 
+use App\Livewire\Concerns\FlashesSavedStatus;
 use App\Models\Negocio;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
@@ -12,7 +13,7 @@ use Livewire\WithFileUploads;
 
 class IdentidadNegocio extends Component
 {
-    use WithFileUploads;
+    use FlashesSavedStatus, WithFileUploads;
 
     public string $nombre_comercial = '';
 
@@ -92,7 +93,7 @@ class IdentidadNegocio extends Component
         $this->qr_nuevo = null;
         $this->confirmarEliminacionQr = false;
 
-        session()->flash('status', 'La identidad del negocio se guardó correctamente.');
+        $this->flashSaved();
     }
 
     /**

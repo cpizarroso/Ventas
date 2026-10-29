@@ -124,7 +124,7 @@
                                         </button>
                                     </div>
 
-                                    <form wire:submit="crearProducto" class="mt-4 grid gap-3 sm:grid-cols-[1fr_10rem_auto] sm:items-start">
+                                    <form wire:submit="crearProducto" class="mt-4 grid gap-3 sm:grid-cols-[1fr_8rem_10rem_auto] sm:items-start">
                                         <div>
                                             <label for="producto-nombre-{{ $categoria->id }}" class="sr-only">Nombre del ítem</label>
                                             <input id="producto-nombre-{{ $categoria->id }}"
@@ -146,6 +146,19 @@
                                                    placeholder="Precio"
                                                    class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
                                             @error('productoPrecio')
+                                                <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                        <div>
+                                            <label for="producto-stock-{{ $categoria->id }}" class="sr-only">Stock</label>
+                                            <input id="producto-stock-{{ $categoria->id }}"
+                                                   type="number"
+                                                   step="1"
+                                                   min="0"
+                                                   wire:model="productoStock"
+                                                   placeholder="Stock (vacío = ilimitado)"
+                                                   class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
+                                            @error('productoStock')
                                                 <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
                                             @enderror
                                         </div>
@@ -188,6 +201,18 @@
                                                                         <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
                                                                     @enderror
                                                                 </div>
+                                                                <div class="sm:w-36">
+                                                                    <label for="producto-edicion-stock-{{ $producto->id }}" class="sr-only">Nuevo stock</label>
+                                                                    <input id="producto-edicion-stock-{{ $producto->id }}"
+                                                                           type="number"
+                                                                           step="1"
+                                                                           wire:model="productoStockEdicion"
+                                                                           placeholder="Stock (vacío = ilimitado)"
+                                                                           class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
+                                                                    @error('productoStockEdicion')
+                                                                        <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                                                                    @enderror
+                                                                </div>
                                                                 <div class="flex shrink-0 gap-2">
                                                                     <button type="button"
                                                                             wire:click="guardarEdicionProducto"
@@ -221,9 +246,19 @@
                                                             </div>
                                                         @else
                                                             <div class="flex flex-wrap items-center justify-between gap-2">
-                                                                <span class="min-w-0 truncate text-sm text-stone-700 dark:text-stone-200">
-                                                                    {{ $producto->nombre }}
-                                                                </span>
+                                                                <div class="min-w-0">
+                                                                    <span class="block truncate text-sm text-stone-700 dark:text-stone-200">
+                                                                        {{ $producto->nombre }}
+                                                                    </span>
+                                                                    <span @class([
+                                                                        'text-xs font-medium',
+                                                                        'text-red-600 dark:text-red-400' => $producto->stock !== null && $producto->stock <= 0,
+                                                                        'text-amber-600 dark:text-amber-400' => $producto->stock !== null && $producto->stock > 0 && $producto->stock <= 5,
+                                                                        'text-stone-500 dark:text-stone-400' => $producto->stock === null || $producto->stock > 5,
+                                                                    ])>
+                                                                        Stock: {{ $producto->stock === null ? 'ilimitado' : $producto->stock }}
+                                                                    </span>
+                                                                </div>
                                                                 <div class="flex shrink-0 items-center gap-2">
                                                                     <span class="rounded-lg bg-white px-2 py-1 text-xs font-semibold text-stone-700 ring-1 ring-stone-200 dark:bg-stone-800 dark:text-stone-200 dark:ring-stone-600">
                                                                         Bs {{ number_format((float) $producto->precio, 2) }}
@@ -252,6 +287,17 @@
                     @endforeach
                 </ul>
             @endif
+        </div>
+
+        <div class="mt-6 flex flex-col gap-2 border-t border-stone-100 pt-4 dark:border-stone-700/60 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-xs text-stone-400 dark:text-stone-500">
+                Las categorías y los ítems se guardan al instante.
+            </p>
+            <button type="button"
+                    wire:click="guardarCambios"
+                    class="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-stone-900 hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-stone-800">
+                Guardar cambios
+            </button>
         </div>
     </div>
 </div>

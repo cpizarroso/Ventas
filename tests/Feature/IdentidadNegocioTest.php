@@ -33,7 +33,9 @@ class IdentidadNegocioTest extends TestCase
             ->set('nombre_comercial', 'Nombre Nuevo')
             ->set('eslogan', 'El mejor sabor')
             ->call('guardar')
-            ->assertHasNoErrors();
+            ->assertHasNoErrors()
+            ->assertSee('Guardado exitosamente')
+            ->assertDispatched('toast', message: 'Guardado exitosamente');
 
         $this->assertDatabaseHas('negocios', [
             'id' => $negocio->id,
@@ -136,7 +138,8 @@ class IdentidadNegocioTest extends TestCase
         Livewire::actingAs($admin)
             ->test(IdentidadNegocio::class)
             ->call('eliminarLogo')
-            ->assertHasNoErrors();
+            ->assertHasNoErrors()
+            ->assertNotDispatched('toast');
 
         $this->assertNull($negocio->fresh()->logo);
     }

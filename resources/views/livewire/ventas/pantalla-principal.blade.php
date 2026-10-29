@@ -104,6 +104,15 @@
                         @enderror
                     </div>
                 @else
+                    @if ($hayAdvertenciasStock)
+                        <div class="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700/60 dark:bg-amber-900/20">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">Stock insuficiente</p>
+                            <p class="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                                Algunos ítems superan el stock disponible. La venta se puede cobrar igual y el stock quedará negativo.
+                            </p>
+                        </div>
+                    @endif
+
                     <ul class="mt-2 divide-y divide-stone-100 dark:divide-stone-700/60" role="list">
                         @foreach ($lineasCarrito as $linea)
                             <li wire:key="detalle-{{ $linea['producto']->id }}" class="py-3">
@@ -116,6 +125,24 @@
                                             {{ $linea['producto']->categoria?->nombre }}
                                             · Bs {{ number_format($linea['precio_unitario'], 2) }} c/u
                                         </p>
+                                        <p class="mt-0.5 text-xs">
+                                            <span @class([
+                                                'text-emerald-600 dark:text-emerald-400' => $linea['producto']->stock === null || $linea['producto']->stock > $umbralStockBajo,
+                                                'text-red-600 dark:text-red-400' => $linea['producto']->stock !== null && $linea['producto']->stock <= $umbralStockBajo,
+                                            ])>
+                                                Stock: {{ $linea['producto']->stock === null ? 'ilimitado' : $linea['producto']->stock }}
+                                            </span>
+                                            @if ($linea['producto']->stock !== null && $linea['producto']->stock <= 0)
+                                                <span class="ml-1 font-semibold text-red-600 dark:text-red-400">Agotado</span>
+                                            @elseif ($linea['producto']->stock !== null && $linea['producto']->stock <= $umbralStockBajo)
+                                                <span class="ml-1 font-semibold text-red-600 dark:text-red-400">Bajo stock</span>
+                                            @endif
+                                        </p>
+                                        @if ($linea['producto']->stock !== null && $linea['cantidad'] > $linea['producto']->stock)
+                                            <p class="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400" role="status">
+                                                Supera el stock; quedarán {{ $linea['producto']->stock - $linea['cantidad'] }} unidades.
+                                            </p>
+                                        @endif
                                     </div>
 
                                     <div class="flex shrink-0 items-center gap-2">
@@ -164,6 +191,27 @@
                         <div class="flex items-center justify-between">
                             <span class="text-sm font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">Total</span>
                             <span class="text-xl font-bold text-amber-900 tabular-nums dark:text-amber-200">Bs {{ $totalCarrito }}</span>
+                        </div>
+
+                        <div class="mt-3">
+                            <label for="glosaDetalle" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+                                Glosa <span class="font-normal normal-case">(opcional)</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="glosaDetalle"
+                                wire:model="glosa"
+                                maxlength="255"
+                                placeholder="Ej.: sin cebolla, bien caliente..."
+                                class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:placeholder:text-stone-500"
+                            >
+                            <p class="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                                Comentario opcional que aparecerá en el ticket.
+                            </p>
+
+                            @error('glosa')
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         @error('carrito')
@@ -389,6 +437,24 @@
                                     <p class="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
                                         Bs {{ number_format((float) $producto->precio, 2) }} c/u
                                     </p>
+                                    <p class="mt-0.5 text-xs">
+                                        <span @class([
+                                            'text-emerald-600 dark:text-emerald-400' => $producto->stock === null || $producto->stock > $umbralStockBajo,
+                                            'text-red-600 dark:text-red-400' => $producto->stock !== null && $producto->stock <= $umbralStockBajo,
+                                        ])>
+                                            Stock: {{ $producto->stock === null ? 'ilimitado' : $producto->stock }}
+                                        </span>
+                                        @if ($producto->stock !== null && $producto->stock <= 0)
+                                            <span class="ml-1 font-semibold text-red-600 dark:text-red-400">Agotado</span>
+                                        @elseif ($producto->stock !== null && $producto->stock <= $umbralStockBajo)
+                                            <span class="ml-1 font-semibold text-red-600 dark:text-red-400">Bajo stock</span>
+                                        @endif
+                                    </p>
+                                    @if ($producto->stock !== null && $cantidadesPorProducto[$producto->id] > 0 && $cantidadesPorProducto[$producto->id] > $producto->stock)
+                                        <p class="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400" role="status">
+                                            Supera el stock; quedarán {{ $producto->stock - $cantidadesPorProducto[$producto->id] }} unidades.
+                                        </p>
+                                    @endif
                                 </div>
 
                                 <div class="flex shrink-0 items-center gap-2">
@@ -418,6 +484,27 @@
                     </ul>
 
                     <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-700/60 dark:bg-amber-900/20">
+                        <div class="mb-3">
+                            <label for="glosaCategoria" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+                                Glosa <span class="font-normal normal-case">(opcional)</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="glosaCategoria"
+                                wire:model="glosa"
+                                maxlength="255"
+                                placeholder="Ej.: sin cebolla, bien caliente..."
+                                class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:placeholder:text-stone-500"
+                            >
+                            <p class="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                                Comentario para el pedido. Se guardará en la venta y saldrá en el ticket.
+                            </p>
+
+                            @error('glosa')
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                            @enderror
+                        </div>
+
                         <div class="flex flex-wrap items-center justify-between gap-3">
                             <div>
                                 <span class="block text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">Total seleccionado</span>

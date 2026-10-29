@@ -145,11 +145,12 @@ class ReporteController extends Controller
             ? collect()
             : VentaDetalle::query()
                 ->join('ventas', 'ventas.id', '=', 'venta_detalles.venta_id')
+                ->leftJoin('productos', 'productos.id', '=', 'venta_detalles.producto_id')
                 ->where('ventas.negocio_id', $negocio->id)
                 ->whereBetween('ventas.created_at', [$desde, $hasta])
                 ->when($cajeroId !== null, fn ($query) => $query->where('ventas.user_id', $cajeroId))
-                ->selectRaw('venta_detalles.nombre as nombre, SUM(venta_detalles.cantidad) as cantidad, SUM(venta_detalles.subtotal) as total')
-                ->groupBy('venta_detalles.nombre')
+                ->selectRaw('venta_detalles.producto_id as producto_id, MAX(productos.id) as producto_actual_id, MAX(productos.stock) as stock, venta_detalles.nombre as nombre, SUM(venta_detalles.cantidad) as cantidad, SUM(venta_detalles.subtotal) as total')
+                ->groupBy('venta_detalles.producto_id', 'venta_detalles.nombre')
                 ->orderByDesc('total')
                 ->get();
 

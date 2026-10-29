@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AceptacionesTerminosController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\ReporteController;
@@ -17,8 +18,6 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
-    Route::get('/terminos/aceptar', [TerminosController::class, 'aceptar'])->name('terminos.aceptar');
-    Route::post('/terminos/aceptar', [TerminosController::class, 'store'])->name('terminos.store');
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 });
 
@@ -30,6 +29,10 @@ Route::middleware(['auth', 'terminos.aceptados'])->group(function () {
     Route::get('/configuracion', [ConfiguracionController::class, 'index'])
         ->middleware('can:gestionar-configuracion')
         ->name('configuracion.index');
+
+    Route::get('/configuracion/aceptaciones', [AceptacionesTerminosController::class, 'index'])
+        ->middleware('can:gestionar-configuracion')
+        ->name('configuracion.aceptaciones.index');
 
     Route::get('/reportes', [ReporteController::class, 'index'])
         ->middleware('can:ver-reportes')

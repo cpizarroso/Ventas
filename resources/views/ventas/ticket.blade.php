@@ -190,6 +190,11 @@
             margin-top: 1mm;
         }
 
+        .glosa {
+            margin: 0;
+            overflow-wrap: anywhere;
+        }
+
         .thanks {
             margin: 0;
             text-align: center;
@@ -299,6 +304,12 @@
                 @endforeach
             </tbody>
         </table>
+
+        @if (filled($venta->glosa))
+            <div class="sep"></div>
+
+            <p class="glosa"><strong>Glosa:</strong> {{ $venta->glosa }}</p>
+        @endif
 
         <div class="sep"></div>
 

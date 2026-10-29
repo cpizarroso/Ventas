@@ -66,7 +66,9 @@ class UsuariosAdminTest extends TestCase
             ->assertHasNoErrors()
             ->assertSet('password', '')
             ->assertSet('usuario', '')
-            ->assertSet('rol', Rol::Cajero->value);
+            ->assertSet('rol', Rol::Cajero->value)
+            ->assertSee('Guardado exitosamente')
+            ->assertDispatched('toast', message: 'Guardado exitosamente');
 
         $usuario = User::query()->where('username', 'ana.perez')->firstOrFail();
 
@@ -84,6 +86,7 @@ class UsuariosAdminTest extends TestCase
         $this->post(route('login.store'), [
             'login' => 'ANA.PEREZ',
             'password' => 'secret123',
+            'aceptar_terminos' => '1',
         ])->assertRedirect(route('ventas.index'));
 
         $this->assertAuthenticatedAs($usuario);
@@ -225,7 +228,9 @@ class UsuariosAdminTest extends TestCase
             ->set('rol', Rol::Admin->value)
             ->call('guardar')
             ->assertHasNoErrors()
-            ->assertSet('editandoId', null);
+            ->assertSet('editandoId', null)
+            ->assertSee('Guardado exitosamente')
+            ->assertDispatched('toast', message: 'Guardado exitosamente');
 
         $usuario->refresh();
 
@@ -297,7 +302,8 @@ class UsuariosAdminTest extends TestCase
             ->call('confirmarEliminacion', $usuario->id)
             ->assertSet('eliminandoId', $usuario->id)
             ->call('eliminar')
-            ->assertSet('eliminandoId', null);
+            ->assertSet('eliminandoId', null)
+            ->assertNotDispatched('toast');
 
         $this->assertModelMissing($usuario);
         $this->assertModelExists($venta);
@@ -366,6 +372,8 @@ class UsuariosAdminTest extends TestCase
             ->get(route('configuracion.index'))
             ->assertOk()
             ->assertSee('Usuarios del negocio')
-            ->assertSee('Crear usuario');
+            ->assertSee('Guardar cambios')
+            ->assertSee('x-on:toast.window', false)
+            ->assertSee('Cerrar notificación');
     }
 }

@@ -220,6 +220,7 @@
                                 <tr>
                                     <th scope="col" class="px-4 py-3 sm:px-6">Producto</th>
                                     <th scope="col" class="px-4 py-3 text-right">Cantidad</th>
+                                    <th scope="col" class="px-4 py-3 text-right">Stock actual</th>
                                     <th scope="col" class="px-4 py-3 text-right sm:px-6">Total</th>
                                 </tr>
                             </thead>
@@ -231,6 +232,19 @@
                                         </td>
                                         <td class="whitespace-nowrap px-4 py-3 text-right text-stone-600 tabular-nums dark:text-stone-300">
                                             {{ (int) $producto->cantidad }}
+                                        </td>
+                                        <td @class([
+                                            'whitespace-nowrap px-4 py-3 text-right tabular-nums',
+                                            'text-red-600 dark:text-red-400' => $producto->producto_actual_id !== null && $producto->stock !== null && (int) $producto->stock < 0,
+                                            'text-stone-600 dark:text-stone-300' => $producto->producto_actual_id === null || $producto->stock === null || (int) $producto->stock >= 0,
+                                        ])>
+                                            @if ($producto->producto_actual_id === null)
+                                                &mdash;
+                                            @elseif ($producto->stock === null)
+                                                Ilimitado
+                                            @else
+                                                {{ (int) $producto->stock }}
+                                            @endif
                                         </td>
                                         <td class="whitespace-nowrap px-4 py-3 text-right font-semibold text-stone-900 tabular-nums dark:text-stone-100 sm:px-6">
                                             Bs {{ number_format((float) $producto->total, 2) }}

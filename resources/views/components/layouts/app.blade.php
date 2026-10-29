@@ -133,6 +133,8 @@
         </footer>
     </div>
 
+    <x-toast />
+
     <script>
         (function () {
             function applyTheme(isDark) {

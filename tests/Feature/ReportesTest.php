@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Enums\MetodoPago;
+use App\Models\Categoria;
 use App\Models\Negocio;
+use App\Models\Producto;
 use App\Models\User;
 use App\Models\Venta;
 use Carbon\CarbonImmutable;
@@ -192,6 +194,64 @@ class ReportesTest extends TestCase
         $this->assertSame(30.0, (float) $resumen[0]->total);
         $this->assertSame('Flan', $resumen[1]->nombre);
         $this->assertSame(5.0, (float) $resumen[1]->total);
+    }
+
+    public function test_el_resumen_muestra_el_stock_actual_y_el_estado_de_cada_producto(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-22 12:00:00'));
+
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $limitado = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Café',
+            'stock' => 3,
+        ]);
+        $ilimitado = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Té',
+            'stock' => null,
+        ]);
+        $eliminado = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Flan',
+            'stock' => 8,
+        ]);
+
+        $venta = Venta::factory()->create([
+            'negocio_id' => $negocio->id,
+            'user_id' => $admin->id,
+            'total' => 30,
+            'created_at' => '2026-10-22 10:00:00',
+            'updated_at' => '2026-10-22 10:00:00',
+        ]);
+
+        $venta->detalles()->createMany([
+            ['producto_id' => $limitado->id, 'nombre' => 'Café', 'precio_unitario' => 10, 'cantidad' => 1, 'subtotal' => 10],
+            ['producto_id' => $ilimitado->id, 'nombre' => 'Té', 'precio_unitario' => 10, 'cantidad' => 1, 'subtotal' => 10],
+            ['producto_id' => $eliminado->id, 'nombre' => 'Flan', 'precio_unitario' => 10, 'cantidad' => 1, 'subtotal' => 10],
+        ]);
+
+        $eliminado->delete();
+
+        $response = $this->actingAs($admin)
+            ->get(route('reportes.index', ['desde' => '2026-10-22', 'hasta' => '2026-10-22']))
+            ->assertOk()
+            ->assertSee('Stock actual')
+            ->assertSee('Ilimitado');
+
+        $resumen = $response->viewData('resumenProductos');
+        $cafe = $resumen->firstWhere('nombre', 'Café');
+        $te = $resumen->firstWhere('nombre', 'Té');
+        $flan = $resumen->firstWhere('nombre', 'Flan');
+
+        $this->assertSame($limitado->id, (int) $cafe->producto_actual_id);
+        $this->assertSame(3, (int) $cafe->stock);
+        $this->assertSame($ilimitado->id, (int) $te->producto_actual_id);
+        $this->assertNull($te->stock);
+        $this->assertNull($flan->producto_actual_id);
+        $this->assertNull($flan->stock);
     }
 
     public function test_el_reporte_separa_efectivo_y_qr(): void

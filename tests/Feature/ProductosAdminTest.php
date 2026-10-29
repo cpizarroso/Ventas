@@ -53,12 +53,104 @@ class ProductosAdminTest extends TestCase
             ->call('crearProducto')
             ->assertHasNoErrors()
             ->assertSet('productoNombre', '')
-            ->assertSet('productoPrecio', '');
+            ->assertSet('productoPrecio', '')
+            ->assertDispatched('toast', message: 'Guardado exitosamente');
 
         $this->assertDatabaseHas('productos', [
             'categoria_id' => $categoria->id,
             'nombre' => 'Café con leche',
             'precio' => 75.50,
+        ]);
+    }
+
+    public function test_un_admin_puede_crear_un_item_con_stock_limitado(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+
+        $this->abrirCategoria($admin, $categoria)
+            ->set('productoNombre', 'Café con leche')
+            ->set('productoPrecio', '75.50')
+            ->set('productoStock', '12')
+            ->call('crearProducto')
+            ->assertHasNoErrors()
+            ->assertSet('productoStock', '');
+
+        $this->assertDatabaseHas('productos', [
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Café con leche',
+            'stock' => 12,
+        ]);
+    }
+
+    public function test_un_item_sin_stock_queda_ilimitado(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+
+        $this->abrirCategoria($admin, $categoria)
+            ->set('productoNombre', 'Café con leche')
+            ->set('productoPrecio', '75.50')
+            ->set('productoStock', '')
+            ->call('crearProducto')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('productos', [
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Café con leche',
+            'stock' => null,
+        ]);
+    }
+
+    public function test_se_rechaza_un_stock_negativo_o_con_decimales(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+
+        $this->abrirCategoria($admin, $categoria)
+            ->set('productoNombre', 'Café')
+            ->set('productoPrecio', '10')
+            ->set('productoStock', '-1')
+            ->call('crearProducto')
+            ->assertHasErrors(['productoStock' => 'min']);
+
+        $this->abrirCategoria($admin, $categoria)
+            ->set('productoNombre', 'Café')
+            ->set('productoPrecio', '10')
+            ->set('productoStock', '1.5')
+            ->call('crearProducto')
+            ->assertHasErrors(['productoStock' => 'integer']);
+
+        $this->assertSame(0, $categoria->productos()->count());
+    }
+
+    public function test_un_admin_puede_modificar_el_stock_de_un_item(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Café',
+            'precio' => 50,
+            'stock' => 5,
+        ]);
+
+        $this->abrirCategoria($admin, $categoria)
+            ->call('iniciarEdicionProducto', $producto->id)
+            ->assertSet('productoStockEdicion', '5')
+            ->set('productoStockEdicion', '20')
+            ->call('guardarEdicionProducto')
+            ->assertHasNoErrors()
+            ->assertSet('productoStockEdicion', '')
+            ->assertDispatched('toast', message: 'Guardado exitosamente');
+
+        $this->assertDatabaseHas('productos', [
+            'id' => $producto->id,
+            'stock' => 20,
         ]);
     }
 
@@ -79,7 +171,8 @@ class ProductosAdminTest extends TestCase
             ->set('productoPrecioEdicion', '55.25')
             ->call('guardarEdicionProducto')
             ->assertHasNoErrors()
-            ->assertSet('productoEditandoId', null);
+            ->assertSet('productoEditandoId', null)
+            ->assertDispatched('toast', message: 'Guardado exitosamente');
 
         $this->assertDatabaseHas('productos', [
             'id' => $producto->id,
@@ -91,7 +184,8 @@ class ProductosAdminTest extends TestCase
             ->call('confirmarEliminacionProducto', $producto->id)
             ->assertSet('productoEliminandoId', $producto->id)
             ->call('eliminarProducto')
-            ->assertSet('productoEliminandoId', null);
+            ->assertSet('productoEliminandoId', null)
+            ->assertNotDispatched('toast');
 
         $this->assertModelMissing($producto);
     }

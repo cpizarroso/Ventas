@@ -15,6 +15,8 @@ use Livewire\Component;
 
 class PantallaPrincipal extends Component
 {
+    private const STOCK_BAJO = 5;
+
     public ?int $categoriaSeleccionadaId = null;
 
     /**
@@ -38,6 +40,8 @@ class PantallaPrincipal extends Component
     public ?string $metodoPago = null;
 
     public ?string $montoRecibido = null;
+
+    public string $glosa = '';
 
     /**
      * Select a category on the sales screen.
@@ -172,8 +176,9 @@ class PantallaPrincipal extends Component
         $this->carrito = [];
         $this->metodoPago = null;
         $this->montoRecibido = null;
+        $this->glosa = '';
         $this->resetErrorBag('carrito');
-        $this->resetValidation(['metodoPago', 'montoRecibido']);
+        $this->resetValidation(['metodoPago', 'montoRecibido', 'glosa']);
     }
 
     /**
@@ -218,11 +223,15 @@ class PantallaPrincipal extends Component
             ? null
             : str_replace(',', '.', trim($this->montoRecibido));
 
+        $this->glosa = trim($this->glosa);
+
         $datos = $this->validate([
             'metodoPago' => ['required', Rule::enum(MetodoPago::class)],
+            'glosa' => ['nullable', 'string', 'max:255'],
         ]);
 
         $metodoPago = MetodoPago::from($datos['metodoPago']);
+        $glosa = $this->glosa === '' ? null : $this->glosa;
         $montoRecibidoEnCentavos = $totalEnCentavos;
         $cambioEnCentavos = 0;
 
@@ -242,13 +251,16 @@ class PantallaPrincipal extends Component
             $cambioEnCentavos = $montoRecibidoEnCentavos - $totalEnCentavos;
         }
 
-        $venta = DB::transaction(function () use ($negocio, $user, $lineas, $totalEnCentavos, $metodoPago, $montoRecibidoEnCentavos, $cambioEnCentavos) {
+        $advertenciasStock = [];
+
+        $venta = DB::transaction(function () use ($negocio, $user, $lineas, $totalEnCentavos, $metodoPago, $montoRecibidoEnCentavos, $cambioEnCentavos, $glosa, &$advertenciasStock) {
             $venta = $negocio->ventas()->create([
                 'user_id' => $user->id,
                 'total' => $totalEnCentavos / 100,
                 'metodo_pago' => $metodoPago,
                 'monto_recibido' => $montoRecibidoEnCentavos / 100,
                 'cambio' => $cambioEnCentavos / 100,
+                'glosa' => $glosa,
             ]);
 
             $venta->detalles()->createMany(
@@ -261,6 +273,25 @@ class PantallaPrincipal extends Component
                 ])->all()
             );
 
+            foreach ($lineas as $linea) {
+                $producto = Producto::query()
+                    ->whereKey($linea['producto']->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($producto === null || $producto->stock === null) {
+                    continue;
+                }
+
+                $nuevoStock = $producto->stock - $linea['cantidad'];
+
+                $producto->decrement('stock', $linea['cantidad']);
+
+                if ($nuevoStock < 0) {
+                    $advertenciasStock[] = $producto->nombre.' ('.$nuevoStock.')';
+                }
+            }
+
             return $venta;
         });
 
@@ -270,9 +301,10 @@ class PantallaPrincipal extends Component
         $this->categoriaSeleccionadaId = null;
         $this->metodoPago = null;
         $this->montoRecibido = null;
+        $this->glosa = '';
         $this->ventaParaImprimirId = $venta->id;
         $this->resetErrorBag('carrito');
-        $this->resetValidation(['metodoPago', 'montoRecibido']);
+        $this->resetValidation(['metodoPago', 'montoRecibido', 'glosa']);
 
         $mensaje = 'Venta #'.$venta->id.' registrada por Bs '.number_format($totalEnCentavos / 100, 2)
             .' ('.$metodoPago->etiqueta().').';
@@ -280,6 +312,10 @@ class PantallaPrincipal extends Component
         if ($metodoPago === MetodoPago::Efectivo) {
             $mensaje .= ' Recibido: Bs '.number_format($montoRecibidoEnCentavos / 100, 2)
                 .' · Cambio: Bs '.number_format($cambioEnCentavos / 100, 2).'.';
+        }
+
+        if ($advertenciasStock !== []) {
+            $mensaje .= ' Atención: stock negativo en '.implode(', ', $advertenciasStock).'.';
         }
 
         session()->flash('status', $mensaje);
@@ -317,6 +353,10 @@ class PantallaPrincipal extends Component
 
         $lineasCarrito = $this->lineasDesde($this->carrito);
         $totalCarritoEnCentavos = $lineasCarrito->sum('subtotal_centavos');
+        $hayAdvertenciasStock = $lineasCarrito->contains(
+            fn (array $linea) => $linea['producto']->stock !== null
+                && $linea['cantidad'] > $linea['producto']->stock
+        );
 
         $montoRecibidoEnCentavos = $this->montoRecibido !== null && $this->montoRecibido !== ''
             ? $this->centavosDesde($this->montoRecibido)
@@ -348,6 +388,8 @@ class PantallaPrincipal extends Component
             'cambio' => number_format($cambioEnCentavos / 100, 2),
             'efectivoSuficiente' => $efectivoSuficiente,
             'puedeCobrar' => $puedeCobrar,
+            'hayAdvertenciasStock' => $hayAdvertenciasStock,
+            'umbralStockBajo' => self::STOCK_BAJO,
         ]);
     }
 
