@@ -23,6 +23,7 @@ class VentaFactory extends Factory
             'user_id' => null,
             'total' => fake()->randomFloat(2, 1, 500),
             'glosa' => null,
+            'cliente' => null,
         ];
     }
 }

@@ -8,6 +8,7 @@ use App\Models\Negocio;
 use App\Models\User;
 use App\Models\Venta;
 use App\Models\VentaDetalle;
+use App\Models\VentaDetallePromocionItem;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -43,7 +44,7 @@ class ReporteController extends Controller
             $salida = fopen('php://output', 'w');
 
             fwrite($salida, "\xEF\xBB\xBF");
-            fputcsv($salida, ['Venta', 'Fecha', 'Hora', 'Vendedor', 'Ítems', 'Total', 'Método', 'Recibido'], ';');
+            fputcsv($salida, ['Venta', 'Fecha', 'Hora', 'Vendedor', 'Tipo', 'Promociones', 'Ítems', 'Total', 'Método', 'Recibido'], ';');
 
             foreach ($ventas as $venta) {
                 fputcsv($salida, [
@@ -51,6 +52,8 @@ class ReporteController extends Controller
                     $venta->created_at->format('d/m/Y'),
                     $venta->created_at->format('H:i'),
                     $venta->user?->name ?? '—',
+                    $venta->etiquetaTipoReporte(),
+                    $venta->promocionesNombres(),
                     $venta->detalles->sum('cantidad'),
                     number_format((float) $venta->total, 2, '.', ''),
                     $venta->metodo_pago?->etiqueta() ?? MetodoPago::Efectivo->etiqueta(),
@@ -69,6 +72,8 @@ class ReporteController extends Controller
      *     negocio: Negocio|null,
      *     ventas: Collection<int, Venta>,
      *     resumenProductos: Collection<int, object>,
+     *     resumenPromociones: Collection<int, object>,
+     *     itemsPromocion: Collection<int, object>,
      *     cajeros: Collection<int, User>,
      *     cajeroSeleccionado: User|null,
      *     cajeroId: int|null,
@@ -134,7 +139,7 @@ class ReporteController extends Controller
         $ventas = $negocio === null
             ? collect()
             : $negocio->ventas()
-                ->with(['user', 'detalles'])
+                ->with(['user', 'detalles.promocionItems'])
                 ->whereBetween('created_at', [$desde, $hasta])
                 ->when($cajeroId !== null, fn (Builder $query) => $query->where('user_id', $cajeroId))
                 ->orderByDesc('created_at')
@@ -148,10 +153,37 @@ class ReporteController extends Controller
                 ->leftJoin('productos', 'productos.id', '=', 'venta_detalles.producto_id')
                 ->where('ventas.negocio_id', $negocio->id)
                 ->whereBetween('ventas.created_at', [$desde, $hasta])
+                ->where('venta_detalles.es_promocion', false)
                 ->when($cajeroId !== null, fn ($query) => $query->where('ventas.user_id', $cajeroId))
                 ->selectRaw('venta_detalles.producto_id as producto_id, MAX(productos.id) as producto_actual_id, MAX(productos.stock) as stock, venta_detalles.nombre as nombre, SUM(venta_detalles.cantidad) as cantidad, SUM(venta_detalles.subtotal) as total')
                 ->groupBy('venta_detalles.producto_id', 'venta_detalles.nombre')
                 ->orderByDesc('total')
+                ->get();
+
+        $resumenPromociones = $negocio === null
+            ? collect()
+            : VentaDetalle::query()
+                ->join('ventas', 'ventas.id', '=', 'venta_detalles.venta_id')
+                ->where('ventas.negocio_id', $negocio->id)
+                ->whereBetween('ventas.created_at', [$desde, $hasta])
+                ->where('venta_detalles.es_promocion', true)
+                ->when($cajeroId !== null, fn ($query) => $query->where('ventas.user_id', $cajeroId))
+                ->selectRaw('venta_detalles.nombre as nombre, SUM(venta_detalles.cantidad) as cantidad, SUM(venta_detalles.subtotal) as total')
+                ->groupBy('venta_detalles.nombre')
+                ->orderByDesc('total')
+                ->get();
+
+        $itemsPromocion = $negocio === null
+            ? collect()
+            : VentaDetallePromocionItem::query()
+                ->join('venta_detalles', 'venta_detalles.id', '=', 'venta_detalle_promocion_items.venta_detalle_id')
+                ->join('ventas', 'ventas.id', '=', 'venta_detalles.venta_id')
+                ->where('ventas.negocio_id', $negocio->id)
+                ->whereBetween('ventas.created_at', [$desde, $hasta])
+                ->when($cajeroId !== null, fn ($query) => $query->where('ventas.user_id', $cajeroId))
+                ->selectRaw('venta_detalle_promocion_items.nombre as nombre, SUM(venta_detalle_promocion_items.cantidad) as cantidad')
+                ->groupBy('venta_detalle_promocion_items.nombre')
+                ->orderByDesc('cantidad')
                 ->get();
 
         $totalVendido = (float) $ventas->sum(fn (Venta $venta) => (float) $venta->total);
@@ -163,6 +195,8 @@ class ReporteController extends Controller
             'negocio' => $negocio,
             'ventas' => $ventas,
             'resumenProductos' => $resumenProductos,
+            'resumenPromociones' => $resumenPromociones,
+            'itemsPromocion' => $itemsPromocion,
             'cajeros' => $cajeros,
             'cajeroSeleccionado' => $cajeroSeleccionado,
             'cajeroId' => $cajeroId,

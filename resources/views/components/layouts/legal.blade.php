@@ -26,14 +26,14 @@
         })();
     </script>
 </head>
-<body class="min-h-full bg-stone-100 font-sans text-stone-900 dark:bg-stone-900 dark:text-stone-100">
-    <div class="flex min-h-full flex-col">
-        <header class="border-b border-stone-200 bg-white/90 backdrop-blur dark:border-stone-700 dark:bg-stone-800/90">
+<body class="h-dvh overflow-hidden bg-stone-100 font-sans text-stone-900 dark:bg-stone-900 dark:text-stone-100">
+    <div class="flex h-full min-h-0 flex-col">
+        <header class="shrink-0 border-b border-stone-200 bg-white/90 backdrop-blur dark:border-stone-700 dark:bg-stone-800/90">
             <div class="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
                 <a href="{{ url('/') }}"
                    class="-m-1 flex min-w-0 items-center gap-3 rounded-lg p-1 hover:bg-stone-100 dark:hover:bg-stone-700/60">
-                    @if ($negocio?->logo)
-                        <img src="{{ asset('storage/' . $negocio->logo) }}"
+                    @if ($negocio?->logoUrl())
+                        <img src="{{ $negocio->logoUrl() }}"
                              alt="Logo de {{ $nombreComercial }}"
                              class="size-9 shrink-0 rounded-xl object-cover ring-1 ring-stone-200 dark:ring-stone-600">
                     @else
@@ -66,11 +66,13 @@
             </div>
         </header>
 
-        <main class="mx-auto w-full max-w-4xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
-            {{ $slot }}
-        </main>
+        <div class="min-h-0 flex-1 overflow-y-auto">
+            <main class="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 sm:py-12">
+                {{ $slot }}
+            </main>
+        </div>
 
-        <footer class="border-t border-stone-200 py-4 text-center text-xs text-stone-500 dark:border-stone-700 dark:text-stone-400">
+        <footer class="shrink-0 border-t border-stone-200 py-4 text-center text-xs text-stone-500 dark:border-stone-700 dark:text-stone-400">
             <p>
                 &copy; {{ date('Y') }} SofCruz. Todos los derechos reservados.
                 <span aria-hidden="true">·</span>

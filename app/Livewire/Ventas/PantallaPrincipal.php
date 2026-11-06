@@ -4,7 +4,9 @@ namespace App\Livewire\Ventas;
 
 use App\Enums\MetodoPago;
 use App\Models\Categoria;
+use App\Models\Negocio;
 use App\Models\Producto;
+use App\Models\Promocion;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -17,23 +19,29 @@ class PantallaPrincipal extends Component
 {
     private const STOCK_BAJO = 5;
 
-    public ?int $categoriaSeleccionadaId = null;
+    private const MAX_CANTIDAD = 999;
+
+    public string $busqueda = '';
+
+    public ?int $categoriaFiltroId = null;
+
+    public string $vista = 'grid';
 
     /**
-     * Cantidades seleccionadas en la categoría abierta, indexadas por id de producto.
-     *
-     * @var array<int, int>
-     */
-    public array $cantidades = [];
-
-    /**
-     * Ítems aceptados para la venta, indexados por id de producto.
+     * Ítems del detalle de la venta, indexados por id de producto.
      *
      * @var array<int, int>
      */
     public array $carrito = [];
 
-    public bool $mostrarDetalle = false;
+    /**
+     * Promociones del detalle de la venta, indexadas por id de promoción.
+     *
+     * @var array<int, int>
+     */
+    public array $carritoPromociones = [];
+
+    public bool $mostrarModalPago = false;
 
     public ?int $ventaParaImprimirId = null;
 
@@ -43,108 +51,36 @@ class PantallaPrincipal extends Component
 
     public string $glosa = '';
 
+    public string $cliente = '';
+
     /**
-     * Select a category on the sales screen.
+     * Add a product to the sale detail.
      */
-    public function seleccionar(int $categoriaId): void
+    public function agregarProducto(int $productoId): void
     {
-        $categoria = $this->categorias()
-            ->whereKey($categoriaId)
-            ->first();
+        $producto = $this->productoDisponible($productoId);
 
-        abort_if($categoria === null, 404);
-
-        $this->categoriaSeleccionadaId = $categoria->id;
-        $this->mostrarDetalle = false;
+        $this->carrito[$producto->id] = min(
+            ($this->carrito[$producto->id] ?? 0) + 1,
+            self::MAX_CANTIDAD
+        );
     }
 
     /**
-     * Deselect the current category and go back to the grid.
-     */
-    public function deseleccionar(): void
-    {
-        $this->categoriaSeleccionadaId = null;
-    }
-
-    /**
-     * Increase the quantity of a product in the selected category.
-     */
-    public function incrementar(int $productoId): void
-    {
-        $producto = $this->productoDelUsuario($productoId);
-
-        $this->cantidades[$producto->id] = min(($this->cantidades[$producto->id] ?? 0) + 1, 999);
-    }
-
-    /**
-     * Decrease the quantity of a product in the selected category.
-     */
-    public function disminuir(int $productoId): void
-    {
-        $producto = $this->productoDelUsuario($productoId);
-
-        $cantidad = $this->cantidades[$producto->id] ?? 0;
-
-        if ($cantidad <= 1) {
-            unset($this->cantidades[$producto->id]);
-
-            return;
-        }
-
-        $this->cantidades[$producto->id] = $cantidad - 1;
-    }
-
-    /**
-     * Add the selected quantities of the open category to the sale detail.
-     */
-    public function aceptar(): void
-    {
-        $negocio = Auth::user()?->negocio;
-
-        abort_if($negocio === null || $this->categoriaSeleccionadaId === null, 404);
-
-        $seleccion = $this->lineasDesde($this->cantidades, $this->categoriaSeleccionadaId);
-
-        if ($seleccion->isEmpty()) {
-            $this->addError('cantidades', 'Selecciona al menos un ítem antes de aceptar.');
-
-            return;
-        }
-
-        foreach ($seleccion as $linea) {
-            $productoId = $linea['producto']->id;
-            $this->carrito[$productoId] = min(($this->carrito[$productoId] ?? 0) + $linea['cantidad'], 999);
-        }
-
-        $this->cantidades = [];
-        $this->resetErrorBag('cantidades');
-        $this->mostrarDetalle = true;
-    }
-
-    public function verDetalle(): void
-    {
-        $this->mostrarDetalle = true;
-        $this->categoriaSeleccionadaId = null;
-    }
-
-    public function volverACategorias(): void
-    {
-        $this->mostrarDetalle = false;
-        $this->categoriaSeleccionadaId = null;
-    }
-
-    /**
-     * Increase the quantity of a product already accepted in the sale detail.
+     * Increase the quantity of a product already in the sale detail.
      */
     public function incrementarCarrito(int $productoId): void
     {
         $producto = $this->productoDelCarrito($productoId);
 
-        $this->carrito[$producto->id] = min(($this->carrito[$producto->id] ?? 0) + 1, 999);
+        $this->carrito[$producto->id] = min(
+            ($this->carrito[$producto->id] ?? 0) + 1,
+            self::MAX_CANTIDAD
+        );
     }
 
     /**
-     * Decrease the quantity of a product already accepted in the sale detail.
+     * Decrease the quantity of a product in the sale detail.
      */
     public function disminuirCarrito(int $productoId): void
     {
@@ -171,14 +107,125 @@ class PantallaPrincipal extends Component
         unset($this->carrito[$producto->id]);
     }
 
+    /**
+     * Add an available promotion to the sale detail.
+     */
+    public function agregarPromocion(int $promocionId): void
+    {
+        $promocion = $this->promocionDisponible($promocionId);
+
+        $this->carritoPromociones[$promocion->id] = min(
+            ($this->carritoPromociones[$promocion->id] ?? 0) + 1,
+            self::MAX_CANTIDAD
+        );
+    }
+
+    /**
+     * Increase the quantity of a promotion already in the sale detail.
+     */
+    public function incrementarPromocion(int $promocionId): void
+    {
+        $promocion = $this->promocionDelCarrito($promocionId);
+
+        $this->carritoPromociones[$promocion->id] = min(
+            ($this->carritoPromociones[$promocion->id] ?? 0) + 1,
+            self::MAX_CANTIDAD
+        );
+    }
+
+    /**
+     * Decrease the quantity of a promotion in the sale detail.
+     */
+    public function disminuirPromocion(int $promocionId): void
+    {
+        $promocion = $this->promocionDelCarrito($promocionId);
+
+        $cantidad = $this->carritoPromociones[$promocion->id] ?? 0;
+
+        if ($cantidad <= 1) {
+            unset($this->carritoPromociones[$promocion->id]);
+
+            return;
+        }
+
+        $this->carritoPromociones[$promocion->id] = $cantidad - 1;
+    }
+
+    /**
+     * Remove a promotion from the sale detail.
+     */
+    public function quitarPromocion(int $promocionId): void
+    {
+        $promocion = $this->promocionDelCarrito($promocionId);
+
+        unset($this->carritoPromociones[$promocion->id]);
+    }
+
+    /**
+     * Clear the whole sale detail.
+     */
     public function vaciarCarrito(): void
     {
         $this->carrito = [];
+        $this->carritoPromociones = [];
         $this->metodoPago = null;
         $this->montoRecibido = null;
         $this->glosa = '';
+        $this->cliente = '';
+        $this->mostrarModalPago = false;
         $this->resetErrorBag('carrito');
-        $this->resetValidation(['metodoPago', 'montoRecibido', 'glosa']);
+        $this->resetValidation(['metodoPago', 'montoRecibido', 'glosa', 'cliente']);
+    }
+
+    /**
+     * Filter the product grid by category; null means all categories.
+     */
+    public function seleccionarCategoriaFiltro(?int $categoriaId): void
+    {
+        if ($categoriaId === null) {
+            $this->categoriaFiltroId = null;
+
+            return;
+        }
+
+        $categoria = $this->categorias()->whereKey($categoriaId)->first();
+
+        abort_if($categoria === null, 404);
+
+        $this->categoriaFiltroId = $categoria->id;
+    }
+
+    /**
+     * Switch the product list between grid and list layouts.
+     */
+    public function cambiarVista(string $vista): void
+    {
+        abort_unless(in_array($vista, ['grid', 'lista'], true), 404);
+
+        $this->vista = $vista;
+    }
+
+    /**
+     * Open the payment modal when there is something to charge.
+     */
+    public function abrirModalPago(): void
+    {
+        if (
+            $this->lineasDesde($this->carrito)->isEmpty()
+            && $this->lineasPromocionDesde($this->carritoPromociones)->isEmpty()
+        ) {
+            $this->addError('carrito', 'Agrega al menos un ítem antes de pagar.');
+
+            return;
+        }
+
+        $this->mostrarModalPago = true;
+        $this->resetValidation(['metodoPago', 'montoRecibido', 'glosa', 'cliente']);
+    }
+
+    public function cerrarModalPago(): void
+    {
+        $this->mostrarModalPago = false;
     }
 
     /**
@@ -200,7 +247,7 @@ class PantallaPrincipal extends Component
     }
 
     /**
-     * Persist the accepted items as a single sale and clear the cart.
+     * Persist the sale detail as a single sale and clear it.
      */
     public function cobrar(): void
     {
@@ -210,28 +257,61 @@ class PantallaPrincipal extends Component
         abort_if($negocio === null, 404);
 
         $lineas = $this->lineasDesde($this->carrito);
+        $lineasPromociones = $this->lineasPromocionDesde($this->carritoPromociones);
 
-        if ($lineas->isEmpty()) {
+        $idsEnCarrito = collect($this->carritoPromociones)
+            ->filter(fn ($cantidad) => is_numeric($cantidad) && (int) $cantidad > 0)
+            ->keys()
+            ->map(fn ($id) => (int) $id);
+        $idsEnLineas = $lineasPromociones
+            ->pluck('promocion')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id);
+
+        if ($idsEnCarrito->diff($idsEnLineas)->isNotEmpty()) {
+            $this->carritoPromociones = $lineasPromociones
+                ->mapWithKeys(fn (array $linea) => [$linea['promocion']->id => $linea['cantidad']])
+                ->all();
+            $this->addError('carrito', 'Una o más promociones ya no están disponibles. Se quitaron del detalle.');
+
+            return;
+        }
+
+        if ($lineasPromociones->contains(fn (array $linea) => ! $linea['disponible'])) {
+            $this->carritoPromociones = $lineasPromociones
+                ->filter(fn (array $linea) => $linea['disponible'])
+                ->mapWithKeys(fn (array $linea) => [$linea['promocion']->id => $linea['cantidad']])
+                ->all();
+            $this->addError('carrito', 'Una o más promociones ya no están vigentes. Se quitaron del detalle.');
+
+            return;
+        }
+
+        if ($lineas->isEmpty() && $lineasPromociones->isEmpty()) {
             $this->addError('carrito', 'Agrega al menos un ítem antes de cobrar.');
 
             return;
         }
 
-        $totalEnCentavos = $lineas->sum('subtotal_centavos');
+        $totalEnCentavos = $lineas->sum('subtotal_centavos')
+            + $lineasPromociones->sum('subtotal_centavos');
 
         $this->montoRecibido = $this->montoRecibido === null
             ? null
             : str_replace(',', '.', trim($this->montoRecibido));
 
         $this->glosa = trim($this->glosa);
+        $this->cliente = trim($this->cliente);
 
-        $datos = $this->validate([
+        $this->validate([
             'metodoPago' => ['required', Rule::enum(MetodoPago::class)],
             'glosa' => ['nullable', 'string', 'max:255'],
+            'cliente' => ['nullable', 'string', 'max:120'],
         ]);
 
-        $metodoPago = MetodoPago::from($datos['metodoPago']);
+        $metodoPago = MetodoPago::from($this->metodoPago);
         $glosa = $this->glosa === '' ? null : $this->glosa;
+        $cliente = $this->cliente === '' ? null : $this->cliente;
         $montoRecibidoEnCentavos = $totalEnCentavos;
         $cambioEnCentavos = 0;
 
@@ -252,8 +332,9 @@ class PantallaPrincipal extends Component
         }
 
         $advertenciasStock = [];
+        $requerimientosStock = $this->requerimientosStock($lineas, $lineasPromociones)->sortKeys();
 
-        $venta = DB::transaction(function () use ($negocio, $user, $lineas, $totalEnCentavos, $metodoPago, $montoRecibidoEnCentavos, $cambioEnCentavos, $glosa, &$advertenciasStock) {
+        $venta = DB::transaction(function () use ($negocio, $user, $lineas, $lineasPromociones, $requerimientosStock, $totalEnCentavos, $metodoPago, $montoRecibidoEnCentavos, $cambioEnCentavos, $glosa, $cliente, &$advertenciasStock) {
             $venta = $negocio->ventas()->create([
                 'user_id' => $user->id,
                 'total' => $totalEnCentavos / 100,
@@ -261,21 +342,46 @@ class PantallaPrincipal extends Component
                 'monto_recibido' => $montoRecibidoEnCentavos / 100,
                 'cambio' => $cambioEnCentavos / 100,
                 'glosa' => $glosa,
+                'cliente' => $cliente,
             ]);
 
-            $venta->detalles()->createMany(
-                $lineas->map(fn (array $linea) => [
-                    'producto_id' => $linea['producto']->id,
-                    'nombre' => $linea['producto']->nombre,
+            if ($lineas->isNotEmpty()) {
+                $venta->detalles()->createMany(
+                    $lineas->map(fn (array $linea) => [
+                        'producto_id' => $linea['producto']->id,
+                        'promocion_id' => null,
+                        'es_promocion' => false,
+                        'nombre' => $linea['producto']->nombre,
+                        'precio_unitario' => $linea['precio_unitario'],
+                        'cantidad' => $linea['cantidad'],
+                        'subtotal' => $linea['subtotal'],
+                    ])->all()
+                );
+            }
+
+            foreach ($lineasPromociones as $linea) {
+                $detalle = $venta->detalles()->create([
+                    'producto_id' => null,
+                    'promocion_id' => $linea['promocion']->id,
+                    'es_promocion' => true,
+                    'nombre' => $linea['promocion']->nombre,
                     'precio_unitario' => $linea['precio_unitario'],
                     'cantidad' => $linea['cantidad'],
                     'subtotal' => $linea['subtotal'],
-                ])->all()
-            );
+                ]);
 
-            foreach ($lineas as $linea) {
+                $detalle->promocionItems()->createMany(
+                    $linea['componentes']->map(fn (array $componente) => [
+                        'producto_id' => $componente['producto']->id,
+                        'nombre' => $componente['producto']->nombre,
+                        'cantidad' => $componente['cantidad'],
+                    ])->all()
+                );
+            }
+
+            foreach ($requerimientosStock as $requerimiento) {
                 $producto = Producto::query()
-                    ->whereKey($linea['producto']->id)
+                    ->whereKey($requerimiento['producto']->id)
                     ->lockForUpdate()
                     ->first();
 
@@ -283,9 +389,9 @@ class PantallaPrincipal extends Component
                     continue;
                 }
 
-                $nuevoStock = $producto->stock - $linea['cantidad'];
+                $nuevoStock = $producto->stock - $requerimiento['cantidad'];
 
-                $producto->decrement('stock', $linea['cantidad']);
+                $producto->decrement('stock', $requerimiento['cantidad']);
 
                 if ($nuevoStock < 0) {
                     $advertenciasStock[] = $producto->nombre.' ('.$nuevoStock.')';
@@ -296,15 +402,15 @@ class PantallaPrincipal extends Component
         });
 
         $this->carrito = [];
-        $this->cantidades = [];
-        $this->mostrarDetalle = false;
-        $this->categoriaSeleccionadaId = null;
+        $this->carritoPromociones = [];
+        $this->mostrarModalPago = false;
         $this->metodoPago = null;
         $this->montoRecibido = null;
         $this->glosa = '';
+        $this->cliente = '';
         $this->ventaParaImprimirId = $venta->id;
         $this->resetErrorBag('carrito');
-        $this->resetValidation(['metodoPago', 'montoRecibido', 'glosa']);
+        $this->resetValidation(['metodoPago', 'montoRecibido', 'glosa', 'cliente']);
 
         $mensaje = 'Venta #'.$venta->id.' registrada por Bs '.number_format($totalEnCentavos / 100, 2)
             .' ('.$metodoPago->etiqueta().').';
@@ -335,28 +441,23 @@ class PantallaPrincipal extends Component
         $negocio = $user?->negocio;
 
         $categorias = $this->categorias()->get();
-        $categoriaSeleccionada = $this->categoriaSeleccionadaId !== null
-            ? $categorias->firstWhere('id', $this->categoriaSeleccionadaId)
-            : null;
-
-        $productos = $categoriaSeleccionada
-            ? $categoriaSeleccionada->productos()->orderBy('nombre')->get()
-            : collect();
+        $productos = $this->productos($negocio)->get();
 
         $cantidadesPorProducto = $productos->mapWithKeys(
-            fn (Producto $producto) => [$producto->id => $this->cantidadClampeada($producto->id)]
+            fn (Producto $producto) => [$producto->id => $this->cantidadEnCarrito($producto->id)]
         );
 
-        $totalEnCentavos = $productos->sum(
-            fn (Producto $producto) => $this->precioEnCentavos($producto) * $cantidadesPorProducto[$producto->id]
-        );
+        $cantidadesPromocion = collect($this->carritoPromociones)
+            ->filter(fn ($cantidad) => is_numeric($cantidad) && (int) $cantidad > 0)
+            ->map(fn ($cantidad) => min((int) $cantidad, self::MAX_CANTIDAD))
+            ->all();
 
         $lineasCarrito = $this->lineasDesde($this->carrito);
-        $totalCarritoEnCentavos = $lineasCarrito->sum('subtotal_centavos');
-        $hayAdvertenciasStock = $lineasCarrito->contains(
-            fn (array $linea) => $linea['producto']->stock !== null
-                && $linea['cantidad'] > $linea['producto']->stock
-        );
+        $lineasPromociones = $this->lineasPromocionDesde($this->carritoPromociones);
+        $promociones = $this->promocionesDisponibles();
+        $totalCarritoEnCentavos = $lineasCarrito->sum('subtotal_centavos')
+            + $lineasPromociones->sum('subtotal_centavos');
+        $hayAdvertenciasStock = $this->hayAdvertenciasStock($lineasCarrito, $lineasPromociones);
 
         $montoRecibidoEnCentavos = $this->montoRecibido !== null && $this->montoRecibido !== ''
             ? $this->centavosDesde($this->montoRecibido)
@@ -376,14 +477,14 @@ class PantallaPrincipal extends Component
         return view('livewire.ventas.pantalla-principal', [
             'negocio' => $negocio,
             'categorias' => $categorias,
-            'categoriaSeleccionada' => $categoriaSeleccionada,
             'productos' => $productos,
             'cantidadesPorProducto' => $cantidadesPorProducto,
-            'total' => number_format($totalEnCentavos / 100, 2),
-            'haySeleccion' => $totalEnCentavos > 0,
             'lineasCarrito' => $lineasCarrito,
+            'lineasPromociones' => $lineasPromociones,
+            'promociones' => $promociones,
+            'cantidadesPromocion' => $cantidadesPromocion,
             'totalCarrito' => number_format($totalCarritoEnCentavos / 100, 2),
-            'cantidadItems' => $lineasCarrito->sum('cantidad'),
+            'cantidadItems' => $lineasCarrito->sum('cantidad') + $lineasPromociones->sum('cantidad'),
             'puedeConfigurar' => $user?->puedeGestionarConfiguracion() ?? false,
             'cambio' => number_format($cambioEnCentavos / 100, 2),
             'efectivoSuficiente' => $efectivoSuficiente,
@@ -413,18 +514,297 @@ class PantallaPrincipal extends Component
     }
 
     /**
-     * Scope a product lookup to the selected category of the authenticated business.
+     * Products of the authenticated business, filtered by category and search term.
+     *
+     * @return Builder<Producto>
      */
-    private function productoDelUsuario(int $productoId): Producto
+    private function productos(?Negocio $negocio): Builder
+    {
+        if ($negocio === null) {
+            return Producto::query()->whereRaw('1 = 0');
+        }
+
+        $busqueda = trim($this->busqueda);
+
+        return Producto::query()
+            ->with('categoria')
+            ->whereHas('categoria', fn (Builder $query) => $query
+                ->where('negocio_id', $negocio->id)
+                ->where('activa', true))
+            ->when(
+                $this->categoriaFiltroId !== null,
+                fn (Builder $query) => $query->where('categoria_id', $this->categoriaFiltroId)
+            )
+            ->when($busqueda !== '', function (Builder $query) use ($busqueda) {
+                $like = '%'.$busqueda.'%';
+
+                $query->where(function (Builder $subquery) use ($like) {
+                    $subquery->where('nombre', 'like', $like)
+                        ->orWhereHas('categoria', fn (Builder $categoria) => $categoria->where('nombre', 'like', $like));
+                });
+            })
+            ->orderBy(
+                Categoria::query()
+                    ->select('orden')
+                    ->whereColumn('categorias.id', 'productos.categoria_id')
+            )
+            ->orderBy(
+                Categoria::query()
+                    ->select('nombre')
+                    ->whereColumn('categorias.id', 'productos.categoria_id')
+            )
+            ->orderBy('productos.nombre');
+    }
+
+    /**
+     * Promotions available today for the authenticated business.
+     *
+     * @return Collection<int, Promocion>
+     */
+    private function promocionesDisponibles(): Collection
+    {
+        $busqueda = trim($this->busqueda);
+
+        return $this->promocionesVigentesQuery()
+            ->when(
+                $this->categoriaFiltroId !== null,
+                fn (Builder $query) => $query->whereHas(
+                    'productos',
+                    fn (Builder $subquery) => $subquery->where('categoria_id', $this->categoriaFiltroId)
+                )
+            )
+            ->when($busqueda !== '', function (Builder $query) use ($busqueda) {
+                $like = '%'.$busqueda.'%';
+
+                $query->where(function (Builder $subquery) use ($like) {
+                    $subquery->where('nombre', 'like', $like)
+                        ->orWhereHas('productos', fn (Builder $productos) => $productos->where('nombre', 'like', $like));
+                });
+            })
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    /**
+     * Base query for promotions active today with at least one sellable item.
+     *
+     * @return Builder<Promocion>
+     */
+    private function promocionesVigentesQuery(): Builder
     {
         $negocio = Auth::user()?->negocio;
 
-        abort_if($negocio === null || $this->categoriaSeleccionadaId === null, 404);
+        if ($negocio === null) {
+            return Promocion::query()->whereRaw('1 = 0');
+        }
+
+        return Promocion::query()
+            ->with('productos.categoria')
+            ->where('negocio_id', $negocio->id)
+            ->vigentes()
+            ->whereHas('productos')
+            ->whereDoesntHave(
+                'productos.categoria',
+                fn (Builder $query) => $query->where('activa', false)
+            );
+    }
+
+    /**
+     * Scope a promotion lookup to an available promotion of the authenticated business.
+     */
+    private function promocionDisponible(int $promocionId): Promocion
+    {
+        $negocio = Auth::user()?->negocio;
+
+        abort_if($negocio === null, 404);
+
+        $promocion = $this->promocionesVigentesQuery()
+            ->whereKey($promocionId)
+            ->first();
+
+        abort_if($promocion === null, 404);
+
+        return $promocion;
+    }
+
+    /**
+     * Scope a promotion lookup to the authenticated business, regardless of availability.
+     */
+    private function promocionDelCarrito(int $promocionId): Promocion
+    {
+        $negocio = Auth::user()?->negocio;
+
+        abort_if($negocio === null, 404);
+
+        $promocion = Promocion::query()
+            ->with('productos.categoria')
+            ->where('negocio_id', $negocio->id)
+            ->whereKey($promocionId)
+            ->first();
+
+        abort_if($promocion === null, 404);
+
+        return $promocion;
+    }
+
+    /**
+     * Resolve promotion lines from the database, never from client-provided prices.
+     *
+     * @param  array<int|string, mixed>  $cantidades
+     * @param  Collection<int, Promocion>|null  $promociones
+     * @return Collection<int, array{promocion: Promocion, cantidad: int, precio_unitario: float, subtotal: float, subtotal_centavos: int, componentes: Collection<int, array{producto: Producto, cantidad: int}>, disponible: bool}>
+     */
+    private function lineasPromocionDesde(array $cantidades, ?Collection $promociones = null): Collection
+    {
+        $negocio = Auth::user()?->negocio;
+
+        if ($negocio === null) {
+            return collect();
+        }
+
+        $normalizadas = collect($cantidades)
+            ->map(fn ($cantidad) => is_numeric($cantidad) ? (int) $cantidad : 0)
+            ->filter(fn (int $cantidad) => $cantidad > 0)
+            ->map(fn (int $cantidad) => min($cantidad, self::MAX_CANTIDAD));
+
+        if ($normalizadas->isEmpty()) {
+            return collect();
+        }
+
+        $promociones ??= $this->promocionesDelCarrito();
+
+        return $promociones
+            ->whereIn('id', $normalizadas->keys()->all())
+            ->sortBy('nombre')
+            ->map(function (Promocion $promocion) use ($normalizadas): array {
+                $cantidad = $normalizadas[$promocion->id];
+                $precioEnCentavos = (int) round((float) $promocion->precio * 100);
+
+                return [
+                    'promocion' => $promocion,
+                    'cantidad' => $cantidad,
+                    'precio_unitario' => $precioEnCentavos / 100,
+                    'subtotal' => $precioEnCentavos * $cantidad / 100,
+                    'subtotal_centavos' => $precioEnCentavos * $cantidad,
+                    'componentes' => $promocion->productos
+                        ->map(fn (Producto $producto): array => [
+                            'producto' => $producto,
+                            'cantidad' => (int) $producto->pivot->cantidad,
+                        ])
+                        ->values(),
+                    'disponible' => $this->promocionEstaDisponible($promocion),
+                ];
+            })
+            ->values();
+    }
+
+    /**
+     * Promotions currently in the cart, including ones that stopped being available.
+     *
+     * @return Collection<int, Promocion>
+     */
+    private function promocionesDelCarrito(): Collection
+    {
+        $negocio = Auth::user()?->negocio;
+
+        if ($negocio === null) {
+            return collect();
+        }
+
+        $ids = collect($this->carritoPromociones)
+            ->filter(fn ($cantidad) => is_numeric($cantidad) && (int) $cantidad > 0)
+            ->keys()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($ids === []) {
+            return collect();
+        }
+
+        return Promocion::query()
+            ->with('productos.categoria')
+            ->where('negocio_id', $negocio->id)
+            ->whereIn('id', $ids)
+            ->get()
+            ->keyBy('id');
+    }
+
+    private function promocionEstaDisponible(Promocion $promocion): bool
+    {
+        if (! $promocion->activa) {
+            return false;
+        }
+
+        $hoy = now()->startOfDay();
+
+        if ($promocion->fecha_inicio->gt($hoy) || $promocion->fecha_fin->lt($hoy)) {
+            return false;
+        }
+
+        if (! in_array($hoy->isoWeekday(), array_map('intval', $promocion->dias_semana ?? []), true)) {
+            return false;
+        }
+
+        if ($promocion->productos->isEmpty()) {
+            return false;
+        }
+
+        return $promocion->productos->every(
+            fn (Producto $producto) => $producto->categoria?->activa !== false
+        );
+    }
+
+    /**
+     * Aggregate stock requirements across normal lines and promotion components.
+     *
+     * @param  Collection<int, array{producto: Producto, cantidad: int}>  $lineas
+     * @param  Collection<int, array{componentes: Collection<int, array{producto: Producto, cantidad: int}>, cantidad: int}>  $lineasPromociones
+     * @return Collection<int, array{producto: Producto, cantidad: int}>
+     */
+    private function requerimientosStock(Collection $lineas, Collection $lineasPromociones): Collection
+    {
+        $requerimientos = collect();
+
+        foreach ($lineas as $linea) {
+            $producto = $linea['producto'];
+            $actual = $requerimientos->get($producto->id, ['producto' => $producto, 'cantidad' => 0]);
+            $actual['cantidad'] += $linea['cantidad'];
+            $requerimientos->put($producto->id, $actual);
+        }
+
+        foreach ($lineasPromociones as $linea) {
+            foreach ($linea['componentes'] as $componente) {
+                $producto = $componente['producto'];
+                $actual = $requerimientos->get($producto->id, ['producto' => $producto, 'cantidad' => 0]);
+                $actual['cantidad'] += $componente['cantidad'] * $linea['cantidad'];
+                $requerimientos->put($producto->id, $actual);
+            }
+        }
+
+        return $requerimientos;
+    }
+
+    private function hayAdvertenciasStock(Collection $lineas, Collection $lineasPromociones): bool
+    {
+        return $this->requerimientosStock($lineas, $lineasPromociones)
+            ->contains(fn (array $requerimiento) => $requerimiento['producto']->stock !== null
+                && $requerimiento['cantidad'] > $requerimiento['producto']->stock);
+    }
+
+    /**
+     * Scope a product lookup to an available product of the authenticated business.
+     */
+    private function productoDisponible(int $productoId): Producto
+    {
+        $negocio = Auth::user()?->negocio;
+
+        abort_if($negocio === null, 404);
 
         $producto = Producto::query()
             ->whereKey($productoId)
-            ->where('categoria_id', $this->categoriaSeleccionadaId)
-            ->whereHas('categoria', fn (Builder $query) => $query->where('negocio_id', $negocio->id))
+            ->whereHas('categoria', fn (Builder $query) => $query
+                ->where('negocio_id', $negocio->id)
+                ->where('activa', true))
             ->first();
 
         abort_if($producto === null, 404);
@@ -457,7 +837,7 @@ class PantallaPrincipal extends Component
      * @param  array<int|string, mixed>  $cantidades
      * @return Collection<int, array{producto: Producto, cantidad: int, precio_unitario: float, subtotal: float, subtotal_centavos: int}>
      */
-    private function lineasDesde(array $cantidades, ?int $categoriaId = null): Collection
+    private function lineasDesde(array $cantidades): Collection
     {
         $negocio = Auth::user()?->negocio;
 
@@ -468,40 +848,37 @@ class PantallaPrincipal extends Component
         $normalizadas = collect($cantidades)
             ->map(fn ($cantidad) => is_numeric($cantidad) ? (int) $cantidad : 0)
             ->filter(fn (int $cantidad) => $cantidad > 0)
-            ->map(fn (int $cantidad) => min($cantidad, 999));
+            ->map(fn (int $cantidad) => min($cantidad, self::MAX_CANTIDAD));
 
         if ($normalizadas->isEmpty()) {
             return collect();
         }
 
-        $query = Producto::query()
+        return Producto::query()
             ->with('categoria')
             ->whereIn('id', $normalizadas->keys())
-            ->whereHas('categoria', fn (Builder $subquery) => $subquery->where('negocio_id', $negocio->id));
+            ->whereHas('categoria', fn (Builder $subquery) => $subquery->where('negocio_id', $negocio->id))
+            ->orderBy('nombre')
+            ->get()
+            ->map(function (Producto $producto) use ($normalizadas) {
+                $cantidad = $normalizadas[$producto->id];
+                $precioEnCentavos = $this->precioEnCentavos($producto);
 
-        if ($categoriaId !== null) {
-            $query->where('categoria_id', $categoriaId);
-        }
-
-        return $query->orderBy('nombre')->get()->map(function (Producto $producto) use ($normalizadas) {
-            $cantidad = $normalizadas[$producto->id];
-            $precioEnCentavos = $this->precioEnCentavos($producto);
-
-            return [
-                'producto' => $producto,
-                'cantidad' => $cantidad,
-                'precio_unitario' => $precioEnCentavos / 100,
-                'subtotal' => $precioEnCentavos * $cantidad / 100,
-                'subtotal_centavos' => $precioEnCentavos * $cantidad,
-            ];
-        });
+                return [
+                    'producto' => $producto,
+                    'cantidad' => $cantidad,
+                    'precio_unitario' => $precioEnCentavos / 100,
+                    'subtotal' => $precioEnCentavos * $cantidad / 100,
+                    'subtotal_centavos' => $precioEnCentavos * $cantidad,
+                ];
+            });
     }
 
-    private function cantidadClampeada(int $productoId): int
+    private function cantidadEnCarrito(int $productoId): int
     {
-        $cantidad = $this->cantidades[$productoId] ?? 0;
+        $cantidad = $this->carrito[$productoId] ?? 0;
 
-        return is_numeric($cantidad) ? max(0, min((int) $cantidad, 999)) : 0;
+        return is_numeric($cantidad) ? max(0, min((int) $cantidad, self::MAX_CANTIDAD)) : 0;
     }
 
     private function precioEnCentavos(Producto $producto): int

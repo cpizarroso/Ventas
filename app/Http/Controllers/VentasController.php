@@ -30,7 +30,7 @@ class VentasController extends Controller
 
         abort_if($negocioId === null || $venta->negocio_id !== $negocioId, 404);
 
-        $venta->load(['negocio', 'user', 'detalles']);
+        $venta->load(['negocio', 'user', 'detalles.promocionItems']);
 
         return view('ventas.ticket', [
             'venta' => $venta,

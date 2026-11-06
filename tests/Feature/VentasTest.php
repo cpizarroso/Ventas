@@ -28,7 +28,7 @@ class VentasTest extends TestCase
         return User::factory()->cajero()->create(['negocio_id' => $negocio->id]);
     }
 
-    public function test_el_detalle_muestra_los_items_aceptados_de_varias_categorias_y_el_total(): void
+    public function test_la_pantalla_muestra_todos_los_productos_y_los_agrega_al_detalle(): void
     {
         $negocio = Negocio::factory()->create();
         $admin = $this->adminDe($negocio);
@@ -45,56 +45,95 @@ class VentasTest extends TestCase
             'nombre' => 'Flan',
             'precio' => 5,
         ]);
-        $noConsumido = Producto::factory()->create([
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->assertSee('Jarra limonada')
+            ->assertSee('Flan')
+            ->assertSee('Bebidas')
+            ->assertSee('Postres')
+            ->assertSee('Bs 15.00')
+            ->call('agregarProducto', $limonada->id)
+            ->assertSet('carrito', [$limonada->id => 1])
+            ->assertSee('Detalle de la venta')
+            ->assertSee('Pagar')
+            ->call('agregarProducto', $flan->id)
+            ->assertSet('carrito.'.$flan->id, 1)
+            ->assertSee('Bs 20.00');
+    }
+
+    public function test_se_puede_cambiar_entre_vista_de_cuadricula_y_lista(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->assertSet('vista', 'grid')
+            ->call('cambiarVista', 'lista')
+            ->assertSet('vista', 'lista')
+            ->call('cambiarVista', 'grid')
+            ->assertSet('vista', 'grid');
+    }
+
+    public function test_el_buscador_filtra_por_nombre_de_producto_o_categoria(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $bebidas = Categoria::factory()->create(['negocio_id' => $negocio->id, 'nombre' => 'Bebidas']);
+        $postres = Categoria::factory()->create(['negocio_id' => $negocio->id, 'nombre' => 'Postres']);
+
+        Producto::factory()->create([
+            'categoria_id' => $bebidas->id,
+            'nombre' => 'Jarra limonada',
+            'precio' => 15,
+        ]);
+        Producto::factory()->create([
             'categoria_id' => $postres->id,
-            'nombre' => 'Budin no consumido',
-            'precio' => 99,
+            'nombre' => 'Flan',
+            'precio' => 5,
         ]);
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $bebidas->id)
-            ->call('incrementar', $limonada->id)
-            ->call('incrementar', $limonada->id)
-            ->call('aceptar')
-            ->assertSet('mostrarDetalle', true)
-            ->assertSet('carrito', [$limonada->id => 2])
-            ->assertSee('Detalle de venta')
-            ->assertSee('Seguir agregando')
-            ->assertSee('Efectivo')
-            ->assertSee('QR')
-            ->assertSee('Cobrar')
+            ->set('busqueda', 'limonada')
             ->assertSee('Jarra limonada')
-            ->assertDontSee($noConsumido->nombre)
-            ->call('volverACategorias')
-            ->call('seleccionar', $postres->id)
-            ->call('incrementar', $flan->id)
-            ->call('aceptar')
-            ->assertSet('carrito', [$limonada->id => 2, $flan->id => 1])
-            ->assertSee('Jarra limonada')
+            ->assertDontSee('Flan')
+            ->set('busqueda', 'Postres')
             ->assertSee('Flan')
-            ->assertSee('Bs 15.00 c/u')
-            ->assertSee('Bs 30.00')
-            ->assertSee('Bs 35.00');
+            ->assertDontSee('Jarra limonada');
     }
 
-    public function test_aceptar_sin_items_seleccionados_muestra_un_error(): void
+    public function test_las_categorias_filtran_los_productos(): void
     {
         $negocio = Negocio::factory()->create();
         $admin = $this->adminDe($negocio);
-        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
-        Producto::factory()->create(['categoria_id' => $categoria->id, 'precio' => 10]);
+        $bebidas = Categoria::factory()->create(['negocio_id' => $negocio->id, 'nombre' => 'Bebidas']);
+        $postres = Categoria::factory()->create(['negocio_id' => $negocio->id, 'nombre' => 'Postres']);
+
+        Producto::factory()->create([
+            'categoria_id' => $bebidas->id,
+            'nombre' => 'Jarra limonada',
+            'precio' => 15,
+        ]);
+        Producto::factory()->create([
+            'categoria_id' => $postres->id,
+            'nombre' => 'Flan',
+            'precio' => 5,
+        ]);
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('aceptar')
-            ->assertHasErrors('cantidades')
-            ->assertSet('mostrarDetalle', false)
-            ->assertSet('carrito', []);
+            ->call('seleccionarCategoriaFiltro', $bebidas->id)
+            ->assertSet('categoriaFiltroId', $bebidas->id)
+            ->assertSee('Jarra limonada')
+            ->assertDontSee('Flan')
+            ->call('seleccionarCategoriaFiltro', null)
+            ->assertSet('categoriaFiltroId', null)
+            ->assertSee('Flan');
     }
 
-    public function test_aceptar_el_mismo_producto_dos_veces_suma_las_cantidades(): void
+    public function test_agregar_el_mismo_producto_varias_veces_suma_las_cantidades(): void
     {
         $negocio = Negocio::factory()->create();
         $admin = $this->adminDe($negocio);
@@ -107,14 +146,8 @@ class VentasTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('incrementar', $producto->id)
-            ->call('aceptar')
-            ->assertSet('carrito', [$producto->id => 1])
-            ->call('volverACategorias')
-            ->call('seleccionar', $categoria->id)
-            ->call('incrementar', $producto->id)
-            ->call('aceptar')
+            ->call('agregarProducto', $producto->id)
+            ->call('agregarProducto', $producto->id)
             ->assertSet('carrito', [$producto->id => 2])
             ->assertSee('Bs 20.00');
     }
@@ -137,21 +170,87 @@ class VentasTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('incrementar', $limonada->id)
-            ->call('incrementar', $flan->id)
-            ->call('aceptar')
+            ->call('agregarProducto', $limonada->id)
+            ->call('agregarProducto', $flan->id)
             ->call('incrementarCarrito', $limonada->id)
-            ->assertSet('carrito', [$flan->id => 1, $limonada->id => 2])
+            ->assertSet('carrito.'.$limonada->id, 2)
+            ->assertSet('carrito.'.$flan->id, 1)
             ->assertSee('Bs 35.00')
             ->call('disminuirCarrito', $limonada->id)
-            ->assertSet('carrito', [$flan->id => 1, $limonada->id => 1])
+            ->assertSet('carrito.'.$limonada->id, 1)
             ->call('quitarDelCarrito', $flan->id)
             ->assertSet('carrito', [$limonada->id => 1])
             ->assertSee('Bs 15.00');
     }
 
-    public function test_cobrar_registra_una_sola_venta_con_todos_los_items_aceptados_y_limpia_el_detalle(): void
+    public function test_vaciar_el_detalle_limpia_el_carrito_y_el_pago(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'precio' => 10,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
+            ->call('seleccionarMetodoPago', 'efectivo')
+            ->set('montoRecibido', '20.00')
+            ->set('glosa', 'Para llevar')
+            ->set('cliente', 'Juan Pérez')
+            ->call('vaciarCarrito')
+            ->assertSet('carrito', [])
+            ->assertSet('mostrarModalPago', false)
+            ->assertSet('metodoPago', null)
+            ->assertSet('montoRecibido', null)
+            ->assertSet('glosa', '')
+            ->assertSet('cliente', '')
+            ->assertSee('El detalle está vacío');
+
+        $this->assertDatabaseCount('ventas', 0);
+    }
+
+    public function test_pagar_abre_y_cierra_el_modal_de_pago(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'precio' => 10,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
+            ->assertSet('mostrarModalPago', true)
+            ->assertSee('Cobrar venta')
+            ->assertSee('Total a pagar')
+            ->assertSee('Efectivo')
+            ->assertSee('QR')
+            ->assertSee('Glosa')
+            ->assertSee('Cliente')
+            ->call('cerrarModalPago')
+            ->assertSet('mostrarModalPago', false);
+    }
+
+    public function test_no_se_puede_abrir_el_pago_con_el_detalle_vacio(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('abrirModalPago')
+            ->assertHasErrors('carrito')
+            ->assertSet('mostrarModalPago', false);
+    }
+
+    public function test_cobrar_registra_una_sola_venta_con_todos_los_items_y_limpia_el_detalle(): void
     {
         $negocio = Negocio::factory()->create();
         $admin = $this->adminDe($negocio);
@@ -170,23 +269,17 @@ class VentasTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $bebidas->id)
-            ->call('incrementar', $limonada->id)
-            ->call('incrementar', $limonada->id)
-            ->call('aceptar')
-            ->call('volverACategorias')
-            ->call('seleccionar', $postres->id)
-            ->call('incrementar', $flan->id)
-            ->call('aceptar')
+            ->call('agregarProducto', $limonada->id)
+            ->call('agregarProducto', $limonada->id)
+            ->call('agregarProducto', $flan->id)
+            ->call('abrirModalPago')
             ->call('seleccionarMetodoPago', 'qr')
             ->call('cobrar')
             ->assertHasNoErrors()
-            ->assertSet('mostrarDetalle', false)
+            ->assertSet('mostrarModalPago', false)
             ->assertSet('carrito', [])
-            ->assertSet('cantidades', [])
             ->assertSet('metodoPago', null)
-            ->assertSet('montoRecibido', null)
-            ->assertSet('categoriaSeleccionadaId', null);
+            ->assertSet('montoRecibido', null);
 
         $this->assertDatabaseCount('ventas', 1);
 
@@ -219,45 +312,29 @@ class VentasTest extends TestCase
         ]);
     }
 
-    public function test_la_glosa_se_conserva_entre_categorias_se_edita_en_el_detalle_y_se_guarda_con_la_venta(): void
+    public function test_la_glosa_general_se_guarda_con_la_venta(): void
     {
         $negocio = Negocio::factory()->create();
         $admin = $this->adminDe($negocio);
-        $bebidas = Categoria::factory()->create(['negocio_id' => $negocio->id]);
-        $postres = Categoria::factory()->create(['negocio_id' => $negocio->id]);
-        $limonada = Producto::factory()->create([
-            'categoria_id' => $bebidas->id,
-            'precio' => 15,
-        ]);
-        $flan = Producto::factory()->create([
-            'categoria_id' => $postres->id,
-            'precio' => 5,
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'precio' => 10,
         ]);
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $bebidas->id)
-            ->assertSee('Glosa')
-            ->assertSee('opcional')
-            ->set('glosa', '  Sin cebolla  ')
-            ->call('incrementar', $limonada->id)
-            ->call('aceptar')
-            ->assertSet('glosa', '  Sin cebolla  ')
-            ->assertSee('Glosa')
-            ->call('volverACategorias')
-            ->call('seleccionar', $postres->id)
-            ->call('incrementar', $flan->id)
-            ->call('aceptar')
-            ->assertSet('glosa', '  Sin cebolla  ')
-            ->set('glosa', 'Sin cebolla, bien caliente')
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
+            ->set('glosa', '  Para llevar  ')
             ->call('seleccionarMetodoPago', 'qr')
             ->call('cobrar')
-            ->assertHasNoErrors()
-            ->assertSet('glosa', '');
+            ->assertHasNoErrors();
 
         $venta = Venta::query()->firstOrFail();
 
-        $this->assertSame('Sin cebolla, bien caliente', $venta->glosa);
+        $this->assertSame('Para llevar', $venta->glosa);
+        $this->assertNull($venta->detalles()->firstOrFail()->glosa);
     }
 
     public function test_una_glosa_de_mas_de_255_caracteres_bloquea_el_cobro(): void
@@ -272,243 +349,44 @@ class VentasTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('incrementar', $producto->id)
-            ->call('aceptar')
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
             ->set('glosa', str_repeat('a', 256))
             ->call('seleccionarMetodoPago', 'qr')
             ->call('cobrar')
             ->assertHasErrors('glosa')
-            ->assertSet('carrito', [$producto->id => 1]);
+            ->assertSet('carrito', [$producto->id => 1])
+            ->assertSet('mostrarModalPago', true);
 
         $this->assertDatabaseCount('ventas', 0);
     }
 
-    public function test_cobrar_descuenta_el_stock_de_los_items_limitados_y_no_de_los_ilimitados(): void
-    {
-        $negocio = Negocio::factory()->create();
-        $admin = $this->adminDe($negocio);
-        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
-        $limitado = Producto::factory()->create([
-            'categoria_id' => $categoria->id,
-            'nombre' => 'Jarra limonada',
-            'precio' => 15,
-            'stock' => 5,
-        ]);
-        $ilimitado = Producto::factory()->create([
-            'categoria_id' => $categoria->id,
-            'nombre' => 'Flan',
-            'precio' => 5,
-            'stock' => null,
-        ]);
-
-        Livewire::actingAs($admin)
-            ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('incrementar', $limitado->id)
-            ->call('incrementar', $limitado->id)
-            ->call('incrementar', $ilimitado->id)
-            ->call('aceptar')
-            ->call('seleccionarMetodoPago', 'qr')
-            ->call('cobrar')
-            ->assertHasNoErrors();
-
-        $this->assertSame(3, $limitado->fresh()->stock);
-        $this->assertNull($ilimitado->fresh()->stock);
-        $this->assertDatabaseCount('ventas', 1);
-    }
-
-    public function test_cobrar_mas_unidades_que_el_stock_deja_stock_negativo_y_lo_avisa(): void
+    public function test_el_cliente_opcional_se_guarda_con_la_venta(): void
     {
         $negocio = Negocio::factory()->create();
         $admin = $this->adminDe($negocio);
         $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
         $producto = Producto::factory()->create([
             'categoria_id' => $categoria->id,
-            'nombre' => 'Jarra limonada',
-            'precio' => 15,
-            'stock' => 1,
+            'precio' => 10,
         ]);
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('incrementar', $producto->id)
-            ->call('incrementar', $producto->id)
-            ->call('aceptar')
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
+            ->set('cliente', '  Juan Pérez  ')
             ->call('seleccionarMetodoPago', 'qr')
             ->call('cobrar')
             ->assertHasNoErrors()
-            ->assertSee('Atención: stock negativo en Jarra limonada (-1).');
-
-        $this->assertSame(-1, $producto->fresh()->stock);
-        $this->assertDatabaseCount('ventas', 1);
-    }
-
-    public function test_la_pantalla_muestra_el_stock_y_avisa_cuando_se_supera(): void
-    {
-        $negocio = Negocio::factory()->create();
-        $admin = $this->adminDe($negocio);
-        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
-        $agotado = Producto::factory()->create([
-            'categoria_id' => $categoria->id,
-            'nombre' => 'Agotado',
-            'precio' => 10,
-            'stock' => 0,
-        ]);
-        $bajo = Producto::factory()->create([
-            'categoria_id' => $categoria->id,
-            'nombre' => 'Bajo stock',
-            'precio' => 10,
-            'stock' => 4,
-        ]);
-
-        Livewire::actingAs($admin)
-            ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->assertSee('Stock: 0')
-            ->assertSee('Agotado')
-            ->assertSee('Stock: 4')
-            ->assertSee('Bajo stock')
-            ->call('incrementar', $agotado->id)
-            ->assertSet('cantidades', [$agotado->id => 1])
-            ->assertSee('quedarán -1 unidades')
-            ->call('incrementar', $agotado->id)
-            ->assertSet('cantidades', [$agotado->id => 2])
-            ->assertSee('quedarán -2 unidades')
-            ->call('aceptar')
-            ->assertSee('Algunos ítems superan el stock disponible');
-    }
-
-    public function test_tras_cobrar_se_ofrece_imprimir_el_ticket_de_forma_opcional(): void
-    {
-        $negocio = Negocio::factory()->create();
-        $admin = $this->adminDe($negocio);
-        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
-        $producto = Producto::factory()->create([
-            'categoria_id' => $categoria->id,
-            'precio' => 10,
-        ]);
-
-        $componente = Livewire::actingAs($admin)
-            ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('incrementar', $producto->id)
-            ->call('aceptar')
-            ->call('seleccionarMetodoPago', 'qr')
-            ->call('cobrar')
-            ->assertHasNoErrors();
+            ->assertSet('cliente', '');
 
         $venta = Venta::query()->firstOrFail();
 
-        $componente
-            ->assertSet('ventaParaImprimirId', $venta->id)
-            ->assertSee('¿Deseas imprimir el detalle de esta venta?')
-            ->assertSee(route('ventas.ticket', ['venta' => $venta->id, 'imprimir' => 1]), false)
-            ->call('omitirImpresion')
-            ->assertSet('ventaParaImprimirId', null);
-
-        $this->assertDatabaseCount('ventas', 1);
+        $this->assertSame('Juan Pérez', $venta->cliente);
     }
 
-    public function test_no_se_puede_cobrar_con_el_detalle_vacio(): void
-    {
-        $negocio = Negocio::factory()->create();
-        $admin = $this->adminDe($negocio);
-
-        Livewire::actingAs($admin)
-            ->test(PantallaPrincipal::class)
-            ->call('verDetalle')
-            ->call('cobrar')
-            ->assertHasErrors('carrito');
-
-        $this->assertDatabaseCount('ventas', 0);
-    }
-
-    public function test_no_se_pueden_cobrar_productos_de_otro_negocio_aunque_se_manipule_el_estado(): void
-    {
-        $negocioPropio = Negocio::factory()->create();
-        $negocioAjeno = Negocio::factory()->create();
-        $admin = $this->adminDe($negocioPropio);
-        $categoriaAjena = Categoria::factory()->create(['negocio_id' => $negocioAjeno->id]);
-        $productoAjeno = Producto::factory()->create(['categoria_id' => $categoriaAjena->id]);
-
-        Livewire::actingAs($admin)
-            ->test(PantallaPrincipal::class)
-            ->set('carrito', [$productoAjeno->id => 1])
-            ->call('cobrar')
-            ->assertHasErrors('carrito');
-
-        $this->assertDatabaseCount('ventas', 0);
-    }
-
-    public function test_un_cajero_puede_aceptar_y_cobrar_y_la_venta_queda_a_su_nombre(): void
-    {
-        $negocio = Negocio::factory()->create();
-        $cajero = $this->cajeroDe($negocio);
-        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
-        $producto = Producto::factory()->create([
-            'categoria_id' => $categoria->id,
-            'nombre' => 'Coca Cola',
-            'precio' => 8,
-        ]);
-
-        Livewire::actingAs($cajero)
-            ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('incrementar', $producto->id)
-            ->call('aceptar')
-            ->call('seleccionarMetodoPago', 'qr')
-            ->call('cobrar')
-            ->assertHasNoErrors();
-
-        $venta = Venta::query()->firstOrFail();
-
-        $this->assertSame($cajero->id, $venta->user_id);
-        $this->assertSame($negocio->id, $venta->negocio_id);
-        $this->assertSame('8.00', $venta->total);
-        $this->assertSame(MetodoPago::Qr, $venta->metodo_pago);
-    }
-
-    public function test_el_detalle_conserva_nombre_y_precio_aunque_el_producto_cambie_o_se_elimine(): void
-    {
-        $negocio = Negocio::factory()->create();
-        $admin = $this->adminDe($negocio);
-        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
-        $producto = Producto::factory()->create([
-            'categoria_id' => $categoria->id,
-            'nombre' => 'Jarra limonada',
-            'precio' => 15,
-        ]);
-
-        Livewire::actingAs($admin)
-            ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('incrementar', $producto->id)
-            ->call('aceptar')
-            ->call('seleccionarMetodoPago', 'qr')
-            ->call('cobrar');
-
-        $detalle = VentaDetalle::query()->firstOrFail();
-
-        $producto->update(['nombre' => 'Limonada premium', 'precio' => 99]);
-
-        $detalle->refresh();
-
-        $this->assertSame('Jarra limonada', $detalle->nombre);
-        $this->assertSame('15.00', $detalle->precio_unitario);
-
-        $producto->delete();
-
-        $detalle->refresh();
-
-        $this->assertNull($detalle->producto_id);
-        $this->assertSame('Jarra limonada', $detalle->nombre);
-        $this->assertSame('15.00', $detalle->precio_unitario);
-        $this->assertSame(1, $detalle->cantidad);
-    }
-
-    public function test_vaciar_el_detalle_limpia_el_carrito_pero_mantiene_la_pantalla_abierta(): void
+    public function test_un_cliente_de_mas_de_120_caracteres_bloquea_el_cobro(): void
     {
         $negocio = Negocio::factory()->create();
         $admin = $this->adminDe($negocio);
@@ -520,67 +398,13 @@ class VentasTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('incrementar', $producto->id)
-            ->call('aceptar')
-            ->assertSet('carrito', [$producto->id => 1])
-            ->set('glosa', 'Sin cebolla')
-            ->call('seleccionarMetodoPago', 'efectivo')
-            ->set('montoRecibido', '20.00')
-            ->call('vaciarCarrito')
-            ->assertSet('carrito', [])
-            ->assertSet('metodoPago', null)
-            ->assertSet('montoRecibido', null)
-            ->assertSet('glosa', '')
-            ->assertSet('mostrarDetalle', true)
-            ->assertSee('El detalle está vacío');
-
-        $this->assertDatabaseCount('ventas', 0);
-    }
-
-    public function test_el_boton_ver_detalle_aparece_al_volver_a_las_categorias_con_items_aceptados(): void
-    {
-        $negocio = Negocio::factory()->create();
-        $admin = $this->adminDe($negocio);
-        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
-        $producto = Producto::factory()->create([
-            'categoria_id' => $categoria->id,
-            'nombre' => 'Budin',
-            'precio' => 5,
-        ]);
-
-        Livewire::actingAs($admin)
-            ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('incrementar', $producto->id)
-            ->call('aceptar')
-            ->call('volverACategorias')
-            ->assertSet('mostrarDetalle', false)
-            ->assertSee('Ver detalle')
-            ->assertSee('Bs 5.00')
-            ->call('verDetalle')
-            ->assertSet('mostrarDetalle', true)
-            ->assertSee('Detalle de venta');
-    }
-
-    public function test_no_se_puede_cobrar_sin_seleccionar_un_metodo_de_pago(): void
-    {
-        $negocio = Negocio::factory()->create();
-        $admin = $this->adminDe($negocio);
-        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
-        $producto = Producto::factory()->create([
-            'categoria_id' => $categoria->id,
-            'precio' => 10,
-        ]);
-
-        Livewire::actingAs($admin)
-            ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('incrementar', $producto->id)
-            ->call('aceptar')
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
+            ->set('cliente', str_repeat('a', 121))
+            ->call('seleccionarMetodoPago', 'qr')
             ->call('cobrar')
-            ->assertHasErrors('metodoPago')
-            ->assertSet('ventaParaImprimirId', null);
+            ->assertHasErrors('cliente')
+            ->assertSet('carrito', [$producto->id => 1]);
 
         $this->assertDatabaseCount('ventas', 0);
     }
@@ -598,9 +422,8 @@ class VentasTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('incrementar', $producto->id)
-            ->call('aceptar')
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
             ->call('seleccionarMetodoPago', 'efectivo')
             ->set('montoRecibido', '20,00')
             ->call('cobrar')
@@ -626,14 +449,13 @@ class VentasTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('incrementar', $producto->id)
-            ->call('aceptar')
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
             ->call('seleccionarMetodoPago', 'efectivo')
             ->set('montoRecibido', '10.00')
             ->call('cobrar')
             ->assertHasErrors('montoRecibido')
-            ->assertSet('mostrarDetalle', true)
+            ->assertSet('mostrarModalPago', true)
             ->assertSet('carrito', [$producto->id => 1]);
 
         $this->assertDatabaseCount('ventas', 0);
@@ -651,9 +473,8 @@ class VentasTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('incrementar', $producto->id)
-            ->call('aceptar')
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
             ->call('seleccionarMetodoPago', 'efectivo')
             ->set('montoRecibido', '20.00')
             ->call('seleccionarMetodoPago', 'qr')
@@ -673,9 +494,8 @@ class VentasTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('incrementar', $producto->id)
-            ->call('aceptar')
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
             ->call('seleccionarMetodoPago', 'efectivo')
             ->set('montoRecibido', '20.00')
             ->assertSee('Bs 5.00')
@@ -683,6 +503,221 @@ class VentasTest extends TestCase
             ->assertSee('El efectivo recibido no cubre el total')
             ->call('disminuirCarrito', $producto->id)
             ->assertSee('Bs 5.00');
+    }
+
+    public function test_cobrar_descuenta_el_stock_de_los_items_limitados_y_no_de_los_ilimitados(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $limitado = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Jarra limonada',
+            'precio' => 15,
+            'stock' => 5,
+        ]);
+        $ilimitado = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Flan',
+            'precio' => 5,
+            'stock' => null,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('agregarProducto', $limitado->id)
+            ->call('agregarProducto', $limitado->id)
+            ->call('agregarProducto', $ilimitado->id)
+            ->call('abrirModalPago')
+            ->call('seleccionarMetodoPago', 'qr')
+            ->call('cobrar')
+            ->assertHasNoErrors();
+
+        $this->assertSame(3, $limitado->fresh()->stock);
+        $this->assertNull($ilimitado->fresh()->stock);
+        $this->assertDatabaseCount('ventas', 1);
+    }
+
+    public function test_cobrar_mas_unidades_que_el_stock_deja_stock_negativo_y_lo_avisa(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Jarra limonada',
+            'precio' => 15,
+            'stock' => 1,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('agregarProducto', $producto->id)
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
+            ->call('seleccionarMetodoPago', 'qr')
+            ->call('cobrar')
+            ->assertHasNoErrors()
+            ->assertSee('Atención: stock negativo en Jarra limonada (-1).');
+
+        $this->assertSame(-1, $producto->fresh()->stock);
+        $this->assertDatabaseCount('ventas', 1);
+    }
+
+    public function test_la_pantalla_muestra_el_stock_y_avisa_cuando_se_supera(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $agotado = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Agotado',
+            'precio' => 10,
+            'stock' => 0,
+        ]);
+        Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Bajo stock',
+            'precio' => 10,
+            'stock' => 4,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('cambiarVista', 'lista')
+            ->assertSee('Stock: 0')
+            ->assertSee('Agotado')
+            ->assertSee('Stock: 4')
+            ->assertSee('Bajo stock')
+            ->call('agregarProducto', $agotado->id)
+            ->call('agregarProducto', $agotado->id)
+            ->assertSet('carrito', [$agotado->id => 2])
+            ->assertSee('Supera el stock; quedarán -2 unidades')
+            ->assertSee('Algunos ítems superan el stock disponible');
+    }
+
+    public function test_tras_cobrar_se_ofrece_imprimir_el_ticket_de_forma_opcional(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'precio' => 10,
+        ]);
+
+        $componente = Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
+            ->call('seleccionarMetodoPago', 'qr')
+            ->call('cobrar')
+            ->assertHasNoErrors();
+
+        $venta = Venta::query()->firstOrFail();
+
+        $componente
+            ->assertSet('ventaParaImprimirId', $venta->id)
+            ->assertSee('¿Deseas imprimir el detalle de esta venta?')
+            ->assertSee(route('ventas.ticket', ['venta' => $venta->id, 'imprimir' => 1]), false)
+            ->call('omitirImpresion')
+            ->assertSet('ventaParaImprimirId', null);
+
+        $this->assertDatabaseCount('ventas', 1);
+    }
+
+    public function test_no_se_puede_cobrar_con_el_detalle_vacio(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('cobrar')
+            ->assertHasErrors('carrito');
+
+        $this->assertDatabaseCount('ventas', 0);
+    }
+
+    public function test_no_se_pueden_cobrar_productos_de_otro_negocio_aunque_se_manipule_el_estado(): void
+    {
+        $negocioPropio = Negocio::factory()->create();
+        $negocioAjeno = Negocio::factory()->create();
+        $admin = $this->adminDe($negocioPropio);
+        $categoriaAjena = Categoria::factory()->create(['negocio_id' => $negocioAjeno->id]);
+        $productoAjeno = Producto::factory()->create(['categoria_id' => $categoriaAjena->id]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->set('carrito', [$productoAjeno->id => 1])
+            ->call('cobrar')
+            ->assertHasErrors('carrito');
+
+        $this->assertDatabaseCount('ventas', 0);
+    }
+
+    public function test_un_cajero_puede_agregar_y_cobrar_y_la_venta_queda_a_su_nombre(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $cajero = $this->cajeroDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Coca Cola',
+            'precio' => 8,
+        ]);
+
+        Livewire::actingAs($cajero)
+            ->test(PantallaPrincipal::class)
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
+            ->call('seleccionarMetodoPago', 'qr')
+            ->call('cobrar')
+            ->assertHasNoErrors();
+
+        $venta = Venta::query()->firstOrFail();
+
+        $this->assertSame($cajero->id, $venta->user_id);
+        $this->assertSame($negocio->id, $venta->negocio_id);
+        $this->assertSame('8.00', $venta->total);
+        $this->assertSame(MetodoPago::Qr, $venta->metodo_pago);
+    }
+
+    public function test_el_detalle_conserva_nombre_y_precio_aunque_el_producto_cambie_o_se_elimine(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Jarra limonada',
+            'precio' => 15,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
+            ->call('seleccionarMetodoPago', 'qr')
+            ->call('cobrar');
+
+        $detalle = VentaDetalle::query()->firstOrFail();
+
+        $producto->update(['nombre' => 'Limonada premium', 'precio' => 99]);
+
+        $detalle->refresh();
+
+        $this->assertSame('Jarra limonada', $detalle->nombre);
+        $this->assertSame('15.00', $detalle->precio_unitario);
+
+        $producto->delete();
+
+        $detalle->refresh();
+
+        $this->assertNull($detalle->producto_id);
+        $this->assertSame('Jarra limonada', $detalle->nombre);
+        $this->assertSame('15.00', $detalle->precio_unitario);
+        $this->assertSame(1, $detalle->cantidad);
     }
 
     public function test_al_elegir_qr_se_muestra_la_imagen_configurada(): void
@@ -697,9 +732,8 @@ class VentasTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('incrementar', $producto->id)
-            ->call('aceptar')
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
             ->call('seleccionarMetodoPago', 'qr')
             ->assertSee('storage/qrs/pago.png', false)
             ->assertSee('Ampliar QR de pago', false)
@@ -719,9 +753,8 @@ class VentasTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('incrementar', $producto->id)
-            ->call('aceptar')
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
             ->call('seleccionarMetodoPago', 'qr')
             ->assertSee('Este negocio no tiene un QR configurado')
             ->call('cobrar')

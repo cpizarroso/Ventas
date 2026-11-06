@@ -23,7 +23,7 @@ class NavegacionTest extends TestCase
         ] as $ruta => $etiqueta) {
             $respuesta = $this->actingAs($admin)->get(route($ruta))->assertOk();
 
-            $this->assertSame(1, substr_count($respuesta->getContent(), 'aria-current="page"'));
+            $this->assertSame(2, substr_count($respuesta->getContent(), 'aria-current="page"'));
             $this->assertStringContainsString('href="'.route($ruta).'"', $respuesta->getContent());
             $this->assertStringContainsString($etiqueta, $respuesta->getContent());
         }

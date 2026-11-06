@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['negocio_id', 'user_id', 'total', 'metodo_pago', 'monto_recibido', 'cambio', 'glosa'])]
+#[Fillable(['negocio_id', 'user_id', 'total', 'metodo_pago', 'monto_recibido', 'cambio', 'glosa', 'cliente'])]
 class Venta extends Model
 {
     /** @use HasFactory<VentaFactory> */
@@ -39,5 +39,42 @@ class Venta extends Model
     public function detalles(): HasMany
     {
         return $this->hasMany(VentaDetalle::class);
+    }
+
+    /**
+     * Classify the sale by its normal and promotional lines.
+     */
+    public function tipoReporte(): string
+    {
+        $tienePromocion = $this->detalles->contains(
+            fn (VentaDetalle $detalle) => $detalle->es_promocion
+        );
+        $tieneNormal = $this->detalles->contains(
+            fn (VentaDetalle $detalle) => ! $detalle->es_promocion
+        );
+
+        if ($tienePromocion && $tieneNormal) {
+            return 'mixta';
+        }
+
+        return $tienePromocion ? 'promocion' : 'normal';
+    }
+
+    public function etiquetaTipoReporte(): string
+    {
+        return match ($this->tipoReporte()) {
+            'promocion' => 'Promoción',
+            'mixta' => 'Mixta',
+            default => 'Normal',
+        };
+    }
+
+    public function promocionesNombres(): string
+    {
+        return $this->detalles
+            ->where('es_promocion', true)
+            ->pluck('nombre')
+            ->unique()
+            ->implode(', ');
     }
 }

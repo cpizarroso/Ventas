@@ -6,7 +6,7 @@
     @endif
 
     <form wire:submit="guardar" class="space-y-6">
-        <div class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-700 dark:bg-stone-800">
+        <div class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-800 sm:p-6">
             <h2 class="text-base font-semibold text-stone-900 dark:text-stone-100">Identidad visual del negocio</h2>
             <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">
                 El nombre comercial es obligatorio. El eslogan y el logo son opcionales.
@@ -20,7 +20,7 @@
                                  alt="Vista previa del logo seleccionado"
                                  class="size-24 rounded-2xl object-cover ring-2 ring-amber-400 dark:ring-amber-500/60">
                         @elseif ($logo_actual)
-                            <img src="{{ asset('storage/' . $logo_actual) }}"
+                            <img src="{{ $this->logoActualUrl() }}"
                                  alt="Logo de {{ $nombre_comercial }}"
                                  class="size-24 rounded-2xl object-cover ring-1 ring-stone-200 dark:ring-stone-600">
                         @else
@@ -106,7 +106,7 @@
             </div>
         </div>
 
-        <div class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-700 dark:bg-stone-800">
+        <div class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-800 sm:p-6">
             <h2 class="text-base font-semibold text-stone-900 dark:text-stone-100">QR de pago</h2>
             <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">
                 Esta imagen se mostrará al cajero cuando seleccione QR como forma de pago.
@@ -120,7 +120,7 @@
                                  alt="Vista previa del QR de pago seleccionado"
                                  class="size-40 rounded-2xl bg-white object-contain p-2 ring-2 ring-amber-400 dark:ring-amber-500/60">
                         @elseif ($qr_actual)
-                            <img src="{{ asset('storage/' . $qr_actual) }}"
+                            <img src="{{ $this->qrActualUrl() }}"
                                  alt="QR de pago de {{ $nombre_comercial }}"
                                  class="size-40 rounded-2xl bg-white object-contain p-2 ring-1 ring-stone-200 dark:ring-stone-600">
                         @else

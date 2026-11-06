@@ -94,6 +94,8 @@ class IdentidadNegocio extends Component
         $this->confirmarEliminacionQr = false;
 
         $this->flashSaved();
+
+        $this->js('window.location.reload()');
     }
 
     /**
@@ -116,6 +118,8 @@ class IdentidadNegocio extends Component
         $this->confirmarEliminacionLogo = false;
 
         session()->flash('status', 'El logo se eliminó correctamente.');
+
+        $this->js('window.location.reload()');
     }
 
     /**
@@ -138,11 +142,39 @@ class IdentidadNegocio extends Component
         $this->confirmarEliminacionQr = false;
 
         session()->flash('status', 'El QR de pago se eliminó correctamente.');
+
+        $this->js('window.location.reload()');
+    }
+
+    public function logoActualUrl(): ?string
+    {
+        return $this->versionedStorageUrl($this->logo_actual);
+    }
+
+    public function qrActualUrl(): ?string
+    {
+        return $this->versionedStorageUrl($this->qr_actual);
     }
 
     public function render(): View
     {
         return view('livewire.configuracion.identidad-negocio');
+    }
+
+    private function versionedStorageUrl(?string $path): ?string
+    {
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        $disk = Storage::disk('public');
+        $url = $disk->url($path);
+
+        if (! $disk->exists($path)) {
+            return $url;
+        }
+
+        return $url.'?v='.$disk->lastModified($path);
     }
 
     private function negocioDelUsuario(): Negocio

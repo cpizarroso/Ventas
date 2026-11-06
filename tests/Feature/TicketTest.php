@@ -25,6 +25,8 @@ class TicketTest extends TestCase
         ?string $montoRecibido = null,
         ?string $cambio = null,
         ?string $glosa = null,
+        ?string $cliente = null,
+        ?string $glosaDetalle = null,
     ): Venta {
         $venta = Venta::factory()->create([
             'negocio_id' => $negocio->id,
@@ -34,6 +36,7 @@ class TicketTest extends TestCase
             'monto_recibido' => $montoRecibido,
             'cambio' => $cambio,
             'glosa' => $glosa,
+            'cliente' => $cliente,
             'created_at' => '2026-10-22 10:30:00',
             'updated_at' => '2026-10-22 10:30:00',
         ]);
@@ -43,6 +46,7 @@ class TicketTest extends TestCase
             'precio_unitario' => 10,
             'cantidad' => 2,
             'subtotal' => 20,
+            'glosa' => $glosaDetalle,
         ]);
 
         return $venta;
@@ -72,23 +76,37 @@ class TicketTest extends TestCase
             ->assertSee('Bs 30.00')
             ->assertSee('Efectivo')
             ->assertDontSee('Glosa:')
+            ->assertDontSee('Cliente')
             ->assertSee('Sistema desarrollado por SofCruz')
             ->assertSee('Contacto: 69175481')
             ->assertSee('size: 80mm auto', false)
             ->assertSee('@page', false);
     }
 
-    public function test_el_ticket_muestra_la_glosa_del_pedido(): void
+    public function test_el_ticket_muestra_la_glosa_de_cada_item(): void
     {
         $negocio = Negocio::factory()->create();
         $admin = $this->adminDe($negocio);
-        $venta = $this->ventaDe($negocio, $admin, glosa: 'Sin cebolla, bien caliente');
+        $venta = $this->ventaDe($negocio, $admin, glosaDetalle: 'Sin cebolla, bien caliente');
 
         $this->actingAs($admin)
             ->get(route('ventas.ticket', $venta))
             ->assertOk()
             ->assertSee('Glosa:')
             ->assertSee('Sin cebolla, bien caliente');
+    }
+
+    public function test_el_ticket_muestra_el_cliente_del_pedido(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $venta = $this->ventaDe($negocio, $admin, cliente: 'María González');
+
+        $this->actingAs($admin)
+            ->get(route('ventas.ticket', $venta))
+            ->assertOk()
+            ->assertSee('Cliente')
+            ->assertSee('María González');
     }
 
     public function test_un_cajero_del_mismo_negocio_puede_ver_el_ticket(): void
@@ -163,5 +181,27 @@ class TicketTest extends TestCase
             ->get(route('ventas.ticket', ['venta' => $venta, 'imprimir' => 1]))
             ->assertOk()
             ->assertSee("window.addEventListener('load'", false);
+    }
+
+    public function test_el_boton_volver_a_ventas_cierra_la_pestana_del_ticket_impreso(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $venta = $this->ventaDe($negocio, $admin);
+
+        $this->actingAs($admin)
+            ->get(route('ventas.ticket', $venta))
+            ->assertOk()
+            ->assertSee('Volver a ventas')
+            ->assertSee('href="'.route('ventas.index').'"', false)
+            ->assertDontSee('volverAVentas', false);
+
+        $this->actingAs($admin)
+            ->get(route('ventas.ticket', ['venta' => $venta, 'imprimir' => 1]))
+            ->assertOk()
+            ->assertSee('Volver a ventas')
+            ->assertSee('onclick="volverAVentas(event, this.href)"', false)
+            ->assertSee('window.close()', false)
+            ->assertSee('window.location.replace(url)', false);
     }
 }

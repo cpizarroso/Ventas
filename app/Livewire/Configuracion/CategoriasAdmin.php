@@ -7,13 +7,20 @@ use App\Models\Categoria;
 use App\Models\Producto;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Unique;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 
 class CategoriasAdmin extends Component
 {
-    use FlashesSavedStatus;
+    use FlashesSavedStatus, WithFileUploads;
+
+    private const IMAGEN_TAMANO = 800;
 
     public string $nombre = '';
 
@@ -31,6 +38,13 @@ class CategoriasAdmin extends Component
 
     public string $productoStock = '';
 
+    /** @var TemporaryUploadedFile|null */
+    public $productoImagen = null;
+
+    public ?string $productoImagenPredeterminada = null;
+
+    public bool $mostrarGaleriaPredeterminada = false;
+
     public ?int $productoEditandoId = null;
 
     public string $productoNombreEdicion = '';
@@ -38,6 +52,15 @@ class CategoriasAdmin extends Component
     public string $productoPrecioEdicion = '';
 
     public string $productoStockEdicion = '';
+
+    /** @var TemporaryUploadedFile|null */
+    public $productoImagenEdicion = null;
+
+    public ?string $productoImagenPredeterminadaEdicion = null;
+
+    public bool $mostrarGaleriaPredeterminadaEdicion = false;
+
+    public bool $quitarImagenEdicion = false;
 
     public ?int $productoEliminandoId = null;
 
@@ -145,6 +168,11 @@ class CategoriasAdmin extends Component
 
         $this->authorize('delete', $categoria);
 
+        $categoria->productos()
+            ->whereNotNull('imagen')
+            ->pluck('imagen')
+            ->each(fn (string $imagen) => $this->eliminarImagenProducto($imagen));
+
         $categoria->delete();
 
         $this->reset('eliminandoId');
@@ -177,6 +205,92 @@ class CategoriasAdmin extends Component
         $this->reset('editandoId', 'nombreEdicion', 'eliminandoId');
     }
 
+    public function abrirGaleriaPredeterminada(): void
+    {
+        $this->mostrarGaleriaPredeterminada = true;
+    }
+
+    public function cerrarGaleriaPredeterminada(): void
+    {
+        $this->mostrarGaleriaPredeterminada = false;
+    }
+
+    /**
+     * Select a predefined image for a new product.
+     */
+    public function seleccionarImagenPredeterminada(int $indice): void
+    {
+        $archivo = $this->imagenesPredeterminadas()[$indice] ?? null;
+
+        if ($archivo === null) {
+            return;
+        }
+
+        $this->productoImagenPredeterminada = $archivo;
+        $this->productoImagen = null;
+        $this->mostrarGaleriaPredeterminada = false;
+    }
+
+    public function quitarImagenPredeterminada(): void
+    {
+        $this->productoImagenPredeterminada = null;
+    }
+
+    public function abrirGaleriaPredeterminadaEdicion(): void
+    {
+        $this->mostrarGaleriaPredeterminadaEdicion = true;
+    }
+
+    public function cerrarGaleriaPredeterminadaEdicion(): void
+    {
+        $this->mostrarGaleriaPredeterminadaEdicion = false;
+    }
+
+    /**
+     * Select a predefined image while editing a product.
+     */
+    public function seleccionarImagenPredeterminadaEdicion(int $indice): void
+    {
+        $archivo = $this->imagenesPredeterminadas()[$indice] ?? null;
+
+        if ($archivo === null) {
+            return;
+        }
+
+        $this->productoImagenPredeterminadaEdicion = $archivo;
+        $this->productoImagenEdicion = null;
+        $this->quitarImagenEdicion = false;
+        $this->mostrarGaleriaPredeterminadaEdicion = false;
+    }
+
+    public function quitarImagenPredeterminadaEdicion(): void
+    {
+        $this->productoImagenPredeterminadaEdicion = null;
+    }
+
+    public function updatedProductoImagen(): void
+    {
+        if ($this->productoImagen !== null) {
+            $this->productoImagenPredeterminada = null;
+        }
+    }
+
+    public function updatedProductoImagenEdicion(): void
+    {
+        if ($this->productoImagenEdicion !== null) {
+            $this->productoImagenPredeterminadaEdicion = null;
+            $this->quitarImagenEdicion = false;
+        }
+    }
+
+    public function updatedQuitarImagenEdicion(): void
+    {
+        if ($this->quitarImagenEdicion) {
+            $this->productoImagenEdicion = null;
+            $this->productoImagenPredeterminadaEdicion = null;
+        }
+    }
+
     /**
      * Create a product inside the open category.
      */
@@ -196,24 +310,48 @@ class CategoriasAdmin extends Component
             ],
             'productoPrecio' => ['required', 'numeric', 'min:0', 'max:99999999.99', 'decimal:0,2'],
             'productoStock' => ['nullable', 'integer', 'min:0', 'max:999999'],
+            'productoImagen' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'productoImagenPredeterminada' => ['nullable', 'string', Rule::in($this->imagenesPredeterminadas())],
         ], [
             'productoNombre.unique' => 'Ya existe un ítem con ese nombre en esta categoría.',
             'productoPrecio.decimal' => 'El precio admite como máximo dos decimales.',
             'productoStock.integer' => 'El stock debe ser un número entero.',
             'productoStock.min' => 'El stock no puede ser negativo.',
+            'productoImagen.image' => 'La imagen debe ser un archivo de imagen válido.',
+            'productoImagen.mimes' => 'La imagen debe ser JPG, PNG o WebP.',
+            'productoImagen.max' => 'La imagen no puede superar los 2 MB.',
+            'productoImagenPredeterminada.in' => 'La imagen predeterminada seleccionada no es válida.',
         ], [
             'productoNombre' => 'nombre',
             'productoPrecio' => 'precio',
             'productoStock' => 'stock',
+            'productoImagen' => 'imagen',
+            'productoImagenPredeterminada' => 'imagen predeterminada',
         ]);
+
+        $imagen = null;
+
+        if ($this->productoImagen !== null) {
+            $imagen = $this->guardarImagenProducto($this->productoImagen);
+        } elseif ($this->productoImagenPredeterminada !== null) {
+            $imagen = $this->guardarImagenPredeterminada($this->productoImagenPredeterminada);
+        }
 
         $categoria->productos()->create([
             'nombre' => trim($this->productoNombre),
+            'imagen' => $imagen,
             'precio' => $this->productoPrecio,
             'stock' => $this->productoStock === '' ? null : (int) $this->productoStock,
         ]);
 
-        $this->reset('productoNombre', 'productoPrecio', 'productoStock');
+        $this->reset(
+            'productoNombre',
+            'productoPrecio',
+            'productoStock',
+            'productoImagen',
+            'productoImagenPredeterminada',
+            'mostrarGaleriaPredeterminada',
+        );
 
         $this->flashSaved();
     }
@@ -231,12 +369,25 @@ class CategoriasAdmin extends Component
         $this->productoNombreEdicion = $producto->nombre;
         $this->productoPrecioEdicion = (string) $producto->precio;
         $this->productoStockEdicion = $producto->stock === null ? '' : (string) $producto->stock;
+        $this->productoImagenEdicion = null;
+        $this->productoImagenPredeterminadaEdicion = null;
+        $this->mostrarGaleriaPredeterminadaEdicion = false;
+        $this->quitarImagenEdicion = false;
         $this->productoEliminandoId = null;
     }
 
     public function cancelarEdicionProducto(): void
     {
-        $this->reset('productoEditandoId', 'productoNombreEdicion', 'productoPrecioEdicion', 'productoStockEdicion');
+        $this->reset(
+            'productoEditandoId',
+            'productoNombreEdicion',
+            'productoPrecioEdicion',
+            'productoStockEdicion',
+            'productoImagenEdicion',
+            'productoImagenPredeterminadaEdicion',
+            'mostrarGaleriaPredeterminadaEdicion',
+            'quitarImagenEdicion',
+        );
     }
 
     /**
@@ -260,23 +411,57 @@ class CategoriasAdmin extends Component
             ],
             'productoPrecioEdicion' => ['required', 'numeric', 'min:0', 'max:99999999.99', 'decimal:0,2'],
             'productoStockEdicion' => ['nullable', 'integer', 'min:-999999', 'max:999999'],
+            'productoImagenEdicion' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'productoImagenPredeterminadaEdicion' => ['nullable', 'string', Rule::in($this->imagenesPredeterminadas())],
         ], [
             'productoNombreEdicion.unique' => 'Ya existe un ítem con ese nombre en esta categoría.',
             'productoPrecioEdicion.decimal' => 'El precio admite como máximo dos decimales.',
             'productoStockEdicion.integer' => 'El stock debe ser un número entero.',
+            'productoImagenEdicion.image' => 'La imagen debe ser un archivo de imagen válido.',
+            'productoImagenEdicion.mimes' => 'La imagen debe ser JPG, PNG o WebP.',
+            'productoImagenEdicion.max' => 'La imagen no puede superar los 2 MB.',
+            'productoImagenPredeterminadaEdicion.in' => 'La imagen predeterminada seleccionada no es válida.',
         ], [
             'productoNombreEdicion' => 'nombre',
             'productoPrecioEdicion' => 'precio',
             'productoStockEdicion' => 'stock',
+            'productoImagenEdicion' => 'imagen',
+            'productoImagenPredeterminadaEdicion' => 'imagen predeterminada',
         ]);
+
+        $imagen = $producto->imagen;
+
+        if ($this->productoImagenEdicion !== null) {
+            $this->eliminarImagenProducto($producto->imagen);
+
+            $imagen = $this->guardarImagenProducto($this->productoImagenEdicion);
+        } elseif ($this->productoImagenPredeterminadaEdicion !== null) {
+            $this->eliminarImagenProducto($producto->imagen);
+
+            $imagen = $this->guardarImagenPredeterminada($this->productoImagenPredeterminadaEdicion);
+        } elseif ($this->quitarImagenEdicion) {
+            $this->eliminarImagenProducto($producto->imagen);
+
+            $imagen = null;
+        }
 
         $producto->update([
             'nombre' => trim($this->productoNombreEdicion),
+            'imagen' => $imagen,
             'precio' => $this->productoPrecioEdicion,
             'stock' => $this->productoStockEdicion === '' ? null : (int) $this->productoStockEdicion,
         ]);
 
-        $this->reset('productoEditandoId', 'productoNombreEdicion', 'productoPrecioEdicion', 'productoStockEdicion');
+        $this->reset(
+            'productoEditandoId',
+            'productoNombreEdicion',
+            'productoPrecioEdicion',
+            'productoStockEdicion',
+            'productoImagenEdicion',
+            'productoImagenPredeterminadaEdicion',
+            'mostrarGaleriaPredeterminadaEdicion',
+            'quitarImagenEdicion',
+        );
 
         $this->flashSaved();
     }
@@ -291,7 +476,16 @@ class CategoriasAdmin extends Component
         $this->authorize('delete', $producto);
 
         $this->productoEliminandoId = $producto->id;
-        $this->reset('productoEditandoId', 'productoNombreEdicion', 'productoPrecioEdicion', 'productoStockEdicion');
+        $this->reset(
+            'productoEditandoId',
+            'productoNombreEdicion',
+            'productoPrecioEdicion',
+            'productoStockEdicion',
+            'productoImagenEdicion',
+            'productoImagenPredeterminadaEdicion',
+            'mostrarGaleriaPredeterminadaEdicion',
+            'quitarImagenEdicion',
+        );
     }
 
     public function cancelarEliminacionProducto(): void
@@ -307,6 +501,8 @@ class CategoriasAdmin extends Component
         $producto = $this->productoDelUsuario((int) $this->productoEliminandoId);
 
         $this->authorize('delete', $producto);
+
+        $this->eliminarImagenProducto($producto->imagen);
 
         $producto->delete();
 
@@ -345,9 +541,20 @@ class CategoriasAdmin extends Component
                 : collect();
         }
 
+        $urlBase = trim((string) config('productos.url_imagenes_predeterminadas'), '/');
+
+        $imagenesPredeterminadas = array_map(
+            fn (string $archivo): array => [
+                'archivo' => $archivo,
+                'url' => asset($urlBase.'/'.$archivo),
+            ],
+            $this->imagenesPredeterminadas(),
+        );
+
         return view('livewire.configuracion.categorias-admin', [
             'categorias' => $categorias,
             'productos' => $productos,
+            'imagenesPredeterminadas' => $imagenesPredeterminadas,
         ]);
     }
 
@@ -393,12 +600,145 @@ class CategoriasAdmin extends Component
             'productoNombre',
             'productoPrecio',
             'productoStock',
+            'productoImagen',
+            'productoImagenPredeterminada',
+            'mostrarGaleriaPredeterminada',
             'productoEditandoId',
             'productoNombreEdicion',
             'productoPrecioEdicion',
             'productoStockEdicion',
+            'productoImagenEdicion',
+            'productoImagenPredeterminadaEdicion',
+            'mostrarGaleriaPredeterminadaEdicion',
+            'quitarImagenEdicion',
             'productoEliminandoId',
         );
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function imagenesPredeterminadas(): array
+    {
+        $directorio = $this->directorioImagenesPredeterminadas();
+
+        if (! File::isDirectory($directorio)) {
+            return [];
+        }
+
+        return collect(File::files($directorio))
+            ->filter(fn (\SplFileInfo $archivo): bool => in_array(strtolower($archivo->getExtension()), ['jpg', 'jpeg', 'png', 'webp'], true))
+            ->map(fn (\SplFileInfo $archivo): string => $archivo->getFilename())
+            ->sort()
+            ->values()
+            ->all();
+    }
+
+    private function directorioImagenesPredeterminadas(): string
+    {
+        return (string) config('productos.imagenes_predeterminadas', public_path('img/productos-predeterminados'));
+    }
+
+    private function guardarImagenProducto(TemporaryUploadedFile $archivo): string
+    {
+        return $this->procesarYGuardarImagen($archivo->getRealPath(), $archivo->getMimeType());
+    }
+
+    private function guardarImagenPredeterminada(string $archivo): string
+    {
+        $ruta = $this->directorioImagenesPredeterminadas().DIRECTORY_SEPARATOR.$archivo;
+
+        return $this->procesarYGuardarImagen($ruta, File::mimeType($ruta) ?: 'image/jpeg');
+    }
+
+    private function procesarYGuardarImagen(string $rutaOrigen, string $mime): string
+    {
+        $extension = match ($mime) {
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            'image/jpg' => 'jpg',
+            default => 'jpg',
+        };
+
+        $ruta = 'productos/'.Str::random(40).'.'.$extension;
+
+        if (! function_exists('imagecreatefromstring')) {
+            $this->copiarImagenProducto($rutaOrigen, $ruta);
+
+            return $ruta;
+        }
+
+        $contenido = @file_get_contents($rutaOrigen);
+        $origen = $contenido === false ? false : @imagecreatefromstring($contenido);
+
+        if ($origen === false) {
+            $this->copiarImagenProducto($rutaOrigen, $ruta);
+
+            return $ruta;
+        }
+
+        $destino = $this->recortarYRedimensionar($origen, self::IMAGEN_TAMANO);
+
+        imagedestroy($origen);
+
+        Storage::disk('public')->makeDirectory('productos');
+
+        $rutaAbsoluta = Storage::disk('public')->path($ruta);
+
+        $guardado = match ($extension) {
+            'png' => imagepng($destino, $rutaAbsoluta, 6),
+            'webp' => imagewebp($destino, $rutaAbsoluta, 82),
+            default => imagejpeg($destino, $rutaAbsoluta, 85),
+        };
+
+        imagedestroy($destino);
+
+        if (! $guardado) {
+            $this->copiarImagenProducto($rutaOrigen, $ruta);
+        }
+
+        return $ruta;
+    }
+
+    private function copiarImagenProducto(string $rutaOrigen, string $rutaDestino): void
+    {
+        Storage::disk('public')->put($rutaDestino, File::get($rutaOrigen));
+    }
+
+    private function recortarYRedimensionar(\GdImage $origen, int $tamano): \GdImage
+    {
+        $ancho = imagesx($origen);
+        $alto = imagesy($origen);
+        $lado = min($ancho, $alto);
+        $tamano = min($tamano, $lado);
+
+        $destino = imagecreatetruecolor($tamano, $tamano);
+
+        imagealphablending($destino, false);
+        imagesavealpha($destino, true);
+        imagefill($destino, 0, 0, imagecolorallocatealpha($destino, 0, 0, 0, 127));
+
+        imagecopyresampled(
+            $destino,
+            $origen,
+            0,
+            0,
+            (int) floor(($ancho - $lado) / 2),
+            (int) floor(($alto - $lado) / 2),
+            $tamano,
+            $tamano,
+            $lado,
+            $lado,
+        );
+
+        return $destino;
+    }
+
+    private function eliminarImagenProducto(?string $ruta): void
+    {
+        if ($ruta !== null && $ruta !== '') {
+            Storage::disk('public')->delete($ruta);
+        }
     }
 
     private function reglaUnicaNombre(?int $ignorarId = null): Unique

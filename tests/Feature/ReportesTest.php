@@ -6,6 +6,7 @@ use App\Enums\MetodoPago;
 use App\Models\Categoria;
 use App\Models\Negocio;
 use App\Models\Producto;
+use App\Models\Promocion;
 use App\Models\User;
 use App\Models\Venta;
 use Carbon\CarbonImmutable;
@@ -375,10 +376,10 @@ class ReportesTest extends TestCase
 
         $contenido = $response->streamedContent();
 
-        $this->assertStringContainsString('Venta;Fecha;Hora;Vendedor;Ítems;Total;Método;Recibido', $contenido);
+        $this->assertStringContainsString('Venta;Fecha;Hora;Vendedor;Tipo;Promociones;Ítems;Total;Método;Recibido', $contenido);
         $this->assertStringContainsString($ventaHoy->id.';22/10/2026;10:30;', $contenido);
         $this->assertStringContainsString($admin->name, $contenido);
-        $this->assertStringContainsString(';2;12.50;Efectivo;20.00', $contenido);
+        $this->assertStringContainsString(';Normal;;2;12.50;Efectivo;20.00', $contenido);
         $this->assertStringNotContainsString(';21/10/2026;', $contenido);
     }
 
@@ -475,6 +476,123 @@ class ReportesTest extends TestCase
             ->get(route('reportes.index'))
             ->assertOk()
             ->assertSee('Sin negocio asignado');
+    }
+
+    public function test_el_reporte_clasifica_y_desglosa_las_promociones(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-22 12:00:00'));
+
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $cafe = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Café',
+            'precio' => 10,
+        ]);
+        $flan = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Flan',
+            'precio' => 5,
+        ]);
+        $promocion = Promocion::factory()->create([
+            'negocio_id' => $negocio->id,
+            'nombre' => 'Combo café',
+            'precio' => 18,
+            'fecha_inicio' => '2026-10-22',
+            'fecha_fin' => '2026-10-22',
+            'dias_semana' => [1, 2, 3, 4, 5, 6, 7],
+        ]);
+        $promocion->productos()->attach([
+            $cafe->id => ['cantidad' => 2],
+            $flan->id => ['cantidad' => 1],
+        ]);
+
+        $ventaMixta = Venta::factory()->create([
+            'negocio_id' => $negocio->id,
+            'user_id' => $admin->id,
+            'total' => 28,
+            'created_at' => '2026-10-22 09:00:00',
+            'updated_at' => '2026-10-22 09:00:00',
+        ]);
+        $ventaMixta->detalles()->create([
+            'producto_id' => $cafe->id,
+            'es_promocion' => false,
+            'nombre' => 'Café',
+            'precio_unitario' => 10,
+            'cantidad' => 1,
+            'subtotal' => 10,
+        ]);
+        $detallePromocion = $ventaMixta->detalles()->create([
+            'producto_id' => null,
+            'promocion_id' => $promocion->id,
+            'es_promocion' => true,
+            'nombre' => 'Combo café',
+            'precio_unitario' => 18,
+            'cantidad' => 1,
+            'subtotal' => 18,
+        ]);
+        $detallePromocion->promocionItems()->createMany([
+            ['producto_id' => $cafe->id, 'nombre' => 'Café', 'cantidad' => 2],
+            ['producto_id' => $flan->id, 'nombre' => 'Flan', 'cantidad' => 1],
+        ]);
+
+        $ventaPromocion = Venta::factory()->create([
+            'negocio_id' => $negocio->id,
+            'user_id' => $admin->id,
+            'total' => 18,
+            'created_at' => '2026-10-22 10:00:00',
+            'updated_at' => '2026-10-22 10:00:00',
+        ]);
+        $detallePromocion = $ventaPromocion->detalles()->create([
+            'producto_id' => null,
+            'promocion_id' => $promocion->id,
+            'es_promocion' => true,
+            'nombre' => 'Combo café',
+            'precio_unitario' => 18,
+            'cantidad' => 1,
+            'subtotal' => 18,
+        ]);
+        $detallePromocion->promocionItems()->createMany([
+            ['producto_id' => $cafe->id, 'nombre' => 'Café', 'cantidad' => 2],
+            ['producto_id' => $flan->id, 'nombre' => 'Flan', 'cantidad' => 1],
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->get(route('reportes.index', ['desde' => '2026-10-22', 'hasta' => '2026-10-22']))
+            ->assertOk()
+            ->assertSee('Mixta')
+            ->assertSee('Promoción')
+            ->assertSee('Promociones vendidas')
+            ->assertSee('Combo café')
+            ->assertSee('Ítems incluidos en promociones')
+            ->assertSee('Desglose físico');
+
+        $this->assertSame(3, $response->viewData('itemsVendidos'));
+        $this->assertSame(1, $response->viewData('resumenProductos')->count());
+        $this->assertSame('Café', $response->viewData('resumenProductos')[0]->nombre);
+
+        $resumenPromociones = $response->viewData('resumenPromociones');
+
+        $this->assertCount(1, $resumenPromociones);
+        $this->assertSame('Combo café', $resumenPromociones[0]->nombre);
+        $this->assertSame(2, (int) $resumenPromociones[0]->cantidad);
+        $this->assertSame(36.0, (float) $resumenPromociones[0]->total);
+
+        $itemsPromocion = $response->viewData('itemsPromocion')->keyBy('nombre');
+
+        $this->assertSame(4, (int) $itemsPromocion['Café']->cantidad);
+        $this->assertSame(2, (int) $itemsPromocion['Flan']->cantidad);
+
+        $csv = $this->actingAs($admin)
+            ->get(route('reportes.export', ['desde' => '2026-10-22', 'hasta' => '2026-10-22']))
+            ->streamedContent();
+
+        $this->assertStringContainsString('Venta;Fecha;Hora;Vendedor;Tipo;Promociones;Ítems;Total;Método;Recibido', $csv);
+        $this->assertStringContainsString($ventaMixta->id.';22/10/2026;09:00;', $csv);
+        $this->assertStringContainsString(';Mixta;"Combo café";2;28.00;', $csv);
+        $this->assertStringContainsString($ventaPromocion->id.';22/10/2026;10:00;', $csv);
+        $this->assertStringContainsString(';Promoción;"Combo café";1;18.00;', $csv);
     }
 
     public function test_el_enlace_de_reportes_es_visible_para_admins_y_cajeros(): void

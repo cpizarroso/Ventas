@@ -9,6 +9,7 @@ use App\Models\Negocio;
 use App\Models\Producto;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -64,6 +65,22 @@ class PantallaPrincipalTest extends TestCase
             ->assertSee('href="'.route('ventas.index').'"', false);
     }
 
+    public function test_el_navbar_muestra_el_nombre_del_usuario_autenticado(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $otroAdmin = User::factory()->admin()->create([
+            'negocio_id' => $negocio->id,
+            'name' => 'Usuario Ajeno',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('ventas.index'))
+            ->assertOk()
+            ->assertSee($admin->name)
+            ->assertDontSee($otroAdmin->name);
+    }
+
     public function test_las_categorias_inactivas_no_aparecen_en_la_pantalla_principal(): void
     {
         $negocio = Negocio::factory()->create();
@@ -86,7 +103,7 @@ class PantallaPrincipalTest extends TestCase
         $this->actingAs($admin)
             ->get(route('ventas.index'))
             ->assertOk()
-            ->assertSee('Todavía no hay categorías creadas')
+            ->assertSee('No hay productos para mostrar')
             ->assertSee('Ir a configuración');
     }
 
@@ -98,7 +115,7 @@ class PantallaPrincipalTest extends TestCase
         $this->actingAs($cajero)
             ->get(route('ventas.index'))
             ->assertOk()
-            ->assertSee('Todavía no hay categorías creadas')
+            ->assertSee('No hay productos para mostrar')
             ->assertDontSee('Ir a configuración');
     }
 
@@ -118,42 +135,22 @@ class PantallaPrincipalTest extends TestCase
             ->assertSee('Lácteos');
     }
 
-    public function test_seleccionar_una_categoria_muestra_sus_items_y_el_total(): void
+    public function test_el_filtro_de_categoria_muestra_solo_sus_items(): void
     {
         $negocio = Negocio::factory()->create();
         $admin = $this->adminDe($negocio);
-        $categoria = Categoria::factory()->create([
+        $bebidas = Categoria::factory()->create([
             'negocio_id' => $negocio->id,
             'nombre' => 'Bebidas',
         ]);
-        Producto::factory()->create([
-            'categoria_id' => $categoria->id,
-            'nombre' => 'Pacumuto',
-            'precio' => 10,
+        $postres = Categoria::factory()->create([
+            'negocio_id' => $negocio->id,
+            'nombre' => 'Postres',
         ]);
-
-        Livewire::actingAs($admin)
-            ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->assertSee('Bebidas')
-            ->assertSee('Pacumuto')
-            ->assertSee('Bs 10.00')
-            ->assertSee('Total')
-            ->call('deseleccionar')
-            ->assertDontSee('Pacumuto');
-    }
-
-    public function test_solo_se_muestran_los_items_de_la_categoria_seleccionada(): void
-    {
-        $negocio = Negocio::factory()->create();
-        $admin = $this->adminDe($negocio);
-        $bebidas = Categoria::factory()->create(['negocio_id' => $negocio->id, 'nombre' => 'Bebidas']);
-        $postres = Categoria::factory()->create(['negocio_id' => $negocio->id, 'nombre' => 'Postres']);
-
         Producto::factory()->create([
             'categoria_id' => $bebidas->id,
-            'nombre' => 'Coca Cola',
-            'precio' => 8,
+            'nombre' => 'Pacumuto',
+            'precio' => 10,
         ]);
         Producto::factory()->create([
             'categoria_id' => $postres->id,
@@ -163,9 +160,50 @@ class PantallaPrincipalTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $bebidas->id)
-            ->assertSee('Coca Cola')
-            ->assertDontSee('Flan');
+            ->call('seleccionarCategoriaFiltro', $bebidas->id)
+            ->assertSee('Pacumuto')
+            ->assertSee('Bs 10.00')
+            ->assertDontSee('Flan')
+            ->call('seleccionarCategoriaFiltro', null)
+            ->assertSee('Flan');
+    }
+
+    public function test_los_productos_se_ordenan_por_categoria_y_luego_por_nombre(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $postres = Categoria::factory()->create([
+            'negocio_id' => $negocio->id,
+            'nombre' => 'Postres',
+            'orden' => 1,
+        ]);
+        $bebidas = Categoria::factory()->create([
+            'negocio_id' => $negocio->id,
+            'nombre' => 'Bebidas',
+            'orden' => 2,
+        ]);
+        Producto::factory()->create([
+            'categoria_id' => $bebidas->id,
+            'nombre' => 'Agua',
+        ]);
+        Producto::factory()->create([
+            'categoria_id' => $bebidas->id,
+            'nombre' => 'Cafe',
+        ]);
+        Producto::factory()->create([
+            'categoria_id' => $postres->id,
+            'nombre' => 'Flan',
+        ]);
+        Producto::factory()->create([
+            'categoria_id' => $postres->id,
+            'nombre' => 'Torta',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->assertSeeInOrder(['Flan', 'Torta', 'Agua', 'Cafe'])
+            ->call('seleccionarCategoriaFiltro', $bebidas->id)
+            ->assertSeeInOrder(['Agua', 'Cafe']);
     }
 
     public function test_los_contadores_actualizan_las_cantidades_y_el_total(): void
@@ -186,21 +224,15 @@ class PantallaPrincipalTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->assertSet('cantidades', [])
-            ->call('incrementar', $limonada->id)
-            ->call('incrementar', $limonada->id)
-            ->call('incrementar', $refresco->id)
-            ->assertSet('cantidades', [
-                $limonada->id => 2,
-                $refresco->id => 1,
-            ])
+            ->assertSet('carrito', [])
+            ->call('agregarProducto', $limonada->id)
+            ->call('agregarProducto', $refresco->id)
+            ->call('incrementarCarrito', $limonada->id)
+            ->assertSet('carrito.'.$limonada->id, 2)
+            ->assertSet('carrito.'.$refresco->id, 1)
             ->assertSee('Bs 38.50')
-            ->call('disminuir', $limonada->id)
-            ->assertSet('cantidades', [
-                $limonada->id => 1,
-                $refresco->id => 1,
-            ])
+            ->call('disminuirCarrito', $limonada->id)
+            ->assertSet('carrito.'.$limonada->id, 1)
             ->assertSee('Bs 23.50');
     }
 
@@ -217,17 +249,16 @@ class PantallaPrincipalTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->call('disminuir', $producto->id)
-            ->assertSet('cantidades', [])
+            ->call('disminuirCarrito', $producto->id)
+            ->assertSet('carrito', [])
             ->assertSee('Bs 0.00')
-            ->call('incrementar', $producto->id)
-            ->call('disminuir', $producto->id)
-            ->call('disminuir', $producto->id)
-            ->assertSet('cantidades', []);
+            ->call('agregarProducto', $producto->id)
+            ->call('disminuirCarrito', $producto->id)
+            ->call('disminuirCarrito', $producto->id)
+            ->assertSet('carrito', []);
     }
 
-    public function test_las_cantidades_se_conservan_al_cambiar_de_categoria(): void
+    public function test_el_carrito_se_conserva_al_cambiar_el_filtro_de_categoria(): void
     {
         $negocio = Negocio::factory()->create();
         $admin = $this->adminDe($negocio);
@@ -241,39 +272,24 @@ class PantallaPrincipalTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $bebidas->id)
-            ->call('incrementar', $producto->id)
-            ->assertSet('cantidades', [$producto->id => 1])
-            ->call('seleccionar', $postres->id)
-            ->assertSet('cantidades', [$producto->id => 1])
-            ->call('deseleccionar')
-            ->assertSet('cantidades', [$producto->id => 1])
-            ->call('seleccionar', $bebidas->id)
+            ->call('agregarProducto', $producto->id)
+            ->assertSet('carrito', [$producto->id => 1])
+            ->call('seleccionarCategoriaFiltro', $postres->id)
+            ->assertSet('carrito', [$producto->id => 1])
             ->assertSee('Bs 15.00');
     }
 
-    public function test_no_se_puede_incrementar_un_producto_de_otra_categoria_u_otro_negocio(): void
+    public function test_no_se_puede_agregar_un_producto_de_otro_negocio(): void
     {
         $negocioPropio = Negocio::factory()->create();
         $negocioAjeno = Negocio::factory()->create();
         $admin = $this->adminDe($negocioPropio);
-        $categoriaPropia = Categoria::factory()->create(['negocio_id' => $negocioPropio->id]);
-        $otraCategoriaPropia = Categoria::factory()->create(['negocio_id' => $negocioPropio->id]);
         $categoriaAjena = Categoria::factory()->create(['negocio_id' => $negocioAjeno->id]);
-
-        $productoOtraCategoria = Producto::factory()->create(['categoria_id' => $otraCategoriaPropia->id]);
         $productoAjeno = Producto::factory()->create(['categoria_id' => $categoriaAjena->id]);
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoriaPropia->id)
-            ->call('incrementar', $productoOtraCategoria->id)
-            ->assertNotFound();
-
-        Livewire::actingAs($admin)
-            ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoriaPropia->id)
-            ->call('incrementar', $productoAjeno->id)
+            ->call('agregarProducto', $productoAjeno->id)
             ->assertNotFound();
     }
 
@@ -285,11 +301,11 @@ class PantallaPrincipalTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoria->id)
-            ->assertSee('Esta categoría todavía no tiene ítems');
+            ->call('seleccionarCategoriaFiltro', $categoria->id)
+            ->assertSee('No hay productos para mostrar');
     }
 
-    public function test_no_se_puede_seleccionar_una_categoria_de_otro_negocio(): void
+    public function test_no_se_puede_filtrar_por_una_categoria_de_otro_negocio(): void
     {
         $negocioPropio = Negocio::factory()->create();
         $negocioAjeno = Negocio::factory()->create();
@@ -301,7 +317,7 @@ class PantallaPrincipalTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(PantallaPrincipal::class)
-            ->call('seleccionar', $categoriaAjena->id)
+            ->call('seleccionarCategoriaFiltro', $categoriaAjena->id)
             ->assertNotFound();
     }
 
@@ -320,7 +336,7 @@ class PantallaPrincipalTest extends TestCase
             ->assertDontSee('CategoriaB');
     }
 
-    public function test_las_cajeros_pueden_ver_y_seleccionar_categorias(): void
+    public function test_los_cajeros_pueden_ver_y_filtrar_categorias(): void
     {
         $negocio = Negocio::factory()->create();
         $cajero = $this->cajeroDe($negocio);
@@ -337,7 +353,7 @@ class PantallaPrincipalTest extends TestCase
         Livewire::actingAs($cajero)
             ->test(PantallaPrincipal::class)
             ->assertSee('Bebidas')
-            ->call('seleccionar', $categoria->id)
+            ->call('seleccionarCategoriaFiltro', $categoria->id)
             ->assertSee('Coca Cola')
             ->assertSee('Bs 8.00');
     }
@@ -349,6 +365,29 @@ class PantallaPrincipalTest extends TestCase
         Livewire::actingAs($superadmin)
             ->test(PantallaPrincipal::class)
             ->assertSee('Tu usuario no tiene un negocio asignado');
+    }
+
+    public function test_la_imagen_del_producto_aparece_en_grid_lista_y_detalle(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('productos/cafe.jpg', 'contenido');
+
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Café',
+            'imagen' => 'productos/cafe.jpg',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->assertSee('productos/cafe.jpg', false)
+            ->call('agregarProducto', $producto->id)
+            ->assertSee('productos/cafe.jpg', false)
+            ->call('cambiarVista', 'lista')
+            ->assertSee('productos/cafe.jpg', false);
     }
 
     public function test_las_categorias_no_estan_hardcodeadas_y_se_obtienen_de_la_base_de_datos(): void

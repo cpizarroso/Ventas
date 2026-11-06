@@ -177,6 +177,31 @@
             font-size: 10px;
         }
 
+        .item-glosa {
+            display: block;
+            font-size: 10px;
+            font-style: italic;
+            overflow-wrap: anywhere;
+        }
+
+        .item-badge {
+            display: inline-block;
+            margin-bottom: 0.5mm;
+            border: 1px solid #000;
+            padding: 0 1mm;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .item-promo-items {
+            display: block;
+            margin-top: 0.5mm;
+            padding-left: 2mm;
+            font-size: 10px;
+            overflow-wrap: anywhere;
+        }
+
         .total-row {
             font-size: 15px;
             font-weight: 700;
@@ -244,15 +269,21 @@
             <p>Elige tu impresora térmica, papel de 80 mm y márgenes: Ninguno.</p>
         </div>
         <div class="print-actions">
-            <a href="{{ route('ventas.index') }}" class="back-link">Volver a ventas</a>
+            <a
+                href="{{ route('ventas.index') }}"
+                class="back-link"
+                @if (request()->boolean('imprimir')) onclick="volverAVentas(event, this.href)" @endif
+            >
+                Volver a ventas
+            </a>
             <button type="button" class="print-button" onclick="window.print()">Imprimir</button>
         </div>
     </div>
 
     <main class="ticket" aria-label="Ticket de venta #{{ $venta->id }}">
         <header class="ticket-header">
-            @if ($venta->negocio->logo)
-                <img src="{{ asset('storage/'.$venta->negocio->logo) }}"
+            @if ($venta->negocio->logoUrl())
+                <img src="{{ $venta->negocio->logoUrl() }}"
                      alt="Logo de {{ $venta->negocio->nombre_comercial }}"
                      class="logo">
             @endif
@@ -276,6 +307,12 @@
             <span>Vendedor</span>
             <span>{{ $venta->user?->name ?? '—' }}</span>
         </div>
+        @if (filled($venta->cliente))
+            <div class="meta-row">
+                <span>Cliente</span>
+                <span>{{ $venta->cliente }}</span>
+            </div>
+        @endif
         <div class="meta-row">
             <span>Pago</span>
             <span>{{ $venta->metodo_pago?->etiqueta() ?? 'Efectivo' }}</span>
@@ -296,8 +333,20 @@
                     <tr>
                         <td class="col-qty">{{ $detalle->cantidad }}</td>
                         <td>
+                            @if ($detalle->es_promocion)
+                                <span class="item-badge">Promoción</span>
+                            @endif
                             <span class="item-name">{{ $detalle->nombre }}</span>
                             <span class="item-unit">{{ $detalle->cantidad }} x Bs {{ number_format((float) $detalle->precio_unitario, 2) }}</span>
+                            @if ($detalle->es_promocion && $detalle->promocionItems->isNotEmpty())
+                                <span class="item-promo-items">
+                                    Incluye:
+                                    {{ $detalle->promocionItems->map(fn ($item) => $item->cantidad.'× '.$item->nombre)->implode(', ') }}
+                                </span>
+                            @endif
+                            @if (filled($detalle->glosa))
+                                <span class="item-glosa">Glosa: {{ $detalle->glosa }}</span>
+                            @endif
                         </td>
                         <td class="col-amount">Bs {{ number_format((float) $detalle->subtotal, 2) }}</td>
                     </tr>
@@ -350,6 +399,14 @@
 
     @if (request()->boolean('imprimir'))
         <script>
+            function volverAVentas(event, url) {
+                event.preventDefault();
+                window.close();
+                window.setTimeout(function () {
+                    window.location.replace(url);
+                }, 150);
+            }
+
             window.addEventListener('load', function () {
                 window.setTimeout(function () {
                     window.print();

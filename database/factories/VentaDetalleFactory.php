@@ -21,10 +21,13 @@ class VentaDetalleFactory extends Factory
         return [
             'venta_id' => Venta::factory(),
             'producto_id' => null,
+            'promocion_id' => null,
+            'es_promocion' => false,
             'nombre' => fake()->words(2, true),
             'precio_unitario' => fake()->randomFloat(2, 1, 100),
             'cantidad' => fake()->numberBetween(1, 5),
             'subtotal' => fn (array $attributes) => round($attributes['precio_unitario'] * $attributes['cantidad'], 2),
+            'glosa' => null,
         ];
     }
 }
