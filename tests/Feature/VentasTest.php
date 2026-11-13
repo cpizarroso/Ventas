@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\MetodoPago;
 use App\Livewire\Ventas\PantallaPrincipal;
+use App\Models\Caja;
 use App\Models\Categoria;
 use App\Models\Negocio;
 use App\Models\Producto;
@@ -20,12 +21,28 @@ class VentasTest extends TestCase
 
     private function adminDe(Negocio $negocio): User
     {
-        return User::factory()->admin()->create(['negocio_id' => $negocio->id]);
+        $admin = User::factory()->admin()->create(['negocio_id' => $negocio->id]);
+
+        Caja::factory()->create([
+            'negocio_id' => $negocio->id,
+            'user_id' => $admin->id,
+            'fecha_apertura' => now(),
+        ]);
+
+        return $admin;
     }
 
     private function cajeroDe(Negocio $negocio): User
     {
-        return User::factory()->cajero()->create(['negocio_id' => $negocio->id]);
+        $cajero = User::factory()->cajero()->create(['negocio_id' => $negocio->id]);
+
+        Caja::factory()->create([
+            'negocio_id' => $negocio->id,
+            'user_id' => $cajero->id,
+            'fecha_apertura' => now(),
+        ]);
+
+        return $cajero;
     }
 
     public function test_la_pantalla_muestra_todos_los_productos_y_los_agrega_al_detalle(): void
@@ -201,6 +218,7 @@ class VentasTest extends TestCase
             ->set('montoRecibido', '20.00')
             ->set('glosa', 'Para llevar')
             ->set('cliente', 'Juan Pérez')
+            ->set('paraLlevar', true)
             ->call('vaciarCarrito')
             ->assertSet('carrito', [])
             ->assertSet('mostrarModalPago', false)
@@ -208,6 +226,7 @@ class VentasTest extends TestCase
             ->assertSet('montoRecibido', null)
             ->assertSet('glosa', '')
             ->assertSet('cliente', '')
+            ->assertSet('paraLlevar', false)
             ->assertSee('El detalle está vacío');
 
         $this->assertDatabaseCount('ventas', 0);
@@ -292,6 +311,14 @@ class VentasTest extends TestCase
         $this->assertSame('0.00', $venta->cambio);
         $this->assertNull($venta->glosa);
         $this->assertCount(2, $venta->detalles);
+
+        $caja = Caja::query()->where('user_id', $admin->id)->firstOrFail();
+
+        $this->assertSame($caja->id, $venta->caja_id);
+        $this->assertSame(1, $caja->fresh()->cantidad_ventas);
+        $this->assertSame('35.00', $caja->fresh()->total_ventas);
+        $this->assertSame('35.00', $caja->fresh()->total_qr);
+        $this->assertSame('0.00', $caja->fresh()->total_efectivo);
 
         $this->assertDatabaseHas('venta_detalles', [
             'venta_id' => $venta->id,
@@ -384,6 +411,58 @@ class VentasTest extends TestCase
         $venta = Venta::query()->firstOrFail();
 
         $this->assertSame('Juan Pérez', $venta->cliente);
+    }
+
+    public function test_el_cobro_guarda_si_la_venta_es_para_llevar(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'precio' => 10,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
+            ->assertSee('Para llevar')
+            ->assertSee('La comida no se consumirá dentro del local.')
+            ->set('paraLlevar', true)
+            ->assertSee('No se consume en el local.')
+            ->call('seleccionarMetodoPago', 'qr')
+            ->call('cobrar')
+            ->assertHasNoErrors()
+            ->assertSet('paraLlevar', false);
+
+        $venta = Venta::query()->firstOrFail();
+
+        $this->assertTrue($venta->para_llevar);
+    }
+
+    public function test_la_venta_no_es_para_llevar_por_defecto(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'precio' => 10,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->assertSet('paraLlevar', false)
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
+            ->call('seleccionarMetodoPago', 'qr')
+            ->call('cobrar')
+            ->assertHasNoErrors();
+
+        $venta = Venta::query()->firstOrFail();
+
+        $this->assertFalse($venta->para_llevar);
     }
 
     public function test_un_cliente_de_mas_de_120_caracteres_bloquea_el_cobro(): void
@@ -637,6 +716,76 @@ class VentasTest extends TestCase
             ->assertHasErrors('carrito');
 
         $this->assertDatabaseCount('ventas', 0);
+    }
+
+    public function test_no_se_puede_cobrar_sin_una_caja_abierta(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = User::factory()->admin()->create(['negocio_id' => $negocio->id]);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'precio' => 10,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->assertSee('No tienes una caja abierta.')
+            ->call('agregarProducto', $producto->id)
+            ->call('abrirModalPago')
+            ->assertHasErrors('carrito')
+            ->assertSet('mostrarModalPago', false)
+            ->call('cobrar')
+            ->assertHasErrors('carrito');
+
+        $this->assertDatabaseCount('ventas', 0);
+    }
+
+    public function test_el_numero_de_ticket_se_reinicia_cada_dia(): void
+    {
+        $this->travelTo('2026-10-22 12:00:00');
+
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create([
+            'categoria_id' => $categoria->id,
+            'precio' => 10,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('agregarProducto', $producto->id)
+            ->call('seleccionarMetodoPago', 'qr')
+            ->call('cobrar')
+            ->assertHasNoErrors();
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('agregarProducto', $producto->id)
+            ->call('seleccionarMetodoPago', 'qr')
+            ->call('cobrar')
+            ->assertHasNoErrors();
+
+        $this->travelTo('2026-10-23 12:00:00');
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('agregarProducto', $producto->id)
+            ->call('seleccionarMetodoPago', 'qr')
+            ->call('cobrar')
+            ->assertHasNoErrors();
+
+        $this->assertSame([1, 2], Venta::query()
+            ->whereDate('fecha_ticket', '2026-10-22')
+            ->orderBy('id')
+            ->pluck('numero_ticket')
+            ->all());
+
+        $this->assertSame([1], Venta::query()
+            ->whereDate('fecha_ticket', '2026-10-23')
+            ->pluck('numero_ticket')
+            ->all());
     }
 
     public function test_no_se_pueden_cobrar_productos_de_otro_negocio_aunque_se_manipule_el_estado(): void

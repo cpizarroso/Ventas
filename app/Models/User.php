@@ -43,6 +43,19 @@ class User extends Authenticatable
         return $this->hasMany(Venta::class);
     }
 
+    public function cajas(): HasMany
+    {
+        return $this->hasMany(Caja::class);
+    }
+
+    public function cajaAbierta(): ?Caja
+    {
+        return $this->cajas()
+            ->abiertas()
+            ->latest('fecha_apertura')
+            ->first();
+    }
+
     public function aceptacionesTerminos(): HasMany
     {
         return $this->hasMany(AceptacionTerminos::class);

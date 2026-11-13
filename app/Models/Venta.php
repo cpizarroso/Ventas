@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['negocio_id', 'user_id', 'total', 'metodo_pago', 'monto_recibido', 'cambio', 'glosa', 'cliente'])]
+#[Fillable(['negocio_id', 'caja_id', 'user_id', 'numero_ticket', 'fecha_ticket', 'total', 'metodo_pago', 'monto_recibido', 'cambio', 'glosa', 'cliente', 'para_llevar'])]
 class Venta extends Model
 {
     /** @use HasFactory<VentaFactory> */
@@ -23,12 +23,20 @@ class Venta extends Model
             'metodo_pago' => MetodoPago::class,
             'monto_recibido' => 'decimal:2',
             'cambio' => 'decimal:2',
+            'para_llevar' => 'boolean',
+            'fecha_ticket' => 'date',
+            'numero_ticket' => 'integer',
         ];
     }
 
     public function negocio(): BelongsTo
     {
         return $this->belongsTo(Negocio::class);
+    }
+
+    public function caja(): BelongsTo
+    {
+        return $this->belongsTo(Caja::class);
     }
 
     public function user(): BelongsTo
@@ -76,5 +84,10 @@ class Venta extends Model
             ->pluck('nombre')
             ->unique()
             ->implode(', ');
+    }
+
+    public function numeroTicket(): int
+    {
+        return (int) ($this->numero_ticket ?? $this->id);
     }
 }

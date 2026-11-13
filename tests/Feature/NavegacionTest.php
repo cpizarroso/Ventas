@@ -18,6 +18,7 @@ class NavegacionTest extends TestCase
 
         foreach ([
             'ventas.index' => 'Ventas',
+            'cajas.index' => 'Cajas',
             'reportes.index' => 'Reportes',
             'configuracion.index' => 'Configuración',
         ] as $ruta => $etiqueta) {

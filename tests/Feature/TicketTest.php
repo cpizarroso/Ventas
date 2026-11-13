@@ -27,6 +27,7 @@ class TicketTest extends TestCase
         ?string $glosa = null,
         ?string $cliente = null,
         ?string $glosaDetalle = null,
+        bool $paraLlevar = false,
     ): Venta {
         $venta = Venta::factory()->create([
             'negocio_id' => $negocio->id,
@@ -37,6 +38,7 @@ class TicketTest extends TestCase
             'cambio' => $cambio,
             'glosa' => $glosa,
             'cliente' => $cliente,
+            'para_llevar' => $paraLlevar,
             'created_at' => '2026-10-22 10:30:00',
             'updated_at' => '2026-10-22 10:30:00',
         ]);
@@ -77,10 +79,28 @@ class TicketTest extends TestCase
             ->assertSee('Efectivo')
             ->assertDontSee('Glosa:')
             ->assertDontSee('Cliente')
+            ->assertDontSee('Para llevar')
             ->assertSee('Sistema desarrollado por SofCruz')
             ->assertSee('Contacto: 69175481')
             ->assertSee('size: 80mm auto', false)
             ->assertSee('@page', false);
+    }
+
+    public function test_el_ticket_muestra_el_numero_diario_asignado(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $venta = $this->ventaDe($negocio, $admin);
+        $venta->update([
+            'numero_ticket' => 42,
+            'fecha_ticket' => '2026-10-22',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('ventas.ticket', $venta))
+            ->assertOk()
+            ->assertSee('Ticket de venta #42')
+            ->assertSee('<span>#42</span>', false);
     }
 
     public function test_el_ticket_muestra_la_glosa_de_cada_item(): void
@@ -107,6 +127,26 @@ class TicketTest extends TestCase
             ->assertOk()
             ->assertSee('Cliente')
             ->assertSee('María González');
+    }
+
+    public function test_el_ticket_indica_cuando_la_venta_es_para_llevar(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $venta = $this->ventaDe($negocio, $admin, paraLlevar: true);
+
+        $this->actingAs($admin)
+            ->get(route('ventas.ticket', $venta))
+            ->assertOk()
+            ->assertSee('Para llevar')
+            ->assertDontSee('No se consume en el local');
+
+        $venta->update(['para_llevar' => false]);
+
+        $this->actingAs($admin)
+            ->get(route('ventas.ticket', $venta))
+            ->assertOk()
+            ->assertDontSee('Para llevar');
     }
 
     public function test_un_cajero_del_mismo_negocio_puede_ver_el_ticket(): void

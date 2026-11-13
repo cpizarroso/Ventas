@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\Ventas\PantallaPrincipal;
+use App\Models\Caja;
 use App\Models\Categoria;
 use App\Models\Negocio;
 use App\Models\Producto;
@@ -20,7 +21,15 @@ class PromocionesVentaTest extends TestCase
 
     private function adminDe(Negocio $negocio): User
     {
-        return User::factory()->admin()->create(['negocio_id' => $negocio->id]);
+        $admin = User::factory()->admin()->create(['negocio_id' => $negocio->id]);
+
+        Caja::factory()->create([
+            'negocio_id' => $negocio->id,
+            'user_id' => $admin->id,
+            'fecha_apertura' => now(),
+        ]);
+
+        return $admin;
     }
 
     private function productoDe(Negocio $negocio, string $nombre, float $precio, ?int $stock = null): Producto

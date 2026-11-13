@@ -2,17 +2,21 @@
 
 namespace App\Livewire\Ventas;
 
+use App\Enums\EstadoCaja;
 use App\Enums\MetodoPago;
+use App\Models\Caja;
 use App\Models\Categoria;
 use App\Models\Negocio;
 use App\Models\Producto;
 use App\Models\Promocion;
+use App\Models\Venta;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 class PantallaPrincipal extends Component
@@ -45,6 +49,8 @@ class PantallaPrincipal extends Component
 
     public ?int $ventaParaImprimirId = null;
 
+    public ?int $ventaParaImprimirNumero = null;
+
     public ?string $metodoPago = null;
 
     public ?string $montoRecibido = null;
@@ -52,6 +58,8 @@ class PantallaPrincipal extends Component
     public string $glosa = '';
 
     public string $cliente = '';
+
+    public bool $paraLlevar = false;
 
     /**
      * Add a product to the sale detail.
@@ -172,6 +180,7 @@ class PantallaPrincipal extends Component
         $this->montoRecibido = null;
         $this->glosa = '';
         $this->cliente = '';
+        $this->paraLlevar = false;
         $this->mostrarModalPago = false;
         $this->resetErrorBag('carrito');
         $this->resetValidation(['metodoPago', 'montoRecibido', 'glosa', 'cliente']);
@@ -210,6 +219,12 @@ class PantallaPrincipal extends Component
      */
     public function abrirModalPago(): void
     {
+        if ($this->cajaAbierta() === null) {
+            $this->addError('carrito', 'Debes abrir tu caja antes de cobrar.');
+
+            return;
+        }
+
         if (
             $this->lineasDesde($this->carrito)->isEmpty()
             && $this->lineasPromocionDesde($this->carritoPromociones)->isEmpty()
@@ -255,6 +270,14 @@ class PantallaPrincipal extends Component
         $negocio = $user?->negocio;
 
         abort_if($negocio === null, 404);
+
+        $cajaAbierta = $this->cajaAbierta();
+
+        if ($cajaAbierta === null) {
+            $this->addError('carrito', 'Debes abrir tu caja antes de cobrar.');
+
+            return;
+        }
 
         $lineas = $this->lineasDesde($this->carrito);
         $lineasPromociones = $this->lineasPromocionDesde($this->carritoPromociones);
@@ -312,6 +335,7 @@ class PantallaPrincipal extends Component
         $metodoPago = MetodoPago::from($this->metodoPago);
         $glosa = $this->glosa === '' ? null : $this->glosa;
         $cliente = $this->cliente === '' ? null : $this->cliente;
+        $paraLlevar = $this->paraLlevar;
         $montoRecibidoEnCentavos = $totalEnCentavos;
         $cambioEnCentavos = 0;
 
@@ -334,16 +358,47 @@ class PantallaPrincipal extends Component
         $advertenciasStock = [];
         $requerimientosStock = $this->requerimientosStock($lineas, $lineasPromociones)->sortKeys();
 
-        $venta = DB::transaction(function () use ($negocio, $user, $lineas, $lineasPromociones, $requerimientosStock, $totalEnCentavos, $metodoPago, $montoRecibidoEnCentavos, $cambioEnCentavos, $glosa, $cliente, &$advertenciasStock) {
+        $venta = DB::transaction(function () use ($negocio, $cajaAbierta, $user, $lineas, $lineasPromociones, $requerimientosStock, $totalEnCentavos, $metodoPago, $montoRecibidoEnCentavos, $cambioEnCentavos, $glosa, $cliente, $paraLlevar, &$advertenciasStock) {
+            $negocio = Negocio::query()->whereKey($negocio->id)->lockForUpdate()->firstOrFail();
+
+            $caja = Caja::query()
+                ->whereKey($cajaAbierta->id)
+                ->where('estado', EstadoCaja::Abierta)
+                ->lockForUpdate()
+                ->first();
+
+            if ($caja === null) {
+                throw ValidationException::withMessages([
+                    'carrito' => 'Tu caja se cerró antes de completar el cobro. Ábrela nuevamente.',
+                ]);
+            }
+
+            $fechaTicket = now()->toDateString();
+            $ultimoNumero = Venta::query()
+                ->where('negocio_id', $negocio->id)
+                ->whereDate('fecha_ticket', $fechaTicket)
+                ->max('numero_ticket');
+
             $venta = $negocio->ventas()->create([
+                'caja_id' => $caja->id,
                 'user_id' => $user->id,
+                'numero_ticket' => ((int) $ultimoNumero) + 1,
+                'fecha_ticket' => $fechaTicket,
                 'total' => $totalEnCentavos / 100,
                 'metodo_pago' => $metodoPago,
                 'monto_recibido' => $montoRecibidoEnCentavos / 100,
                 'cambio' => $cambioEnCentavos / 100,
                 'glosa' => $glosa,
                 'cliente' => $cliente,
+                'para_llevar' => $paraLlevar,
             ]);
+
+            $caja->increment('cantidad_ventas');
+            $caja->increment('total_ventas', $totalEnCentavos / 100);
+            $caja->increment(
+                $metodoPago === MetodoPago::Efectivo ? 'total_efectivo' : 'total_qr',
+                $totalEnCentavos / 100
+            );
 
             if ($lineas->isNotEmpty()) {
                 $venta->detalles()->createMany(
@@ -408,11 +463,13 @@ class PantallaPrincipal extends Component
         $this->montoRecibido = null;
         $this->glosa = '';
         $this->cliente = '';
+        $this->paraLlevar = false;
         $this->ventaParaImprimirId = $venta->id;
+        $this->ventaParaImprimirNumero = $venta->numeroTicket();
         $this->resetErrorBag('carrito');
         $this->resetValidation(['metodoPago', 'montoRecibido', 'glosa', 'cliente']);
 
-        $mensaje = 'Venta #'.$venta->id.' registrada por Bs '.number_format($totalEnCentavos / 100, 2)
+        $mensaje = 'Venta #'.$venta->numeroTicket().' registrada por Bs '.number_format($totalEnCentavos / 100, 2)
             .' ('.$metodoPago->etiqueta().').';
 
         if ($metodoPago === MetodoPago::Efectivo) {
@@ -433,12 +490,14 @@ class PantallaPrincipal extends Component
     public function omitirImpresion(): void
     {
         $this->ventaParaImprimirId = null;
+        $this->ventaParaImprimirNumero = null;
     }
 
     public function render(): View
     {
         $user = Auth::user();
         $negocio = $user?->negocio;
+        $cajaAbierta = $this->cajaAbierta();
 
         $categorias = $this->categorias()->get();
         $productos = $this->productos($negocio)->get();
@@ -470,12 +529,14 @@ class PantallaPrincipal extends Component
         $efectivoSuficiente = $montoRecibidoEnCentavos !== null
             && $montoRecibidoEnCentavos >= $totalCarritoEnCentavos;
 
-        $puedeCobrar = $totalCarritoEnCentavos > 0
+        $puedeCobrar = $cajaAbierta !== null
+            && $totalCarritoEnCentavos > 0
             && $this->metodoPago !== null
             && ($this->metodoPago !== MetodoPago::Efectivo->value || $efectivoSuficiente);
 
         return view('livewire.ventas.pantalla-principal', [
             'negocio' => $negocio,
+            'cajaAbierta' => $cajaAbierta,
             'categorias' => $categorias,
             'productos' => $productos,
             'cantidadesPorProducto' => $cantidadesPorProducto,
@@ -879,6 +940,22 @@ class PantallaPrincipal extends Component
         $cantidad = $this->carrito[$productoId] ?? 0;
 
         return is_numeric($cantidad) ? max(0, min((int) $cantidad, self::MAX_CANTIDAD)) : 0;
+    }
+
+    private function cajaAbierta(): ?Caja
+    {
+        $user = Auth::user();
+
+        if ($user === null || $user->negocio_id === null) {
+            return null;
+        }
+
+        return Caja::query()
+            ->where('negocio_id', $user->negocio_id)
+            ->where('user_id', $user->id)
+            ->abiertas()
+            ->latest('fecha_apertura')
+            ->first();
     }
 
     private function precioEnCentavos(Producto $producto): int

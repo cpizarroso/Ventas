@@ -30,6 +30,11 @@ class Negocio extends Model
         return $this->hasMany(Venta::class);
     }
 
+    public function cajas(): HasMany
+    {
+        return $this->hasMany(Caja::class);
+    }
+
     public function promociones(): HasMany
     {
         return $this->hasMany(Promocion::class);

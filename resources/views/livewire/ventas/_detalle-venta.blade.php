@@ -42,6 +42,19 @@
                 </p>
             </div>
         @else
+            @if ($paraLlevar)
+                <div class="mb-3 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" role="status">
+                    <svg class="mt-0.5 size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                        <path d="M3 6h18M16 10a4 4 0 0 1-8 0" />
+                    </svg>
+                    <p class="text-xs font-semibold">
+                        Para llevar
+                        <span class="font-normal">— No se consume en el local.</span>
+                    </p>
+                </div>
+            @endif
+
             @if ($hayAdvertenciasStock)
                 <div class="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 dark:border-amber-700/60 dark:bg-amber-900/20">
                     <p class="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">Stock insuficiente</p>
@@ -228,7 +241,7 @@
                 type="button"
                 wire:click="abrirModalPago"
                 x-on:click="carritoAbierto = false"
-                @disabled($lineasCarrito->isEmpty() && $lineasPromociones->isEmpty())
+                @disabled($cajaAbierta === null || ($lineasCarrito->isEmpty() && $lineasPromociones->isEmpty()))
                 class="shrink-0 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 dark:focus:ring-offset-stone-800"
             >
                 Pagar

@@ -81,6 +81,10 @@
                                 Ventas
                             </x-nav-link>
 
+                            <x-nav-link :href="route('cajas.index')" :active="request()->routeIs('cajas.*')">
+                                Cajas
+                            </x-nav-link>
+
                             @can('ver-reportes')
                                 <x-nav-link :href="route('reportes.index')" :active="request()->routeIs('reportes.*')">
                                     Reportes
@@ -165,6 +169,10 @@
 
                         <x-nav-link :href="route('ventas.index')" :active="request()->routeIs('ventas.*')" class="block w-full" x-on:click="mobileMenuOpen = false">
                             Ventas
+                        </x-nav-link>
+
+                        <x-nav-link :href="route('cajas.index')" :active="request()->routeIs('cajas.*')" class="block w-full" x-on:click="mobileMenuOpen = false">
+                            Cajas
                         </x-nav-link>
 
                         @can('ver-reportes')

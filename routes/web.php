@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AceptacionesTerminosController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\CajaController;
 use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\TerminosController;
@@ -25,6 +26,14 @@ Route::middleware(['auth', 'terminos.aceptados'])->group(function () {
     Route::get('/ventas', [VentasController::class, 'index'])->name('ventas.index');
 
     Route::get('/ventas/{venta}/ticket', [VentasController::class, 'ticket'])->name('ventas.ticket');
+
+    Route::get('/cajas/abrir', [CajaController::class, 'create'])->name('cajas.create');
+    Route::post('/cajas', [CajaController::class, 'store'])->name('cajas.store');
+    Route::get('/cajas/exportar', [CajaController::class, 'exportar'])->name('cajas.export');
+    Route::get('/cajas', [CajaController::class, 'index'])->name('cajas.index');
+    Route::get('/cajas/{caja}', [CajaController::class, 'show'])->name('cajas.show');
+    Route::get('/cajas/{caja}/cerrar', [CajaController::class, 'cerrar'])->name('cajas.cerrar');
+    Route::post('/cajas/{caja}/cerrar', [CajaController::class, 'cerrarStore'])->name('cajas.cerrar.store');
 
     Route::get('/configuracion', [ConfiguracionController::class, 'index'])
         ->middleware('can:gestionar-configuracion')

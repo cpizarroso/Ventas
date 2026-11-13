@@ -30,6 +30,16 @@
         <div class="space-y-6">
             <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-800 sm:p-6" aria-label="Filtros del reporte">
                 <form method="GET" action="{{ route('reportes.index') }}" class="flex flex-wrap items-end gap-3">
+                    <div class="w-full sm:w-72">
+                        <label for="busqueda" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Buscar</label>
+                        <input type="search" id="busqueda" name="busqueda" value="{{ old('busqueda', $busqueda) }}"
+                               placeholder="N° ticket, cliente, vendedor o glosa…"
+                               class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100">
+                        @error('busqueda')
+                            <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                        @enderror
+                    </div>
+
                     <div class="w-full sm:w-auto">
                         <label for="desde" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Desde</label>
                         <input type="date" id="desde" name="desde" value="{{ old('desde', request('desde', $desde->format('Y-m-d'))) }}"
@@ -88,6 +98,7 @@
                         'desde' => request('desde'),
                         'hasta' => request('hasta'),
                         'cajero_id' => $puedeFiltrarPorCajero ? request('cajero_id') : null,
+                        'busqueda' => request('busqueda'),
                     ])) }}"
                        class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-900/30 sm:w-auto">
                         <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -136,7 +147,7 @@
                 @if ($ventas->isEmpty())
                     <div class="px-4 py-12 text-center sm:px-6">
                         <p class="text-sm font-medium text-stone-600 dark:text-stone-300">No hay ventas en el período seleccionado</p>
-                        <p class="mt-1 text-xs text-stone-400 dark:text-stone-500">Prueba con otro rango de fechas.</p>
+                        <p class="mt-1 text-xs text-stone-400 dark:text-stone-500">Prueba con otro rango de fechas o cambia la búsqueda.</p>
                     </div>
                 @else
                     <div class="overflow-x-auto">
@@ -147,6 +158,7 @@
                                     <th scope="col" class="px-4 py-3">Fecha</th>
                                     <th scope="col" class="px-4 py-3">Vendedor</th>
                                     <th scope="col" class="px-4 py-3">Tipo</th>
+                                    <th scope="col" class="px-4 py-3">Para llevar</th>
                                     <th scope="col" class="px-4 py-3">Pago</th>
                                     <th scope="col" class="px-4 py-3 text-right">Ítems</th>
                                     <th scope="col" class="px-4 py-3 text-right">Total</th>
@@ -157,7 +169,7 @@
                                 @foreach ($ventas as $venta)
                                     <tr>
                                         <td class="whitespace-nowrap px-4 py-3 font-semibold text-stone-800 dark:text-stone-100 sm:px-6">
-                                            #{{ $venta->id }}
+                                            #{{ $venta->numeroTicket() }}
                                         </td>
                                         <td class="whitespace-nowrap px-4 py-3 text-stone-600 dark:text-stone-300">
                                             {{ $venta->created_at->format('d/m/Y H:i') }}
@@ -174,6 +186,17 @@
                                             ])>
                                                 {{ $venta->etiquetaTipoReporte() }}
                                             </span>
+                                        </td>
+                                        <td class="whitespace-nowrap px-4 py-3">
+                                            @if ($venta->para_llevar)
+                                                <span class="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                                                    Para llevar
+                                                </span>
+                                            @else
+                                                <span class="rounded-full bg-stone-100 px-2 py-1 text-xs font-semibold text-stone-600 dark:bg-stone-700 dark:text-stone-300">
+                                                    Local
+                                                </span>
+                                            @endif
                                         </td>
                                         <td class="whitespace-nowrap px-4 py-3">
                                             <span @class([
@@ -195,6 +218,11 @@
                                                 <summary class="cursor-pointer list-none text-xs font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300">
                                                     Ver ítems
                                                 </summary>
+                                                @if ($venta->para_llevar)
+                                                    <p class="mt-1 rounded-lg bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                                        Para llevar — No se consume en el local.
+                                                    </p>
+                                                @endif
                                                 <ul class="mt-2 space-y-1 text-xs text-stone-600 dark:text-stone-300">
                                                     @foreach ($venta->detalles as $detalle)
                                                         <li class="flex justify-between gap-3">
@@ -221,6 +249,10 @@
                                 @endforeach
                             </tbody>
                         </table>
+                    </div>
+
+                    <div class="border-t border-stone-100 px-4 py-4 dark:border-stone-700/60 sm:px-6">
+                        {{ $ventas->links() }}
                     </div>
                 @endif
             </section>

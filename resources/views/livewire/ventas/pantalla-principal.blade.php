@@ -27,7 +27,7 @@
                 </div>
 
                 <h2 id="titulo-venta-registrada" class="mt-4 text-lg font-semibold text-stone-900 dark:text-stone-100">
-                    Venta #{{ $ventaParaImprimirId }} registrada
+                    Venta #{{ $ventaParaImprimirNumero ?? $ventaParaImprimirId }} registrada
                 </h2>
                 <p class="mt-1 text-sm text-stone-600 dark:text-stone-300">
                     ¿Deseas imprimir el detalle de esta venta?
@@ -72,6 +72,28 @@
             </p>
         </div>
     @else
+        @if ($cajaAbierta === null)
+            <div class="mb-4 flex flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200 sm:flex-row sm:items-center sm:justify-between" role="alert">
+                <div>
+                    <p class="font-semibold">No tienes una caja abierta.</p>
+                    <p class="text-xs">Abre tu caja e ingresa el monto inicial antes de cobrar.</p>
+                </div>
+                <a href="{{ route('cajas.create', ['origen' => 'ventas']) }}" class="shrink-0 rounded-lg bg-amber-500 px-4 py-2 text-center text-xs font-bold uppercase tracking-wide text-stone-900 hover:bg-amber-400">
+                    Abrir caja
+                </a>
+            </div>
+        @else
+            <div class="mb-4 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 sm:flex-row sm:items-center sm:justify-between" role="status">
+                <div>
+                    <p class="font-semibold">Caja abierta desde {{ $cajaAbierta->fecha_apertura->format('d/m/Y H:i') }}.</p>
+                    <p class="text-xs">Monto inicial: Bs {{ number_format((float) $cajaAbierta->monto_inicial, 2) }}</p>
+                </div>
+                <a href="{{ route('cajas.cerrar', $cajaAbierta) }}" class="shrink-0 rounded-lg border border-emerald-300 px-4 py-2 text-center text-xs font-bold uppercase tracking-wide text-emerald-800 hover:bg-emerald-100 dark:border-emerald-700 dark:text-emerald-200 dark:hover:bg-emerald-900/50">
+                    Cerrar caja
+                </a>
+            </div>
+        @endif
+
         <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6">
             <section class="min-w-0" aria-label="Productos">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -578,6 +600,34 @@
                             Selecciona cómo pagará el cliente para continuar.
                         </p>
                     @endif
+
+                    <div class="mt-4">
+                        <label
+                            for="paraLlevar"
+                            class="flex cursor-pointer items-start gap-3 rounded-xl border border-stone-300 bg-white p-3 transition hover:border-amber-400 hover:bg-amber-50/50 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50 dark:border-stone-600 dark:bg-stone-900/40 dark:hover:border-amber-500/60 dark:hover:bg-amber-900/10 dark:has-[:checked]:border-emerald-500/70 dark:has-[:checked]:bg-emerald-900/20"
+                        >
+                            <input
+                                type="checkbox"
+                                id="paraLlevar"
+                                wire:model.live="paraLlevar"
+                                class="peer sr-only"
+                            >
+                            <span
+                                class="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border-2 border-stone-300 bg-white text-white transition peer-checked:border-emerald-600 peer-checked:bg-emerald-600 peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-500 peer-focus-visible:ring-offset-2 [&>svg]:opacity-0 peer-checked:[&>svg]:opacity-100 dark:border-stone-500 dark:bg-stone-800 dark:peer-checked:border-emerald-500 dark:peer-checked:bg-emerald-500 dark:peer-focus-visible:ring-offset-stone-800"
+                                aria-hidden="true"
+                            >
+                                <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="m5 12 5 5L20 7" />
+                                </svg>
+                            </span>
+                            <span class="min-w-0">
+                                <span class="block text-sm font-semibold text-stone-900 dark:text-stone-100">Para llevar</span>
+                                <span class="mt-0.5 block text-xs text-stone-500 dark:text-stone-400">
+                                    La comida no se consumirá dentro del local.
+                                </span>
+                            </span>
+                        </label>
+                    </div>
 
                     <div class="mt-4">
                         <label for="glosa" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">

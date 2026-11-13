@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex">
-    <title>Ticket #{{ $venta->id }} · {{ $venta->negocio->nombre_comercial }}</title>
+    <title>Ticket #{{ $venta->numeroTicket() }} · {{ $venta->negocio->nombre_comercial }}</title>
     <style>
         :root {
             color-scheme: light;
@@ -220,6 +220,16 @@
             overflow-wrap: anywhere;
         }
 
+        .takeaway {
+            margin: 0;
+            padding: 1.5mm 0;
+            border: 1px dashed #000;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
         .thanks {
             margin: 0;
             text-align: center;
@@ -265,7 +275,7 @@
 <body>
     <div class="print-bar">
         <div>
-            <strong>Ticket de venta #{{ $venta->id }}</strong>
+            <strong>Ticket de venta #{{ $venta->numeroTicket() }}</strong>
             <p>Elige tu impresora térmica, papel de 80 mm y márgenes: Ninguno.</p>
         </div>
         <div class="print-actions">
@@ -280,7 +290,7 @@
         </div>
     </div>
 
-    <main class="ticket" aria-label="Ticket de venta #{{ $venta->id }}">
+    <main class="ticket" aria-label="Ticket de venta #{{ $venta->numeroTicket() }}">
         <header class="ticket-header">
             @if ($venta->negocio->logoUrl())
                 <img src="{{ $venta->negocio->logoUrl() }}"
@@ -297,7 +307,7 @@
 
         <div class="meta-row">
             <span>Ticket</span>
-            <span>#{{ $venta->id }}</span>
+            <span>#{{ $venta->numeroTicket() }}</span>
         </div>
         <div class="meta-row">
             <span>Fecha</span>
@@ -317,6 +327,12 @@
             <span>Pago</span>
             <span>{{ $venta->metodo_pago?->etiqueta() ?? 'Efectivo' }}</span>
         </div>
+
+        @if ($venta->para_llevar)
+            <div class="sep"></div>
+
+            <p class="takeaway">Para llevar</p>
+        @endif
 
         <div class="sep"></div>
 

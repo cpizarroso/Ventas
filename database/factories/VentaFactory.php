@@ -20,10 +20,14 @@ class VentaFactory extends Factory
     {
         return [
             'negocio_id' => Negocio::factory(),
+            'caja_id' => null,
             'user_id' => null,
+            'numero_ticket' => null,
+            'fecha_ticket' => null,
             'total' => fake()->randomFloat(2, 1, 500),
             'glosa' => null,
             'cliente' => null,
+            'para_llevar' => false,
         ];
     }
 }
