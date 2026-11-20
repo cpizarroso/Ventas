@@ -36,12 +36,16 @@ class ReportesTest extends TestCase
         ?string $montoRecibido = null,
         ?string $cambio = null,
         bool $paraLlevar = false,
+        ?int $numeroTicket = null,
+        ?string $fechaTicket = null,
     ): Venta {
         $total = collect($items)->sum(fn (array $item) => round($item[1] * $item[2], 2));
 
         $venta = Venta::factory()->create([
             'negocio_id' => $negocio->id,
             'user_id' => $vendedor->id,
+            'numero_ticket' => $numeroTicket,
+            'fecha_ticket' => $fechaTicket,
             'total' => $total,
             'metodo_pago' => $metodo,
             'monto_recibido' => $montoRecibido,
@@ -155,7 +159,10 @@ class ReportesTest extends TestCase
         $this->travelTo(CarbonImmutable::parse('2026-10-22 12:00:00'));
 
         $negocio = Negocio::factory()->create();
-        $admin = $this->adminDe($negocio);
+        $admin = User::factory()->admin()->create([
+            'negocio_id' => $negocio->id,
+            'name' => 'Administrador Prueba',
+        ]);
         $ana = User::factory()->cajero()->create([
             'negocio_id' => $negocio->id,
             'name' => 'Ana Vendedora',
@@ -236,6 +243,66 @@ class ReportesTest extends TestCase
 
         $this->assertSame(2, $segundaPagina->viewData('ventas')->count());
         $this->assertSame(12, $segundaPagina->viewData('cantidadVentas'));
+    }
+
+    public function test_el_reporte_ordena_las_ventas_por_fecha_y_luego_por_numero_de_ticket(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-22 12:00:00'));
+
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+
+        foreach ([[3, '2026-10-22'], [1, '2026-10-23'], [2, '2026-10-22'], [1, '2026-10-22']] as [$numeroTicket, $fechaTicket]) {
+            $this->ventaDe(
+                $negocio,
+                $admin,
+                $fechaTicket.' 09:00:00',
+                [['Producto', 10, 1]],
+                numeroTicket: $numeroTicket,
+                fechaTicket: $fechaTicket,
+            );
+        }
+
+        $response = $this->actingAs($admin)
+            ->get(route('reportes.index', ['desde' => '2026-10-22', 'hasta' => '2026-10-23']))
+            ->assertOk();
+
+        $ventas = $response->viewData('ventas')->getCollection();
+
+        $this->assertSame(['2026-10-22', '2026-10-22', '2026-10-22', '2026-10-23'], $ventas->map(
+            fn (Venta $venta): string => $venta->fecha_ticket->toDateString()
+        )->all());
+        $this->assertSame([1, 2, 3, 1], $ventas->map->numeroTicket()->all());
+    }
+
+    public function test_el_csv_del_reporte_ordena_por_fecha_y_numero_de_ticket(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-22 12:00:00'));
+
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+
+        foreach ([[3, '2026-10-22'], [1, '2026-10-22'], [2, '2026-10-22']] as [$numeroTicket, $fechaTicket]) {
+            $this->ventaDe(
+                $negocio,
+                $admin,
+                $fechaTicket.' 09:00:00',
+                [['Producto', 10, 1]],
+                numeroTicket: $numeroTicket,
+                fechaTicket: $fechaTicket,
+            );
+        }
+
+        $csv = $this->actingAs($admin)
+            ->get(route('reportes.export', ['desde' => '2026-10-22', 'hasta' => '2026-10-22']))
+            ->streamedContent();
+
+        $lineas = preg_split('/\R/', trim($csv));
+        array_shift($lineas);
+
+        $numeros = array_map(fn (string $linea): string => str_getcsv($linea, ';')[0], $lineas);
+
+        $this->assertSame(['1', '2', '3'], $numeros);
     }
 
     public function test_un_rango_de_fechas_invalido_muestra_un_error_de_validacion(): void
@@ -425,6 +492,67 @@ class ReportesTest extends TestCase
         $this->assertStringContainsString($ventaA->id.';22/10/2026;09:00;', $csv);
         $this->assertStringContainsString('Ana Cajera', $csv);
         $this->assertStringNotContainsString($ventaB->id.';22/10/2026;10:00;', $csv);
+    }
+
+    public function test_el_filtro_por_cajero_busca_por_nombre_al_escribir(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-22 12:00:00'));
+
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $ana = User::factory()->cajero()->create(['negocio_id' => $negocio->id, 'name' => 'Ana Cajera']);
+        $luis = User::factory()->cajero()->create(['negocio_id' => $negocio->id, 'name' => 'Luis Cajero']);
+
+        $this->ventaDe($negocio, $ana, '2026-10-22 09:00:00', [['ProductoAna', 10, 1]]);
+        $this->ventaDe($negocio, $luis, '2026-10-22 10:00:00', [['ProductoLuis', 20, 1]]);
+
+        $response = $this->actingAs($admin)
+            ->get(route('reportes.index', [
+                'desde' => '2026-10-22',
+                'hasta' => '2026-10-22',
+                'cajero' => 'ana',
+            ]))
+            ->assertOk()
+            ->assertSee('ProductoAna')
+            ->assertDontSee('ProductoLuis');
+
+        $this->assertSame('ana', $response->viewData('cajero'));
+        $this->assertSame(10.0, $response->viewData('totalVendido'));
+        $this->assertSame(1, $response->viewData('cantidadVentas'));
+
+        $csv = $this->actingAs($admin)
+            ->get(route('reportes.export', [
+                'desde' => '2026-10-22',
+                'hasta' => '2026-10-22',
+                'cajero' => 'ana',
+            ]))
+            ->streamedContent();
+
+        $this->assertStringContainsString('Ana Cajera', $csv);
+        $this->assertStringNotContainsString('Luis Cajero', $csv);
+    }
+
+    public function test_los_filtros_se_aplican_automaticamente_y_la_paginacion_es_compacta(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-22 12:00:00'));
+
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+
+        for ($i = 1; $i <= 12; $i++) {
+            $this->ventaDe($negocio, $admin, '2026-10-22 09:00:00', [['Producto'.$i, 10, 1]]);
+        }
+
+        $this->actingAs($admin)
+            ->get(route('reportes.index', ['desde' => '2026-10-22', 'hasta' => '2026-10-22']))
+            ->assertOk()
+            ->assertSee('data-reporte-filtros', false)
+            ->assertSee('data-reporte-auto-submit', false)
+            ->assertSee('name="cajero"', false)
+            ->assertSee('data-reporte-ventas', false)
+            ->assertSee('data-reporte-paginacion', false)
+            ->assertSee('Página 1 de 2', false)
+            ->assertDontSee('>Aplicar<', false);
     }
 
     public function test_no_se_puede_filtrar_por_un_cajero_de_otro_negocio_o_por_un_admin(): void

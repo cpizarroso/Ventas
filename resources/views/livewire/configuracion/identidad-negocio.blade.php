@@ -70,7 +70,7 @@
                     @endif
 
                     <p class="max-w-32 text-center text-[11px] leading-tight text-stone-400 dark:text-stone-500">
-                        PNG, JPG o WebP. Máx. 2 MB.
+                        PNG, JPG o WebP. Máx. 5 MB. Se optimiza automáticamente (máx. 512 px).
                     </p>
                 </div>
 
@@ -171,7 +171,7 @@
                     @endif
 
                     <p class="max-w-40 text-center text-[11px] leading-tight text-stone-400 dark:text-stone-500">
-                        PNG, JPG o WebP. Máx. 2 MB.
+                        PNG, JPG o WebP. Máx. 5 MB. Se guarda sin pérdida de calidad.
                     </p>
                 </div>
 

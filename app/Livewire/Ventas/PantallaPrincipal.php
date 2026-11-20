@@ -68,6 +68,10 @@ class PantallaPrincipal extends Component
     {
         $producto = $this->productoDisponible($productoId);
 
+        if (! $this->hayCajaParaVenta()) {
+            return;
+        }
+
         $this->carrito[$producto->id] = min(
             ($this->carrito[$producto->id] ?? 0) + 1,
             self::MAX_CANTIDAD
@@ -80,6 +84,10 @@ class PantallaPrincipal extends Component
     public function incrementarCarrito(int $productoId): void
     {
         $producto = $this->productoDelCarrito($productoId);
+
+        if (! $this->hayCajaParaVenta()) {
+            return;
+        }
 
         $this->carrito[$producto->id] = min(
             ($this->carrito[$producto->id] ?? 0) + 1,
@@ -122,6 +130,10 @@ class PantallaPrincipal extends Component
     {
         $promocion = $this->promocionDisponible($promocionId);
 
+        if (! $this->hayCajaParaVenta()) {
+            return;
+        }
+
         $this->carritoPromociones[$promocion->id] = min(
             ($this->carritoPromociones[$promocion->id] ?? 0) + 1,
             self::MAX_CANTIDAD
@@ -134,6 +146,10 @@ class PantallaPrincipal extends Component
     public function incrementarPromocion(int $promocionId): void
     {
         $promocion = $this->promocionDelCarrito($promocionId);
+
+        if (! $this->hayCajaParaVenta()) {
+            return;
+        }
 
         $this->carritoPromociones[$promocion->id] = min(
             ($this->carritoPromociones[$promocion->id] ?? 0) + 1,
@@ -940,6 +956,21 @@ class PantallaPrincipal extends Component
         $cantidad = $this->carrito[$productoId] ?? 0;
 
         return is_numeric($cantidad) ? max(0, min((int) $cantidad, self::MAX_CANTIDAD)) : 0;
+    }
+
+    private function hayCajaParaVenta(): bool
+    {
+        if ($this->cajaAbierta() !== null) {
+            return true;
+        }
+
+        $this->dispatch(
+            'toast',
+            message: 'Abre tu caja antes de agregar ítems a la venta.',
+            type: 'warning',
+        );
+
+        return false;
     }
 
     private function cajaAbierta(): ?Caja

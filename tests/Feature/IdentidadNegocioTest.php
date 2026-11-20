@@ -20,6 +20,43 @@ class IdentidadNegocioTest extends TestCase
         return User::factory()->admin()->create(['negocio_id' => $negocio->id]);
     }
 
+    private function contenidoImagen(string $extension, int $ancho, int $alto): string
+    {
+        $imagen = imagecreatetruecolor($ancho, $alto);
+
+        imagefill($imagen, 0, 0, imagecolorallocate($imagen, 240, 240, 240));
+
+        ob_start();
+
+        if ($extension === 'png') {
+            imagepng($imagen);
+        } else {
+            imagejpeg($imagen, null, 95);
+        }
+
+        $contenido = ob_get_clean();
+
+        imagedestroy($imagen);
+
+        return $contenido;
+    }
+
+    private function hashPixeles(string $contenido): string
+    {
+        $imagen = imagecreatefromstring($contenido);
+        $pixeles = '';
+
+        for ($y = 0; $y < imagesy($imagen); $y++) {
+            for ($x = 0; $x < imagesx($imagen); $x++) {
+                $pixeles .= pack('N', imagecolorat($imagen, $x, $y));
+            }
+        }
+
+        imagedestroy($imagen);
+
+        return hash('sha256', $pixeles);
+    }
+
     public function test_un_admin_puede_actualizar_el_nombre_comercial_y_el_eslogan(): void
     {
         $negocio = Negocio::factory()->create([
@@ -85,7 +122,7 @@ class IdentidadNegocioTest extends TestCase
         Storage::fake('public');
         $negocio = Negocio::factory()->create(['logo' => null]);
         $admin = $this->adminDe($negocio);
-        $archivo = UploadedFile::fake()->image('logo.png', 200, 200);
+        $archivo = UploadedFile::fake()->image('logo.png', 200, 200)->size(3000);
 
         Livewire::actingAs($admin)
             ->test(IdentidadNegocio::class)
@@ -121,7 +158,7 @@ class IdentidadNegocioTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(IdentidadNegocio::class)
-            ->set('logo_nuevo', UploadedFile::fake()->image('logo.png', 200, 200)->size(3000))
+            ->set('logo_nuevo', UploadedFile::fake()->image('logo.png', 200, 200)->size(6000))
             ->call('guardar')
             ->assertHasErrors(['logo_nuevo']);
 
@@ -213,7 +250,7 @@ class IdentidadNegocioTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(IdentidadNegocio::class)
-            ->set('qr_nuevo', UploadedFile::fake()->image('qr.png', 300, 300))
+            ->set('qr_nuevo', UploadedFile::fake()->image('qr.png', 300, 300)->size(3000))
             ->call('guardar')
             ->assertHasNoErrors();
 
@@ -267,7 +304,7 @@ class IdentidadNegocioTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(IdentidadNegocio::class)
-            ->set('qr_nuevo', UploadedFile::fake()->image('qr.png', 300, 300)->size(3000))
+            ->set('qr_nuevo', UploadedFile::fake()->image('qr.png', 300, 300)->size(6000))
             ->call('guardar')
             ->assertHasErrors(['qr_nuevo']);
 
@@ -299,5 +336,52 @@ class IdentidadNegocioTest extends TestCase
             ->test(IdentidadNegocio::class)
             ->assertSee('qrs/existente.png', false)
             ->assertSee('Quitar QR');
+    }
+
+    public function test_el_logo_se_optimiza_conservando_su_proporcion(): void
+    {
+        Storage::fake('public');
+        $negocio = Negocio::factory()->create(['logo' => null]);
+        $admin = $this->adminDe($negocio);
+        $contenido = $this->contenidoImagen('png', 1200, 600);
+
+        Livewire::actingAs($admin)
+            ->test(IdentidadNegocio::class)
+            ->set('logo_nuevo', UploadedFile::fake()->createWithContent('logo.png', $contenido))
+            ->call('guardar')
+            ->assertHasNoErrors();
+
+        $negocio->refresh();
+
+        [$ancho, $alto] = getimagesize(Storage::disk('public')->path($negocio->logo));
+
+        $this->assertSame(512, $ancho);
+        $this->assertSame(256, $alto);
+        $this->assertLessThan(strlen($contenido), Storage::disk('public')->size($negocio->logo));
+    }
+
+    public function test_el_qr_se_guarda_sin_perder_pixeles_ni_dimensiones(): void
+    {
+        Storage::fake('public');
+        $negocio = Negocio::factory()->create(['qr_pago' => null]);
+        $admin = $this->adminDe($negocio);
+        $contenido = $this->contenidoImagen('png', 300, 300);
+
+        Livewire::actingAs($admin)
+            ->test(IdentidadNegocio::class)
+            ->set('qr_nuevo', UploadedFile::fake()->createWithContent('qr.png', $contenido))
+            ->call('guardar')
+            ->assertHasNoErrors();
+
+        $negocio->refresh();
+
+        [$ancho, $alto] = getimagesize(Storage::disk('public')->path($negocio->qr_pago));
+
+        $this->assertSame(300, $ancho);
+        $this->assertSame(300, $alto);
+        $this->assertSame(
+            $this->hashPixeles($contenido),
+            $this->hashPixeles(Storage::disk('public')->get($negocio->qr_pago)),
+        );
     }
 }

@@ -3,13 +3,13 @@
 namespace App\Livewire\Configuracion;
 
 use App\Livewire\Concerns\FlashesSavedStatus;
+use App\Livewire\Concerns\OptimizaImagenes;
 use App\Models\Categoria;
 use App\Models\Producto;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Unique;
 use Livewire\Component;
@@ -18,9 +18,7 @@ use Livewire\WithFileUploads;
 
 class CategoriasAdmin extends Component
 {
-    use FlashesSavedStatus, WithFileUploads;
-
-    private const IMAGEN_TAMANO = 800;
+    use FlashesSavedStatus, OptimizaImagenes, WithFileUploads;
 
     public string $nombre = '';
 
@@ -641,97 +639,14 @@ class CategoriasAdmin extends Component
 
     private function guardarImagenProducto(TemporaryUploadedFile $archivo): string
     {
-        return $this->procesarYGuardarImagen($archivo->getRealPath(), $archivo->getMimeType());
+        return $this->guardarImagenOptimizada($archivo, 'productos', 'producto');
     }
 
     private function guardarImagenPredeterminada(string $archivo): string
     {
         $ruta = $this->directorioImagenesPredeterminadas().DIRECTORY_SEPARATOR.$archivo;
 
-        return $this->procesarYGuardarImagen($ruta, File::mimeType($ruta) ?: 'image/jpeg');
-    }
-
-    private function procesarYGuardarImagen(string $rutaOrigen, string $mime): string
-    {
-        $extension = match ($mime) {
-            'image/png' => 'png',
-            'image/webp' => 'webp',
-            'image/jpg' => 'jpg',
-            default => 'jpg',
-        };
-
-        $ruta = 'productos/'.Str::random(40).'.'.$extension;
-
-        if (! function_exists('imagecreatefromstring')) {
-            $this->copiarImagenProducto($rutaOrigen, $ruta);
-
-            return $ruta;
-        }
-
-        $contenido = @file_get_contents($rutaOrigen);
-        $origen = $contenido === false ? false : @imagecreatefromstring($contenido);
-
-        if ($origen === false) {
-            $this->copiarImagenProducto($rutaOrigen, $ruta);
-
-            return $ruta;
-        }
-
-        $destino = $this->recortarYRedimensionar($origen, self::IMAGEN_TAMANO);
-
-        imagedestroy($origen);
-
-        Storage::disk('public')->makeDirectory('productos');
-
-        $rutaAbsoluta = Storage::disk('public')->path($ruta);
-
-        $guardado = match ($extension) {
-            'png' => imagepng($destino, $rutaAbsoluta, 6),
-            'webp' => imagewebp($destino, $rutaAbsoluta, 82),
-            default => imagejpeg($destino, $rutaAbsoluta, 85),
-        };
-
-        imagedestroy($destino);
-
-        if (! $guardado) {
-            $this->copiarImagenProducto($rutaOrigen, $ruta);
-        }
-
-        return $ruta;
-    }
-
-    private function copiarImagenProducto(string $rutaOrigen, string $rutaDestino): void
-    {
-        Storage::disk('public')->put($rutaDestino, File::get($rutaOrigen));
-    }
-
-    private function recortarYRedimensionar(\GdImage $origen, int $tamano): \GdImage
-    {
-        $ancho = imagesx($origen);
-        $alto = imagesy($origen);
-        $lado = min($ancho, $alto);
-        $tamano = min($tamano, $lado);
-
-        $destino = imagecreatetruecolor($tamano, $tamano);
-
-        imagealphablending($destino, false);
-        imagesavealpha($destino, true);
-        imagefill($destino, 0, 0, imagecolorallocatealpha($destino, 0, 0, 0, 127));
-
-        imagecopyresampled(
-            $destino,
-            $origen,
-            0,
-            0,
-            (int) floor(($ancho - $lado) / 2),
-            (int) floor(($alto - $lado) / 2),
-            $tamano,
-            $tamano,
-            $lado,
-            $lado,
-        );
-
-        return $destino;
+        return $this->guardarImagenOptimizada($ruta, 'productos', 'producto');
     }
 
     private function eliminarImagenProducto(?string $ruta): void

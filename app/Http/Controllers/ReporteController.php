@@ -38,8 +38,7 @@ class ReporteController extends Controller
         $reporte = $this->reporte($request);
         $ventas = (clone $reporte['consulta'])
             ->with(['user', 'detalles.promocionItems'])
-            ->orderByDesc('ventas.created_at')
-            ->orderByDesc('ventas.id')
+            ->ordenadasPorFechaYNumeroTicket()
             ->get();
         $sufijo = $reporte['cajeroSeleccionado'] !== null
             ? '-cajero-'.$reporte['cajeroSeleccionado']->id
@@ -86,6 +85,7 @@ class ReporteController extends Controller
      *     cajeroSeleccionado: User|null,
      *     cajeroId: int|null,
      *     busqueda: string,
+     *     cajero: string,
      *     totalVendido: float,
      *     totalEfectivo: float,
      *     totalQr: float,
@@ -107,6 +107,7 @@ class ReporteController extends Controller
             'desde' => ['nullable', 'date_format:Y-m-d', 'required_with:hasta'],
             'hasta' => ['nullable', 'date_format:Y-m-d', 'required_with:desde', 'after_or_equal:desde'],
             'busqueda' => ['nullable', 'string', 'max:100'],
+            'cajero' => ['nullable', 'string', 'max:100'],
         ];
 
         if (! $esCajero) {
@@ -129,6 +130,7 @@ class ReporteController extends Controller
             ? CarbonImmutable::createFromFormat('Y-m-d', $datos['hasta'])->endOfDay()
             : $hoy->endOfMonth();
         $busqueda = trim((string) ($datos['busqueda'] ?? ''));
+        $cajeroNombre = trim((string) ($datos['cajero'] ?? ''));
 
         $cajeroId = $esCajero
             ? $user->id
@@ -147,17 +149,31 @@ class ReporteController extends Controller
             ? $user
             : ($cajeroId !== null ? $cajeros->firstWhere('id', $cajeroId) : null);
 
+        $cajeroIds = $cajeroNombre === '' || $negocio === null
+            ? []
+            : User::query()
+                ->where('negocio_id', $negocio->id)
+                ->where('rol', Rol::Cajero->value)
+                ->where(fn (Builder $query) => $query
+                    ->where('name', 'like', $cajeroNombre.'%')
+                    ->orWhere('username', 'like', $cajeroNombre.'%'))
+                ->pluck('id')
+                ->all();
+
+        $aplicarCajero = fn (Builder|QueryBuilder $query): Builder|QueryBuilder => $query
+            ->whereIn('ventas.user_id', $cajeroIds);
+
         $consulta = $negocio === null
             ? Venta::query()->whereRaw('1 = 0')
             : $negocio->ventas()
                 ->whereBetween('ventas.created_at', [$desde, $hasta])
                 ->when($cajeroId !== null, fn (Builder $query) => $query->where('ventas.user_id', $cajeroId))
+                ->when($cajeroNombre !== '', $aplicarCajero)
                 ->when($busqueda !== '', fn (Builder $query) => $this->aplicarBusqueda($query, $busqueda, $negocio->id));
 
         $ventas = (clone $consulta)
             ->with(['user', 'detalles.promocionItems'])
-            ->orderByDesc('ventas.created_at')
-            ->orderByDesc('ventas.id')
+            ->ordenadasPorFechaYNumeroTicket()
             ->paginate(10)
             ->withQueryString();
 
@@ -185,6 +201,7 @@ class ReporteController extends Controller
                 ->whereBetween('ventas.created_at', [$desde, $hasta])
                 ->where('venta_detalles.es_promocion', false)
                 ->when($cajeroId !== null, fn ($query) => $query->where('ventas.user_id', $cajeroId))
+                ->when($cajeroNombre !== '', $aplicarCajero)
                 ->when($busqueda !== '', fn ($query) => $this->aplicarBusqueda($query, $busqueda, $negocio->id))
                 ->selectRaw('venta_detalles.producto_id as producto_id, MAX(productos.id) as producto_actual_id, MAX(productos.stock) as stock, venta_detalles.nombre as nombre, SUM(venta_detalles.cantidad) as cantidad, SUM(venta_detalles.subtotal) as total')
                 ->groupBy('venta_detalles.producto_id', 'venta_detalles.nombre')
@@ -199,6 +216,7 @@ class ReporteController extends Controller
                 ->whereBetween('ventas.created_at', [$desde, $hasta])
                 ->where('venta_detalles.es_promocion', true)
                 ->when($cajeroId !== null, fn ($query) => $query->where('ventas.user_id', $cajeroId))
+                ->when($cajeroNombre !== '', $aplicarCajero)
                 ->when($busqueda !== '', fn ($query) => $this->aplicarBusqueda($query, $busqueda, $negocio->id))
                 ->selectRaw('venta_detalles.nombre as nombre, SUM(venta_detalles.cantidad) as cantidad, SUM(venta_detalles.subtotal) as total')
                 ->groupBy('venta_detalles.nombre')
@@ -213,6 +231,7 @@ class ReporteController extends Controller
                 ->where('ventas.negocio_id', $negocio->id)
                 ->whereBetween('ventas.created_at', [$desde, $hasta])
                 ->when($cajeroId !== null, fn ($query) => $query->where('ventas.user_id', $cajeroId))
+                ->when($cajeroNombre !== '', $aplicarCajero)
                 ->when($busqueda !== '', fn ($query) => $this->aplicarBusqueda($query, $busqueda, $negocio->id))
                 ->selectRaw('venta_detalle_promocion_items.nombre as nombre, SUM(venta_detalle_promocion_items.cantidad) as cantidad')
                 ->groupBy('venta_detalle_promocion_items.nombre')
@@ -233,6 +252,7 @@ class ReporteController extends Controller
             'cajeroSeleccionado' => $cajeroSeleccionado,
             'cajeroId' => $cajeroId,
             'busqueda' => $busqueda,
+            'cajero' => $cajeroNombre,
             'totalVendido' => $totalVendido,
             'totalEfectivo' => (float) ($totales->efectivo ?? 0),
             'totalQr' => (float) ($totales->qr ?? 0),

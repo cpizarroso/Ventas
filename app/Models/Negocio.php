@@ -49,6 +49,26 @@ class Negocio extends Model
     }
 
     /**
+     * Get the versioned favicon URL so logo changes are reflected immediately.
+     */
+    public function faviconUrl(): string
+    {
+        $disk = Storage::disk('public');
+        $version = null;
+
+        if ($this->logo !== null && $this->logo !== '' && $disk->exists($this->logo)) {
+            $version = $this->logo.'@'.$disk->lastModified($this->logo);
+        }
+
+        if ($version === null) {
+            $ruta = public_path('favicon.ico');
+            $version = 'default@'.(is_file($ruta) ? filemtime($ruta) : 0);
+        }
+
+        return route('favicon', ['v' => md5($version)]);
+    }
+
+    /**
      * Get the public URL of the payment QR, versioned to avoid stale browser caches.
      */
     public function qrPagoUrl(): ?string

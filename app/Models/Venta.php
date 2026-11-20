@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\MetodoPago;
 use Database\Factories\VentaFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,6 +28,18 @@ class Venta extends Model
             'fecha_ticket' => 'date',
             'numero_ticket' => 'integer',
         ];
+    }
+
+    /**
+     * Order sales by date, then by the displayed ticket number and id.
+     *
+     * @param  Builder<Venta>  $query
+     */
+    public function scopeOrdenadasPorFechaYNumeroTicket(Builder $query): void
+    {
+        $query->orderByRaw('COALESCE(ventas.fecha_ticket, DATE(ventas.created_at)) ASC')
+            ->orderByRaw('COALESCE(ventas.numero_ticket, ventas.id) ASC')
+            ->orderBy('ventas.id');
     }
 
     public function negocio(): BelongsTo

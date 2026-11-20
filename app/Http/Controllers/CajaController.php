@@ -152,8 +152,7 @@ class CajaController extends Controller
 
         $ventas = $caja->ventas()
             ->with('user')
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
+            ->ordenadasPorFechaYNumeroTicket()
             ->paginate(10, ['*'], 'ventas_page')
             ->withQueryString();
 

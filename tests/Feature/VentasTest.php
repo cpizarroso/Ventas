@@ -732,6 +732,8 @@ class VentasTest extends TestCase
             ->test(PantallaPrincipal::class)
             ->assertSee('No tienes una caja abierta.')
             ->call('agregarProducto', $producto->id)
+            ->assertDispatched('toast', message: 'Abre tu caja antes de agregar ítems a la venta.', type: 'warning')
+            ->assertSet('carrito', [])
             ->call('abrirModalPago')
             ->assertHasErrors('carrito')
             ->assertSet('mostrarModalPago', false)

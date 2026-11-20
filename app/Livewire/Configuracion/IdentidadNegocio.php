@@ -3,6 +3,7 @@
 namespace App\Livewire\Configuracion;
 
 use App\Livewire\Concerns\FlashesSavedStatus;
+use App\Livewire\Concerns\OptimizaImagenes;
 use App\Models\Negocio;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
@@ -13,7 +14,7 @@ use Livewire\WithFileUploads;
 
 class IdentidadNegocio extends Component
 {
-    use FlashesSavedStatus, WithFileUploads;
+    use FlashesSavedStatus, OptimizaImagenes, WithFileUploads;
 
     public string $nombre_comercial = '';
 
@@ -55,8 +56,8 @@ class IdentidadNegocio extends Component
         $this->validate([
             'nombre_comercial' => ['required', 'string', 'min:2', 'max:120'],
             'eslogan' => ['nullable', 'string', 'max:160'],
-            'logo_nuevo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
-            'qr_nuevo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'logo_nuevo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'qr_nuevo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ], [], [
             'nombre_comercial' => 'nombre comercial',
             'eslogan' => 'eslogan',
@@ -69,7 +70,7 @@ class IdentidadNegocio extends Component
                 Storage::disk('public')->delete($negocio->logo);
             }
 
-            $negocio->logo = $this->logo_nuevo->store('logos', 'public');
+            $negocio->logo = $this->guardarImagenOptimizada($this->logo_nuevo, 'logos', 'logo');
         }
 
         if ($this->qr_nuevo !== null) {
@@ -77,7 +78,7 @@ class IdentidadNegocio extends Component
                 Storage::disk('public')->delete($negocio->qr_pago);
             }
 
-            $negocio->qr_pago = $this->qr_nuevo->store('qrs', 'public');
+            $negocio->qr_pago = $this->guardarImagenOptimizada($this->qr_nuevo, 'qrs', 'qr');
         }
 
         $negocio->nombre_comercial = trim($this->nombre_comercial);

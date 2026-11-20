@@ -287,6 +287,35 @@ class CajasTest extends TestCase
             ->assertSee('Cerrar caja');
     }
 
+    public function test_las_ventas_de_la_caja_se_muestran_por_numero_de_ticket_menor_a_mayor(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-22 12:00:00'));
+
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $caja = Caja::factory()->create([
+            'negocio_id' => $negocio->id,
+            'user_id' => $admin->id,
+            'fecha_apertura' => now(),
+        ]);
+
+        foreach ([[3, '2026-10-22'], [1, '2026-10-21'], [2, '2026-10-22']] as [$numeroTicket, $fechaTicket]) {
+            $venta = $this->ventaEnCaja($caja, $admin, MetodoPago::Efectivo, 10);
+
+            $venta->update([
+                'numero_ticket' => $numeroTicket,
+                'fecha_ticket' => $fechaTicket,
+                'created_at' => $fechaTicket.' 09:00:00',
+            ]);
+        }
+
+        $response = $this->actingAs($admin)
+            ->get(route('cajas.show', $caja))
+            ->assertOk();
+
+        $this->assertSame([1, 2, 3], $response->viewData('ventas')->getCollection()->map->numeroTicket()->all());
+    }
+
     public function test_el_listado_pagina_las_cajas_de_diez_en_diez_y_filtra_por_estado(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-10-22 12:00:00'));

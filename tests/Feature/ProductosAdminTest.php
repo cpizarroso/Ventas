@@ -60,6 +60,21 @@ class ProductosAdminTest extends TestCase
         imagedestroy($imagen);
     }
 
+    private function contenidoImagen(int $ancho, int $alto): string
+    {
+        $imagen = imagecreatetruecolor($ancho, $alto);
+
+        imagefill($imagen, 0, 0, imagecolorallocate($imagen, 240, 240, 240));
+
+        ob_start();
+        imagejpeg($imagen, null, 95);
+        $contenido = ob_get_clean();
+
+        imagedestroy($imagen);
+
+        return $contenido;
+    }
+
     public function test_las_categorias_creadas_aparecen_con_la_opcion_de_items(): void
     {
         $negocio = Negocio::factory()->create();
@@ -346,6 +361,33 @@ class ProductosAdminTest extends TestCase
 
         $this->assertNotNull($producto->imagen);
         Storage::disk('public')->assertExists($producto->imagen);
+
+        [$ancho, $alto] = getimagesize(Storage::disk('public')->path($producto->imagen));
+
+        $this->assertSame(800, $ancho);
+        $this->assertSame(800, $alto);
+    }
+
+    public function test_la_imagen_del_item_se_comprime_conservando_el_formato(): void
+    {
+        Storage::fake('public');
+
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $contenido = $this->contenidoImagen(1200, 900);
+
+        $this->abrirCategoria($admin, $categoria)
+            ->set('productoNombre', 'Café con leche')
+            ->set('productoPrecio', '75.50')
+            ->set('productoImagen', UploadedFile::fake()->createWithContent('producto.jpg', $contenido))
+            ->call('crearProducto')
+            ->assertHasNoErrors();
+
+        $producto = Producto::query()->firstOrFail();
+
+        $this->assertStringEndsWith('.jpg', $producto->imagen);
+        $this->assertLessThan(strlen($contenido), Storage::disk('public')->size($producto->imagen));
 
         [$ancho, $alto] = getimagesize(Storage::disk('public')->path($producto->imagen));
 

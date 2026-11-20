@@ -29,10 +29,10 @@
     @else
         <div class="space-y-6">
             <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-800 sm:p-6" aria-label="Filtros del reporte">
-                <form method="GET" action="{{ route('reportes.index') }}" class="flex flex-wrap items-end gap-3">
+                <form method="GET" action="{{ route('reportes.index') }}" data-reporte-filtros class="flex flex-wrap items-end gap-3">
                     <div class="w-full sm:w-72">
                         <label for="busqueda" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Buscar</label>
-                        <input type="search" id="busqueda" name="busqueda" value="{{ old('busqueda', $busqueda) }}"
+                        <input type="search" id="busqueda" name="busqueda" value="{{ old('busqueda', $busqueda) }}" data-reporte-auto-submit
                                placeholder="N° ticket, cliente, vendedor o glosa…"
                                class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100">
                         @error('busqueda')
@@ -42,7 +42,7 @@
 
                     <div class="w-full sm:w-auto">
                         <label for="desde" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Desde</label>
-                        <input type="date" id="desde" name="desde" value="{{ old('desde', request('desde', $desde->format('Y-m-d'))) }}"
+                        <input type="date" id="desde" name="desde" value="{{ old('desde', request('desde', $desde->format('Y-m-d'))) }}" data-reporte-auto-submit
                                class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:[color-scheme:dark] sm:w-auto">
                         @error('desde')
                             <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
@@ -51,7 +51,7 @@
 
                     <div class="w-full sm:w-auto">
                         <label for="hasta" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Hasta</label>
-                        <input type="date" id="hasta" name="hasta" value="{{ old('hasta', request('hasta', $hasta->format('Y-m-d'))) }}"
+                        <input type="date" id="hasta" name="hasta" value="{{ old('hasta', request('hasta', $hasta->format('Y-m-d'))) }}" data-reporte-auto-submit
                                class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:[color-scheme:dark] sm:w-auto">
                         @error('hasta')
                             <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
@@ -59,27 +59,23 @@
                     </div>
 
                     @if ($puedeFiltrarPorCajero)
-                        <div class="w-full sm:w-auto">
-                            <label for="cajero_id" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Cajero</label>
-                            <select id="cajero_id" name="cajero_id"
-                                    class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:[color-scheme:dark] sm:w-auto">
-                                <option value="">Todos los cajeros</option>
-                                @foreach ($cajeros as $cajero)
-                                    <option value="{{ $cajero->id }}" @selected((string) old('cajero_id', $cajeroId) === (string) $cajero->id)>
-                                        {{ $cajero->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('cajero_id')
+                        <div class="w-full sm:w-56">
+                            <label for="cajero" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Cajero</label>
+                            <input type="search" id="cajero" name="cajero" value="{{ old('cajero', $cajero) }}" data-reporte-auto-submit
+                                   placeholder="Nombre del cajero…"
+                                   class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100">
+                            @error('cajero')
                                 <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
                             @enderror
                         </div>
                     @endif
 
-                    <button type="submit"
-                            class="w-full rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-500 dark:bg-amber-500 dark:text-stone-900 dark:hover:bg-amber-400 sm:w-auto">
-                        Aplicar
-                    </button>
+                    @if ($cajero !== '' || $busqueda !== '' || request('desde') || request('hasta') || request('cajero_id'))
+                        <a href="{{ route('reportes.index') }}"
+                           class="w-full rounded-xl border border-stone-300 px-4 py-2 text-center text-sm font-semibold text-stone-600 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700 sm:w-auto">
+                            Limpiar
+                        </a>
+                    @endif
                 </form>
 
                 <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-stone-50 px-4 py-3 dark:bg-stone-900/40">
@@ -98,6 +94,7 @@
                         'desde' => request('desde'),
                         'hasta' => request('hasta'),
                         'cajero_id' => $puedeFiltrarPorCajero ? request('cajero_id') : null,
+                        'cajero' => $puedeFiltrarPorCajero ? request('cajero') : null,
                         'busqueda' => request('busqueda'),
                     ])) }}"
                        class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-900/30 sm:w-auto">
@@ -139,7 +136,7 @@
                 </div>
             </section>
 
-            <section class="rounded-2xl border border-stone-200 bg-white shadow-sm dark:border-stone-700 dark:bg-stone-800" aria-label="Ventas del período">
+            <section data-reporte-ventas class="rounded-2xl border border-stone-200 bg-white shadow-sm dark:border-stone-700 dark:bg-stone-800" aria-label="Ventas del período">
                 <div class="border-b border-stone-100 px-4 py-4 dark:border-stone-700/60 sm:px-6">
                     <h2 class="text-base font-semibold text-stone-900 dark:text-stone-100">Ventas</h2>
                 </div>
@@ -154,8 +151,8 @@
                         <table class="min-w-full divide-y divide-stone-100 text-sm dark:divide-stone-700/60">
                             <thead class="bg-stone-50 text-left text-xs font-semibold uppercase tracking-wide text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
                                 <tr>
-                                    <th scope="col" class="px-4 py-3 sm:px-6">Venta</th>
-                                    <th scope="col" class="px-4 py-3">Fecha</th>
+                                    <th scope="col" class="px-4 py-3 sm:px-6">Fecha</th>
+                                    <th scope="col" class="px-4 py-3">Venta</th>
                                     <th scope="col" class="px-4 py-3">Vendedor</th>
                                     <th scope="col" class="px-4 py-3">Tipo</th>
                                     <th scope="col" class="px-4 py-3">Para llevar</th>
@@ -168,11 +165,11 @@
                             <tbody class="divide-y divide-stone-100 dark:divide-stone-700/60">
                                 @foreach ($ventas as $venta)
                                     <tr>
-                                        <td class="whitespace-nowrap px-4 py-3 font-semibold text-stone-800 dark:text-stone-100 sm:px-6">
-                                            #{{ $venta->numeroTicket() }}
-                                        </td>
-                                        <td class="whitespace-nowrap px-4 py-3 text-stone-600 dark:text-stone-300">
+                                        <td class="whitespace-nowrap px-4 py-3 text-stone-600 dark:text-stone-300 sm:px-6">
                                             {{ $venta->created_at->format('d/m/Y H:i') }}
+                                        </td>
+                                        <td class="whitespace-nowrap px-4 py-3 font-semibold text-stone-800 dark:text-stone-100">
+                                            #{{ $venta->numeroTicket() }}
                                         </td>
                                         <td class="whitespace-nowrap px-4 py-3 text-stone-600 dark:text-stone-300">
                                             {{ $venta->user?->name ?? '—' }}
@@ -252,7 +249,7 @@
                     </div>
 
                     <div class="border-t border-stone-100 px-4 py-4 dark:border-stone-700/60 sm:px-6">
-                        {{ $ventas->links() }}
+                        {{ $ventas->links('components.paginacion-compacta') }}
                     </div>
                 @endif
             </section>
@@ -387,4 +384,61 @@
             </section>
         </div>
     @endif
+
+    <script>
+        (() => {
+            const form = document.querySelector('[data-reporte-filtros]');
+
+            if (form) {
+                let temporizador;
+
+                form.querySelectorAll('[data-reporte-auto-submit]').forEach((campo) => {
+                    const enviar = () => {
+                        window.clearTimeout(temporizador);
+                        temporizador = window.setTimeout(() => form.requestSubmit(), 350);
+                    };
+
+                    campo.addEventListener('input', enviar);
+                    campo.addEventListener('change', enviar);
+                });
+            }
+
+            const cargarPagina = async (url, actualizarHistorial) => {
+                const respuesta = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+
+                if (! respuesta.ok) {
+                    window.location.href = url;
+                    return;
+                }
+
+                const documento = new DOMParser().parseFromString(await respuesta.text(), 'text/html');
+                const nuevoContenedor = documento.querySelector('[data-reporte-ventas]');
+                const contenedor = document.querySelector('[data-reporte-ventas]');
+
+                if (! nuevoContenedor || ! contenedor) {
+                    window.location.href = url;
+                    return;
+                }
+
+                contenedor.replaceWith(nuevoContenedor);
+
+                if (actualizarHistorial) {
+                    window.history.pushState({}, '', url);
+                }
+            };
+
+            document.addEventListener('click', (event) => {
+                const enlace = event.target.closest('[data-reporte-paginacion] a[href]');
+
+                if (! enlace) {
+                    return;
+                }
+
+                event.preventDefault();
+                cargarPagina(enlace.href, true);
+            });
+
+            window.addEventListener('popstate', () => cargarPagina(window.location.href, false));
+        })();
+    </script>
 </x-layouts.app>

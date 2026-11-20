@@ -4,9 +4,11 @@ namespace Tests\Feature;
 
 use App\Livewire\Configuracion\CategoriasAdmin;
 use App\Livewire\Ventas\PantallaPrincipal;
+use App\Models\Caja;
 use App\Models\Categoria;
 use App\Models\Negocio;
 use App\Models\Producto;
+use App\Models\Promocion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -19,12 +21,28 @@ class PantallaPrincipalTest extends TestCase
 
     private function adminDe(Negocio $negocio): User
     {
-        return User::factory()->admin()->create(['negocio_id' => $negocio->id]);
+        $admin = User::factory()->admin()->create(['negocio_id' => $negocio->id]);
+
+        Caja::factory()->create([
+            'negocio_id' => $negocio->id,
+            'user_id' => $admin->id,
+            'fecha_apertura' => now(),
+        ]);
+
+        return $admin;
     }
 
     private function cajeroDe(Negocio $negocio): User
     {
-        return User::factory()->cajero()->create(['negocio_id' => $negocio->id]);
+        $cajero = User::factory()->cajero()->create(['negocio_id' => $negocio->id]);
+
+        Caja::factory()->create([
+            'negocio_id' => $negocio->id,
+            'user_id' => $cajero->id,
+            'fecha_apertura' => now(),
+        ]);
+
+        return $cajero;
     }
 
     public function test_las_categorias_del_negocio_aparecen_en_la_pantalla_principal(): void
@@ -402,5 +420,48 @@ class PantallaPrincipalTest extends TestCase
         $otroAdmin = $this->adminDe(Negocio::factory()->create());
         $sinCategorias = $this->actingAs($otroAdmin)->get(route('ventas.index'));
         $sinCategorias->assertOk()->assertDontSee('NombreCustom123');
+    }
+
+    public function test_agregar_items_sin_caja_abierta_muestra_una_alerta_y_no_los_agrega(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = User::factory()->admin()->create(['negocio_id' => $negocio->id]);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create(['categoria_id' => $categoria->id]);
+        $promocion = Promocion::factory()->create(['negocio_id' => $negocio->id]);
+        $promocion->productos()->attach($producto->id, ['cantidad' => 1]);
+
+        $mensaje = 'Abre tu caja antes de agregar ítems a la venta.';
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->call('agregarProducto', $producto->id)
+            ->assertDispatched('toast', message: $mensaje, type: 'warning')
+            ->assertSet('carrito', [])
+            ->call('agregarPromocion', $promocion->id)
+            ->assertDispatched('toast', message: $mensaje, type: 'warning')
+            ->assertSet('carritoPromociones', []);
+    }
+
+    public function test_incrementar_items_sin_caja_abierta_no_cambia_las_cantidades(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = User::factory()->admin()->create(['negocio_id' => $negocio->id]);
+        $categoria = Categoria::factory()->create(['negocio_id' => $negocio->id]);
+        $producto = Producto::factory()->create(['categoria_id' => $categoria->id]);
+        $promocion = Promocion::factory()->create(['negocio_id' => $negocio->id]);
+
+        $mensaje = 'Abre tu caja antes de agregar ítems a la venta.';
+
+        Livewire::actingAs($admin)
+            ->test(PantallaPrincipal::class)
+            ->set('carrito', [$producto->id => 1])
+            ->set('carritoPromociones', [$promocion->id => 1])
+            ->call('incrementarCarrito', $producto->id)
+            ->assertDispatched('toast', message: $mensaje, type: 'warning')
+            ->assertSet('carrito', [$producto->id => 1])
+            ->call('incrementarPromocion', $promocion->id)
+            ->assertDispatched('toast', message: $mensaje, type: 'warning')
+            ->assertSet('carritoPromociones', [$promocion->id => 1]);
     }
 }

@@ -4,6 +4,7 @@ use App\Http\Controllers\AceptacionesTerminosController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CajaController;
 use App\Http\Controllers\ConfiguracionController;
+use App\Http\Controllers\FaviconController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\TerminosController;
 use App\Http\Controllers\VentasController;
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Route;
 Route::redirect('/', '/ventas');
 
 Route::get('/terminos', [TerminosController::class, 'index'])->name('terminos.index');
+
+Route::get('/favicon.ico', [FaviconController::class, 'index'])->name('favicon');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
