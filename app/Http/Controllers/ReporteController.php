@@ -13,6 +13,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -69,6 +70,34 @@ class ReporteController extends Controller
 
             fclose($salida);
         }, $nombre, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * Download the filtered sales report as a PDF file.
+     */
+    public function exportarPdf(Request $request): Response
+    {
+        $reporte = $this->reporte($request);
+        $ventas = (clone $reporte['consulta'])
+            ->with(['user', 'detalles.promocionItems'])
+            ->ordenadasPorFechaYNumeroTicket()
+            ->get();
+        $sufijo = $reporte['cajeroSeleccionado'] !== null
+            ? '-cajero-'.$reporte['cajeroSeleccionado']->id
+            : '';
+        $nombre = 'reporte-ventas-'.$reporte['desde']->format('Y-m-d').'_'.$reporte['hasta']->format('Y-m-d').$sufijo.'.pdf';
+
+        return $this->generarPdf('reportes.pdf', [
+            'negocio' => $reporte['negocio'],
+            'usuario' => Auth::user(),
+            'ventas' => $ventas,
+            'desde' => $reporte['desde'],
+            'hasta' => $reporte['hasta'],
+            'cajeroSeleccionado' => $reporte['cajeroSeleccionado'],
+            'busqueda' => $reporte['busqueda'],
+            'totalVendido' => $reporte['totalVendido'],
+            'cantidadVentas' => $reporte['cantidadVentas'],
+        ], $nombre);
     }
 
     /**

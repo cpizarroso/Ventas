@@ -26,8 +26,8 @@ class SuperadminSeeder extends Seeder
 
         $negocio = Negocio::query()->oldest('id')->first()
             ?? Negocio::firstOrCreate(
-                ['nombre_comercial' => 'Mi Negocio'],
-                ['eslogan' => null, 'logo' => null]
+                ['nombre_comercial' => DatabaseSeeder::NOMBRE_COMERCIAL],
+                ['eslogan' => DatabaseSeeder::ESLOGAN, 'logo' => null]
             );
 
         foreach ($this->usuarios() as $usuario) {

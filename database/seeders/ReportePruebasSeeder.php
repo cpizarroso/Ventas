@@ -15,37 +15,60 @@ use App\Models\VentaDetalle;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Random\Engine\Mt19937;
+use Random\Randomizer;
 
 class ReportePruebasSeeder extends Seeder
 {
     private const CANTIDAD_VENTAS = 500;
 
+    private const FECHA_DESDE = '2026-11-01';
+
     private const MARCADOR = 'SEEDER_REPORTE_MES';
 
+    private const SEMILLA = 20261101;
+
+    /** @var array<int, string> */
+    private const OBSERVACIONES_APERTURA = [
+        'Turno de la mañana con sencillo completo',
+        'Apertura con cambio suficiente para clientes',
+        'Turno normal, sin novedades al abrir',
+        'Apertura anticipada antes de llenar el local',
+        'Sencillo reducido, solicitar reposición',
+    ];
+
+    /** @var array<int, string> */
+    private const OBSERVACIONES_CIERRE = [
+        'Cierre cuadrado, sin diferencias',
+        'Efectivo contado al final del turno',
+        'Ventas conciliadas con los cobros QR',
+        'Turno cerrado después del último cliente',
+    ];
+
     /**
-     * Seed 500 sales in the current month, with one closed cash register per day.
+     * Seed 500 sales between November 1 and today, with one opened and closed cash register per day.
      */
     public function run(): void
     {
         DB::transaction(function (): void {
-            $ahora = CarbonImmutable::now();
-            $desde = $ahora->startOfMonth();
-            $hasta = $ahora->endOfMonth();
+            $desde = CarbonImmutable::parse(self::FECHA_DESDE)->startOfDay();
+            $hasta = CarbonImmutable::today()->endOfDay();
 
             $negocio = $this->negocio();
             $cajero = $this->cajero($negocio);
             $productos = $this->productos($negocio);
+            $aleatorio = new Randomizer(new Mt19937(self::SEMILLA));
 
-            $this->purgarGenerados($negocio, $desde, $hasta);
-            $this->generarVentas($negocio, $cajero, $productos, $desde, $hasta);
+            $this->purgarGenerados($negocio);
+            $this->generarVentas($negocio, $cajero, $productos, $desde, $hasta, $aleatorio);
         });
     }
 
     private function negocio(): Negocio
     {
         return Negocio::firstOrCreate(
-            ['nombre_comercial' => 'Mi Negocio'],
-            ['eslogan' => null, 'logo' => null]
+            ['nombre_comercial' => DatabaseSeeder::NOMBRE_COMERCIAL],
+            ['eslogan' => DatabaseSeeder::ESLOGAN, 'logo' => null]
         );
     }
 
@@ -94,11 +117,10 @@ class ReportePruebasSeeder extends Seeder
         ))->all();
     }
 
-    private function purgarGenerados(Negocio $negocio, CarbonImmutable $desde, CarbonImmutable $hasta): void
+    private function purgarGenerados(Negocio $negocio): void
     {
         $ventas = Venta::query()
             ->where('negocio_id', $negocio->id)
-            ->whereBetween('created_at', [$desde, $hasta])
             ->where('glosa', self::MARCADOR)
             ->pluck('id');
 
@@ -112,8 +134,7 @@ class ReportePruebasSeeder extends Seeder
 
         Caja::query()
             ->where('negocio_id', $negocio->id)
-            ->whereBetween('fecha_apertura', [$desde, $hasta])
-            ->where('observaciones_apertura', self::MARCADOR)
+            ->where('observaciones_apertura', 'like', self::MARCADOR.'%')
             ->delete();
     }
 
@@ -125,44 +146,61 @@ class ReportePruebasSeeder extends Seeder
         User $cajero,
         array $productos,
         CarbonImmutable $desde,
-        CarbonImmutable $hasta
+        CarbonImmutable $hasta,
+        Randomizer $aleatorio
     ): void {
-        $dias = $hasta->day;
+        $dias = (int) $desde->diffInDays($hasta->startOfDay()) + 1;
         $porDia = intdiv(self::CANTIDAD_VENTAS, $dias);
         $sobrante = self::CANTIDAD_VENTAS % $dias;
 
         for ($dia = 1; $dia <= $dias; $dia++) {
             $fecha = $desde->addDays($dia - 1);
             $cantidad = $porDia + ($dia <= $sobrante ? 1 : 0);
-            $caja = $this->crearCaja($negocio, $cajero, $fecha);
+            $montoInicial = round($aleatorio->getInt(5000, 20000) / 100, 2);
+            $fechaApertura = $fecha->setTime(7, 30)->addMinutes($aleatorio->getInt(0, 20) * 5);
+            $fechaCierre = $fecha->setTime(19, 0)->addMinutes($aleatorio->getInt(0, 18) * 5);
+            $observacionApertura = self::OBSERVACIONES_APERTURA[
+                $aleatorio->getInt(0, count(self::OBSERVACIONES_APERTURA) - 1)
+            ];
+            $observacionCierre = self::OBSERVACIONES_CIERRE[
+                $aleatorio->getInt(0, count(self::OBSERVACIONES_CIERRE) - 1)
+            ];
+
+            $caja = $this->crearCaja(
+                $negocio,
+                $cajero,
+                $montoInicial,
+                $fechaApertura,
+                self::MARCADOR.' · '.$observacionApertura
+            );
 
             for ($numeroTicket = 1; $numeroTicket <= $cantidad; $numeroTicket++) {
-                $this->crearVenta($caja, $cajero, $productos, $fecha, $numeroTicket);
+                $this->crearVenta($caja, $cajero, $productos, $fecha, $fechaApertura, $numeroTicket, $aleatorio);
             }
 
-            $this->cerrarCaja($caja, $cajero, $fecha);
+            $this->cerrarCaja(
+                $caja,
+                $cajero,
+                $fechaCierre,
+                self::MARCADOR.' · '.$observacionCierre
+            );
         }
     }
 
-    private function crearCaja(Negocio $negocio, User $cajero, CarbonImmutable $fecha): Caja
-    {
+    private function crearCaja(
+        Negocio $negocio,
+        User $cajero,
+        float $montoInicial,
+        CarbonImmutable $fechaApertura,
+        string $observacionesApertura
+    ): Caja {
         return Caja::create([
             'negocio_id' => $negocio->id,
             'user_id' => $cajero->id,
-            'cerrada_por_id' => $cajero->id,
-            'estado' => EstadoCaja::Cerrada,
-            'monto_inicial' => 100.00,
-            'observaciones_apertura' => self::MARCADOR,
-            'fecha_apertura' => $fecha->setTime(8, 0),
-            'fecha_cierre' => $fecha->setTime(20, 0),
-            'total_ventas' => 0,
-            'total_efectivo' => 0,
-            'total_qr' => 0,
-            'cantidad_ventas' => 0,
-            'monto_cierre' => 100.00,
-            'monto_esperado_efectivo' => 100.00,
-            'diferencia' => 0,
-            'observaciones_cierre' => self::MARCADOR,
+            'estado' => EstadoCaja::Abierta,
+            'monto_inicial' => $montoInicial,
+            'observaciones_apertura' => $observacionesApertura,
+            'fecha_apertura' => $fechaApertura,
         ]);
     }
 
@@ -174,18 +212,20 @@ class ReportePruebasSeeder extends Seeder
         User $cajero,
         array $productos,
         CarbonImmutable $fecha,
-        int $numeroTicket
+        CarbonImmutable $fechaApertura,
+        int $numeroTicket,
+        Randomizer $aleatorio
     ): void {
-        $hora = $fecha->setTime(9, 0)->addMinutes(($numeroTicket - 1) * 5);
-        $metodoPago = $numeroTicket % 4 === 0 ? MetodoPago::Qr : MetodoPago::Efectivo;
-        $cantidadItems = 1 + ($numeroTicket % 3);
+        $hora = $fechaApertura->addMinutes(10 + ($numeroTicket - 1) * $aleatorio->getInt(5, 10));
+        $metodoPago = $aleatorio->getInt(0, 4) === 0 ? MetodoPago::Qr : MetodoPago::Efectivo;
+        $cantidadItems = $aleatorio->getInt(1, 3);
 
         $detalles = [];
 
         for ($indice = 0; $indice < $cantidadItems; $indice++) {
-            $producto = $productos[($numeroTicket + $indice) % count($productos)];
+            $producto = $productos[$aleatorio->getInt(0, count($productos) - 1)];
             $precio = (float) $producto->precio;
-            $cantidad = 1 + (($numeroTicket + $indice) % 2);
+            $cantidad = $aleatorio->getInt(1, 3);
 
             $detalles[] = [
                 'producto_id' => $producto->id,
@@ -198,6 +238,9 @@ class ReportePruebasSeeder extends Seeder
         }
 
         $total = round(collect($detalles)->sum('subtotal'), 2);
+        $montoRecibido = $metodoPago === MetodoPago::Efectivo
+            ? round($total + $aleatorio->getInt(1, 10), 2)
+            : null;
 
         $venta = Venta::factory()->create([
             'negocio_id' => $caja->negocio_id,
@@ -207,11 +250,11 @@ class ReportePruebasSeeder extends Seeder
             'fecha_ticket' => $fecha->toDateString(),
             'total' => $total,
             'metodo_pago' => $metodoPago,
-            'monto_recibido' => $metodoPago === MetodoPago::Efectivo ? round($total + 5, 2) : null,
-            'cambio' => $metodoPago === MetodoPago::Efectivo ? 5.00 : null,
+            'monto_recibido' => $montoRecibido,
+            'cambio' => $montoRecibido !== null ? round($montoRecibido - $total, 2) : null,
             'glosa' => self::MARCADOR,
             'cliente' => null,
-            'para_llevar' => $numeroTicket % 2 === 0,
+            'para_llevar' => $aleatorio->getInt(0, 1) === 1,
             'created_at' => $hora,
             'updated_at' => $hora,
         ]);
@@ -221,15 +264,19 @@ class ReportePruebasSeeder extends Seeder
         }
     }
 
-    private function cerrarCaja(Caja $caja, User $cajero, CarbonImmutable $fecha): void
-    {
+    private function cerrarCaja(
+        Caja $caja,
+        User $cajero,
+        CarbonImmutable $fechaCierre,
+        string $observacionesCierre
+    ): void {
         $resumen = $caja->resumenVentas();
         $montoEsperado = round((float) $caja->monto_inicial + $resumen['efectivo'], 2);
 
         $caja->update([
             'estado' => EstadoCaja::Cerrada,
             'cerrada_por_id' => $cajero->id,
-            'fecha_cierre' => $fecha->setTime(20, 0),
+            'fecha_cierre' => $fechaCierre,
             'total_ventas' => $resumen['total'],
             'total_efectivo' => $resumen['efectivo'],
             'total_qr' => $resumen['qr'],
@@ -237,6 +284,7 @@ class ReportePruebasSeeder extends Seeder
             'monto_esperado_efectivo' => $montoEsperado,
             'monto_cierre' => $montoEsperado,
             'diferencia' => 0,
+            'observaciones_cierre' => $observacionesCierre,
         ]);
     }
 }

@@ -19,23 +19,41 @@
     <div class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-800 sm:p-6">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <h2 class="text-base font-semibold text-stone-900 dark:text-stone-100">
-                    {{ $editandoId === null ? 'Promociones' : 'Editar promoción' }}
-                </h2>
+                <h2 class="text-base font-semibold text-stone-900 dark:text-stone-100">Promociones</h2>
                 <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">
                     Combina varios ítems con un precio único y define cuándo estará disponible.
                 </p>
             </div>
-            @if ($editandoId !== null)
+            <div class="flex flex-wrap items-center gap-2">
                 <button type="button"
-                        wire:click="cancelarEdicion"
-                        class="rounded-lg bg-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-300 dark:bg-stone-600 dark:text-stone-200 dark:hover:bg-stone-500">
-                    Cancelar edición
+                        wire:click="abrirModal"
+                        class="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:hover:bg-amber-400">
+                    Nueva promoción
                 </button>
-            @endif
+                <span class="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-600 dark:bg-stone-700 dark:text-stone-300">
+                    {{ $promociones->total() }} {{ $promociones->total() === 1 ? 'promoción' : 'promociones' }}
+                </span>
+            </div>
         </div>
 
-        <form wire:submit="guardar" class="mt-5 space-y-5">
+        <div class="mt-5 max-w-sm">
+            <label for="buscar-promociones" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+                Buscar promoción
+            </label>
+            <input id="buscar-promociones"
+                   type="search"
+                   wire:model.live.debounce.300ms="buscar"
+                   placeholder="Nombre, descripción o ítem"
+                   class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
+        </div>
+
+        <x-modal-configuracion id="modal-promocion"
+                               :titulo="$editandoId === null ? 'Nueva promoción' : 'Editar promoción'"
+                               descripcion="Define el precio, la vigencia y los ítems incluidos."
+                               cerrar="cerrarModal"
+                               ancho="max-w-4xl"
+                               :abierto="$modalAbierto">
+            <form wire:submit="guardar" class="space-y-5">
             <div class="grid gap-4 sm:grid-cols-2">
                 <div class="sm:col-span-2">
                     <label for="promocion-nombre" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Nombre</label>
@@ -81,23 +99,21 @@
                     </p>
                 </div>
 
-                <div>
-                    <label for="promocion-fecha-inicio" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Fecha de inicio</label>
-                    <input id="promocion-fecha-inicio"
-                           type="date"
-                           wire:model="fechaInicio"
-                           class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:focus:border-amber-500 dark:[color-scheme:dark]">
+                <div class="sm:col-span-2">
+                    <x-calendario-rango
+                        id="promocion-vigencia"
+                        etiqueta="Vigencia de la promoción"
+                        nombre-desde="fechaInicio"
+                        nombre-hasta="fechaFin"
+                        :desde="$fechaInicio"
+                        :hasta="$fechaFin"
+                        :auto-enviar="false"
+                        wire-model-desde="fechaInicio"
+                        wire-model-hasta="fechaFin"
+                    />
                     @error('fechaInicio')
                         <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
                     @enderror
-                </div>
-
-                <div>
-                    <label for="promocion-fecha-fin" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Fecha de fin</label>
-                    <input id="promocion-fecha-fin"
-                           type="date"
-                           wire:model="fechaFin"
-                           class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:focus:border-amber-500 dark:[color-scheme:dark]">
                     @error('fechaFin')
                         <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
                     @enderror
@@ -204,7 +220,8 @@
                     {{ $editandoId === null ? 'Crear promoción' : 'Guardar cambios' }}
                 </button>
             </div>
-        </form>
+            </form>
+        </x-modal-configuracion>
 
         <div class="mt-8 border-t border-stone-100 pt-6 dark:border-stone-700/60">
             <h3 class="text-sm font-semibold text-stone-900 dark:text-stone-100">Promociones creadas</h3>
@@ -212,7 +229,7 @@
             @if ($promociones->isEmpty())
                 <div class="mt-3 rounded-xl border border-dashed border-stone-300 px-4 py-8 text-center dark:border-stone-600">
                     <p class="text-sm font-medium text-stone-600 dark:text-stone-300">Todavía no hay promociones</p>
-                    <p class="mt-1 text-xs text-stone-400 dark:text-stone-500">Crea la primera con el formulario de arriba.</p>
+                    <p class="mt-1 text-xs text-stone-400 dark:text-stone-500">Crea la primera con el botón «Nueva promoción».</p>
                 </div>
             @else
                 <ul class="mt-3 divide-y divide-stone-100 dark:divide-stone-700/60" role="list">
@@ -291,6 +308,8 @@
                         </li>
                     @endforeach
                 </ul>
+
+                {{ $promociones->links('components.paginacion-compacta', ['enLivewire' => true]) }}
             @endif
         </div>
     </div>

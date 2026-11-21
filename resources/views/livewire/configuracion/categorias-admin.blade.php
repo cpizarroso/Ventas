@@ -6,66 +6,98 @@
     @endif
 
     <div class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-800 sm:p-6">
-        <h2 class="text-base font-semibold text-stone-900 dark:text-stone-100">Categorías de venta</h2>
-        <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">
-            Crea y administra las categorías que aparecerán en la pantalla principal de ventas.
-        </p>
-
-        <form wire:submit="crear" class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-start">
-            <div class="flex-1">
-                <label for="nombre" class="sr-only">Nombre de la categoría</label>
-                <input id="nombre"
-                       type="text"
-                       wire:model="nombre"
-                       placeholder="Nombre de la nueva categoría"
-                       class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:focus:border-amber-500">
-                @error('nombre')
-                    <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
-                @enderror
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <h2 class="text-base font-semibold text-stone-900 dark:text-stone-100">Categorías de venta</h2>
+                <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">
+                    Crea y administra las categorías que aparecerán en la pantalla principal de ventas.
+                </p>
             </div>
-            <button type="submit"
-                    class="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-stone-900 hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-stone-800">
-                Agregar categoría
-            </button>
-        </form>
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button"
+                        wire:click="abrirModal"
+                        class="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:hover:bg-amber-400">
+                    Nueva categoría
+                </button>
+                <span class="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-600 dark:bg-stone-700 dark:text-stone-300">
+                    {{ $categorias->total() }} {{ $categorias->total() === 1 ? 'categoría' : 'categorías' }}
+                </span>
+            </div>
+        </div>
+
+        <div class="mt-5 max-w-sm">
+            <label for="buscar-categorias" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+                Buscar categoría
+            </label>
+            <input id="buscar-categorias"
+                   type="search"
+                   wire:model.live.debounce.300ms="buscar"
+                   placeholder="Nombre de la categoría"
+                   class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
+        </div>
+
+        <x-modal-configuracion id="modal-categoria"
+                               :titulo="$editandoId === null ? 'Nueva categoría' : 'Editar categoría'"
+                               descripcion="El nombre debe ser único dentro de tu negocio."
+                               cerrar="cerrarModal"
+                               :abierto="$modalAbierto">
+            <form wire:submit="crear" class="flex flex-col gap-3 sm:flex-row sm:items-start">
+                <div class="flex-1">
+                    <label for="nombre" class="sr-only">Nombre de la categoría</label>
+                    <input id="nombre"
+                           type="text"
+                           wire:model="nombre"
+                           placeholder="Nombre de la nueva categoría"
+                           class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:focus:border-amber-500">
+                    @error('nombre')
+                        <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                    @enderror
+                </div>
+                <button type="submit"
+                        class="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-stone-900 hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-stone-800">
+                    Agregar categoría
+                </button>
+            </form>
+
+            @if ($editandoId !== null)
+                <form wire:submit="guardarEdicion" class="mt-5 border-t border-stone-100 pt-5 dark:border-stone-700/60">
+                    <label for="categoria-nombre-edicion" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+                        Nuevo nombre
+                    </label>
+                    <input id="categoria-nombre-edicion"
+                           type="text"
+                           wire:model="nombreEdicion"
+                           class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:focus:border-amber-500">
+                    @error('nombreEdicion')
+                        <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                    @enderror
+                    <div class="mt-4 flex justify-end gap-2">
+                        <button type="button"
+                                wire:click="cancelarEdicion"
+                                class="rounded-xl border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
+                            Cancelar
+                        </button>
+                        <button type="submit"
+                                class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500">
+                            Guardar
+                        </button>
+                    </div>
+                </form>
+            @endif
+        </x-modal-configuracion>
 
         <div class="mt-6">
             @if ($categorias->isEmpty())
                 <div class="rounded-xl border border-dashed border-stone-300 px-4 py-10 text-center dark:border-stone-600">
                     <p class="text-sm font-medium text-stone-600 dark:text-stone-300">Todavía no hay categorías creadas</p>
-                    <p class="mt-1 text-xs text-stone-400 dark:text-stone-500">Agrega la primera categoría con el formulario de arriba.</p>
+                    <p class="mt-1 text-xs text-stone-400 dark:text-stone-500">Crea la primera con el botón «Nueva categoría».</p>
                 </div>
             @else
                 <ul class="divide-y divide-stone-100 dark:divide-stone-700/60" role="list">
                     @foreach ($categorias as $categoria)
                         <li wire:key="categoria-{{ $categoria->id }}" class="py-3">
                             <div class="flex flex-wrap items-center justify-between gap-3">
-                                @if ($editandoId === $categoria->id)
-                                    <div class="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-                                        <label for="nombre-{{ $categoria->id }}" class="sr-only">Nuevo nombre</label>
-                                        <input id="nombre-{{ $categoria->id }}"
-                                               type="text"
-                                               wire:model="nombreEdicion"
-                                               class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:focus:border-amber-500"
-                                               wire:keydown.enter="guardarEdicion"
-                                               wire:keydown.escape="cancelarEdicion">
-                                        @error('nombreEdicion')
-                                            <p class="w-full text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
-                                        @enderror
-                                    </div>
-                                    <div class="flex shrink-0 gap-2">
-                                        <button type="button"
-                                                wire:click="guardarEdicion"
-                                                class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500">
-                                            Guardar
-                                        </button>
-                                        <button type="button"
-                                                wire:click="cancelarEdicion"
-                                                class="rounded-lg bg-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-300 dark:bg-stone-600 dark:text-stone-200 dark:hover:bg-stone-500">
-                                            Cancelar
-                                        </button>
-                                    </div>
-                                @elseif ($eliminandoId === $categoria->id)
+                                @if ($eliminandoId === $categoria->id)
                                     <div class="flex w-full flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900 dark:bg-red-900/30">
                                         <p class="text-sm font-medium text-red-800 dark:text-red-300">
                                             ¿Eliminar «{{ $categoria->nombre }}»? También se eliminarán sus ítems. Esta acción no se puede deshacer.
@@ -429,6 +461,8 @@
                         </li>
                     @endforeach
                 </ul>
+
+                {{ $categorias->links('components.paginacion-compacta', ['enLivewire' => true]) }}
             @endif
         </div>
 

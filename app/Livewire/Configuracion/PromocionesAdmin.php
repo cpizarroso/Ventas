@@ -10,11 +10,13 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class PromocionesAdmin extends Component
 {
-    use FlashesSavedStatus;
+    use FlashesSavedStatus, WithPagination;
 
     public string $nombre = '';
 
@@ -38,7 +40,42 @@ class PromocionesAdmin extends Component
 
     public ?int $eliminandoId = null;
 
+    public bool $modalAbierto = false;
+
+    #[Url(as: 'buscar-promociones')]
+    public string $buscar = '';
+
     public function mount(): void
+    {
+        $this->resetForm();
+    }
+
+    /**
+     * Alias the paginator so this component does not clash with the other configuration lists.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function queryString(): array
+    {
+        return [
+            'paginators.page' => ['as' => 'pagina-promociones', 'history' => false],
+        ];
+    }
+
+    public function updatingBuscar(): void
+    {
+        $this->resetPage();
+    }
+
+    public function abrirModal(): void
+    {
+        $this->authorize('create', Promocion::class);
+
+        $this->resetForm();
+        $this->modalAbierto = true;
+    }
+
+    public function cerrarModal(): void
     {
         $this->resetForm();
     }
@@ -100,6 +137,7 @@ class PromocionesAdmin extends Component
 
         $this->activa = $promocion->activa;
         $this->eliminandoId = null;
+        $this->modalAbierto = true;
         $this->resetValidation();
     }
 
@@ -308,15 +346,23 @@ class PromocionesAdmin extends Component
     public function render(): View
     {
         $negocio = Auth::user()?->negocio;
+        $buscar = trim($this->buscar);
 
-        $promociones = $negocio === null
-            ? collect()
-            : $negocio->promociones()
-                ->with('productos.categoria')
-                ->orderByDesc('activa')
-                ->orderByDesc('fecha_inicio')
-                ->orderBy('nombre')
-                ->get();
+        $promociones = ($negocio !== null ? $negocio->promociones() : Promocion::query()->whereRaw('1 = 0'))
+            ->with('productos.categoria')
+            ->when($buscar !== '', function ($query) use ($buscar): void {
+                $patron = '%'.$buscar.'%';
+
+                $query->where(function ($query) use ($patron): void {
+                    $query->where('nombre', 'like', $patron)
+                        ->orWhere('descripcion', 'like', $patron)
+                        ->orWhereHas('productos', fn ($productos) => $productos->where('nombre', 'like', $patron));
+                });
+            })
+            ->orderByDesc('activa')
+            ->orderByDesc('fecha_inicio')
+            ->orderBy('nombre')
+            ->paginate(10);
 
         return view('livewire.configuracion.promociones-admin', [
             'promociones' => $promociones,
@@ -376,6 +422,7 @@ class PromocionesAdmin extends Component
             'activa',
             'editandoId',
             'eliminandoId',
+            'modalAbierto',
         );
 
         $this->fechaInicio = now()->toDateString();

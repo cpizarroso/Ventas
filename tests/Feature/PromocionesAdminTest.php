@@ -207,4 +207,57 @@ class PromocionesAdminTest extends TestCase
             ->call('editar', $promocionAjena->id)
             ->assertNotFound();
     }
+
+    public function test_la_creacion_y_edicion_de_promociones_se_abren_en_un_modal(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $cafe = $this->productoDe($negocio, 'Café', 10);
+        $promocion = $this->promocionDe($negocio, [[$cafe, 1]], ['nombre' => 'Combo de prueba']);
+
+        Livewire::actingAs($admin)
+            ->test(PromocionesAdmin::class)
+            ->assertSet('modalAbierto', false)
+            ->assertDontSeeHtml('wire:keydown.escape.window="cerrarModal"')
+            ->call('abrirModal')
+            ->assertSet('modalAbierto', true)
+            ->assertSeeHtml('wire:keydown.escape.window="cerrarModal"')
+            ->call('cerrarModal')
+            ->assertSet('modalAbierto', false)
+            ->assertDontSeeHtml('wire:keydown.escape.window="cerrarModal"')
+            ->call('editar', $promocion->id)
+            ->assertSet('modalAbierto', true)
+            ->assertSeeHtml('wire:keydown.escape.window="cerrarModal"')
+            ->assertSet('editandoId', $promocion->id)
+            ->assertSet('nombre', 'Combo de prueba');
+    }
+
+    public function test_el_listado_de_promociones_se_puede_buscar_y_pagina_de_diez(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+
+        foreach (range(1, 12) as $numero) {
+            Promocion::factory()->create([
+                'negocio_id' => $negocio->id,
+                'nombre' => 'Promoción '.str_pad((string) $numero, 2, '0', STR_PAD_LEFT),
+            ]);
+        }
+
+        $otroNegocio = Negocio::factory()->create();
+        Promocion::factory()->create([
+            'negocio_id' => $otroNegocio->id,
+            'nombre' => 'Promoción Ajena',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PromocionesAdmin::class)
+            ->assertSee('Página 1 de 2')
+            ->assertSee('12 promociones')
+            ->assertDontSee('Promoción Ajena')
+            ->set('buscar', 'Promoción 07')
+            ->assertSee('Promoción 07')
+            ->assertDontSee('Promoción 01')
+            ->assertDontSee('Página 1 de 2');
+    }
 }

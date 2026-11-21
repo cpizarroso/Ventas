@@ -28,84 +28,6 @@
         </div>
     @else
         <div class="space-y-6">
-            <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-800 sm:p-6" aria-label="Filtros del reporte">
-                <form method="GET" action="{{ route('reportes.index') }}" data-reporte-filtros class="flex flex-wrap items-end gap-3">
-                    <div class="w-full sm:w-72">
-                        <label for="busqueda" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Buscar</label>
-                        <input type="search" id="busqueda" name="busqueda" value="{{ old('busqueda', $busqueda) }}" data-reporte-auto-submit
-                               placeholder="N° ticket, cliente, vendedor o glosa…"
-                               class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100">
-                        @error('busqueda')
-                            <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="w-full sm:w-auto">
-                        <label for="desde" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Desde</label>
-                        <input type="date" id="desde" name="desde" value="{{ old('desde', request('desde', $desde->format('Y-m-d'))) }}" data-reporte-auto-submit
-                               class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:[color-scheme:dark] sm:w-auto">
-                        @error('desde')
-                            <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="w-full sm:w-auto">
-                        <label for="hasta" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Hasta</label>
-                        <input type="date" id="hasta" name="hasta" value="{{ old('hasta', request('hasta', $hasta->format('Y-m-d'))) }}" data-reporte-auto-submit
-                               class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:[color-scheme:dark] sm:w-auto">
-                        @error('hasta')
-                            <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    @if ($puedeFiltrarPorCajero)
-                        <div class="w-full sm:w-56">
-                            <label for="cajero" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Cajero</label>
-                            <input type="search" id="cajero" name="cajero" value="{{ old('cajero', $cajero) }}" data-reporte-auto-submit
-                                   placeholder="Nombre del cajero…"
-                                   class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100">
-                            @error('cajero')
-                                <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
-                            @enderror
-                        </div>
-                    @endif
-
-                    @if ($cajero !== '' || $busqueda !== '' || request('desde') || request('hasta') || request('cajero_id'))
-                        <a href="{{ route('reportes.index') }}"
-                           class="w-full rounded-xl border border-stone-300 px-4 py-2 text-center text-sm font-semibold text-stone-600 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700 sm:w-auto">
-                            Limpiar
-                        </a>
-                    @endif
-                </form>
-
-                <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-stone-50 px-4 py-3 dark:bg-stone-900/40">
-                    <p class="text-sm text-stone-600 dark:text-stone-300">
-                        Período:
-                        <span class="font-semibold text-stone-900 dark:text-stone-100">{{ $desde->format('d/m/Y') }} — {{ $hasta->format('d/m/Y') }}</span>
-                        <span class="mx-1 text-stone-300 dark:text-stone-600">·</span>
-                        @if ($cajeroSeleccionado !== null)
-                            {{ $puedeFiltrarPorCajero ? 'Cajero:' : 'Ventas de:' }}
-                            <span class="font-semibold text-stone-900 dark:text-stone-100">{{ $cajeroSeleccionado->name }}</span>
-                        @else
-                            <span class="font-semibold text-stone-900 dark:text-stone-100">Todos los cajeros</span>
-                        @endif
-                    </p>
-                    <a href="{{ route('reportes.export', array_filter([
-                        'desde' => request('desde'),
-                        'hasta' => request('hasta'),
-                        'cajero_id' => $puedeFiltrarPorCajero ? request('cajero_id') : null,
-                        'cajero' => $puedeFiltrarPorCajero ? request('cajero') : null,
-                        'busqueda' => request('busqueda'),
-                    ])) }}"
-                       class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-900/30 sm:w-auto">
-                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" />
-                        </svg>
-                        Exportar CSV
-                    </a>
-                </div>
-            </section>
-
             <section class="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Resumen del período">
                 <div class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-800">
                     <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Total vendido</p>
@@ -133,6 +55,91 @@
                 <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-800 dark:bg-sky-900/20">
                     <p class="text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-400">Cobrado por QR</p>
                     <p class="mt-1 break-words text-xl font-bold text-sky-900 tabular-nums dark:text-sky-200 sm:text-2xl">Bs {{ number_format($totalQr, 2) }}</p>
+                </div>
+            </section>
+
+            <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-800 sm:p-6" aria-label="Filtros del reporte">
+                <form method="GET" action="{{ route('reportes.index') }}" data-reporte-filtros class="flex flex-wrap items-end gap-3">
+                    <div class="w-full sm:w-72">
+                        <label for="busqueda" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Buscar</label>
+                        <input type="search" id="busqueda" name="busqueda" value="{{ old('busqueda', $busqueda) }}" data-reporte-auto-submit
+                               placeholder="N° ticket, cliente, vendedor o glosa…"
+                               class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100">
+                        @error('busqueda')
+                            <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <x-calendario-rango
+                        id="reporte-fechas"
+                        etiqueta="Período"
+                        :desde="old('desde', request('desde', $desde->format('Y-m-d')))"
+                        :hasta="old('hasta', request('hasta', $hasta->format('Y-m-d')))"
+                        class="w-full sm:w-80"
+                    />
+                    @error('desde')
+                        <p class="w-full text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                    @enderror
+                    @error('hasta')
+                        <p class="w-full text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                    @enderror
+
+                    @if ($puedeFiltrarPorCajero)
+                        <div class="w-full sm:w-56">
+                            <label for="cajero" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Cajero</label>
+                            <input type="search" id="cajero" name="cajero" value="{{ old('cajero', $cajero) }}" data-reporte-auto-submit
+                                   placeholder="Nombre del cajero…"
+                                   class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100">
+                            @error('cajero')
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    @endif
+
+                    @if ($cajero !== '' || $busqueda !== '' || request('desde') || request('hasta') || request('cajero_id'))
+                        <a href="{{ route('reportes.index') }}"
+                           class="w-full rounded-xl border border-stone-300 px-4 py-2 text-center text-sm font-semibold text-stone-600 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700 sm:w-auto">
+                            Limpiar
+                        </a>
+                    @endif
+                </form>
+
+                @php($filtrosExportacion = array_filter([
+                    'desde' => request('desde'),
+                    'hasta' => request('hasta'),
+                    'cajero_id' => $puedeFiltrarPorCajero ? request('cajero_id') : null,
+                    'cajero' => $puedeFiltrarPorCajero ? request('cajero') : null,
+                    'busqueda' => request('busqueda'),
+                ]))
+
+                <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-stone-50 px-4 py-3 dark:bg-stone-900/40">
+                    <p class="text-sm text-stone-600 dark:text-stone-300">
+                        Período:
+                        <span class="font-semibold text-stone-900 dark:text-stone-100">{{ $desde->format('d/m/Y') }} — {{ $hasta->format('d/m/Y') }}</span>
+                        <span class="mx-1 text-stone-300 dark:text-stone-600">·</span>
+                        @if ($cajeroSeleccionado !== null)
+                            {{ $puedeFiltrarPorCajero ? 'Cajero:' : 'Ventas de:' }}
+                            <span class="font-semibold text-stone-900 dark:text-stone-100">{{ $cajeroSeleccionado->name }}</span>
+                        @else
+                            <span class="font-semibold text-stone-900 dark:text-stone-100">Todos los cajeros</span>
+                        @endif
+                    </p>
+                    <div class="flex w-full flex-wrap gap-2 sm:w-auto">
+                        <a href="{{ route('reportes.export', $filtrosExportacion) }}"
+                           class="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-900/30 sm:flex-none">
+                            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" />
+                            </svg>
+                            Exportar CSV
+                        </a>
+                        <a href="{{ route('reportes.export.pdf', $filtrosExportacion) }}"
+                           class="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-600 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 dark:border-red-500 dark:text-red-400 dark:hover:bg-red-900/30 sm:flex-none">
+                            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6" />
+                            </svg>
+                            Exportar PDF
+                        </a>
+                    </div>
                 </div>
             </section>
 
@@ -404,26 +411,30 @@
             }
 
             const cargarPagina = async (url, actualizarHistorial) => {
-                const respuesta = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                try {
+                    const respuesta = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
 
-                if (! respuesta.ok) {
+                    if (! respuesta.ok) {
+                        window.location.href = url;
+                        return;
+                    }
+
+                    const documento = new DOMParser().parseFromString(await respuesta.text(), 'text/html');
+                    const nuevoContenedor = documento.querySelector('[data-reporte-ventas]');
+                    const contenedor = document.querySelector('[data-reporte-ventas]');
+
+                    if (! nuevoContenedor || ! contenedor) {
+                        window.location.href = url;
+                        return;
+                    }
+
+                    contenedor.replaceWith(nuevoContenedor);
+
+                    if (actualizarHistorial) {
+                        window.history.pushState({}, '', url);
+                    }
+                } catch (error) {
                     window.location.href = url;
-                    return;
-                }
-
-                const documento = new DOMParser().parseFromString(await respuesta.text(), 'text/html');
-                const nuevoContenedor = documento.querySelector('[data-reporte-ventas]');
-                const contenedor = document.querySelector('[data-reporte-ventas]');
-
-                if (! nuevoContenedor || ! contenedor) {
-                    window.location.href = url;
-                    return;
-                }
-
-                contenedor.replaceWith(nuevoContenedor);
-
-                if (actualizarHistorial) {
-                    window.history.pushState({}, '', url);
                 }
             };
 

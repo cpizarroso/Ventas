@@ -10,11 +10,13 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class UsuariosAdmin extends Component
 {
-    use FlashesSavedStatus;
+    use FlashesSavedStatus, WithPagination;
 
     public string $nombre = '';
 
@@ -38,9 +40,44 @@ class UsuariosAdmin extends Component
 
     public ?int $eliminandoId = null;
 
+    public bool $modalAbierto = false;
+
+    #[Url(as: 'buscar-usuarios')]
+    public string $buscar = '';
+
     public function mount(): void
     {
         $this->authorize('viewAny', User::class);
+    }
+
+    /**
+     * Alias the paginator so this component does not clash with the other configuration lists.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function queryString(): array
+    {
+        return [
+            'paginators.page' => ['as' => 'pagina-usuarios', 'history' => false],
+        ];
+    }
+
+    public function updatingBuscar(): void
+    {
+        $this->resetPage();
+    }
+
+    public function abrirModal(): void
+    {
+        $this->authorize('create', User::class);
+
+        $this->resetFormulario();
+        $this->modalAbierto = true;
+    }
+
+    public function cerrarModal(): void
+    {
+        $this->resetFormulario();
     }
 
     /**
@@ -152,6 +189,7 @@ class UsuariosAdmin extends Component
         $this->password = '';
         $this->password_confirmation = '';
         $this->eliminandoId = null;
+        $this->modalAbierto = true;
 
         $this->resetValidation();
     }
@@ -199,11 +237,24 @@ class UsuariosAdmin extends Component
     public function render(): View
     {
         $negocio = Auth::user()?->negocio;
+        $buscar = trim($this->buscar);
+
+        $usuarios = ($negocio !== null ? $negocio->usuarios() : User::query()->whereRaw('1 = 0'))
+            ->when($buscar !== '', function ($query) use ($buscar): void {
+                $patron = '%'.$buscar.'%';
+
+                $query->where(function ($query) use ($patron): void {
+                    $query->where('name', 'like', $patron)
+                        ->orWhere('username', 'like', $patron)
+                        ->orWhere('email', 'like', $patron)
+                        ->orWhere('cedula', 'like', $patron);
+                });
+            })
+            ->orderBy('name')
+            ->paginate(10);
 
         return view('livewire.configuracion.usuarios-admin', [
-            'usuarios' => $negocio
-                ? $negocio->usuarios()->orderBy('name')->get()
-                : collect(),
+            'usuarios' => $usuarios,
             'roles' => [Rol::Admin, Rol::Cajero],
             'usuarioActualId' => Auth::id(),
         ]);
@@ -235,6 +286,7 @@ class UsuariosAdmin extends Component
             'password',
             'password_confirmation',
             'editandoId',
+            'modalAbierto',
         );
 
         $this->rol = Rol::Cajero->value;

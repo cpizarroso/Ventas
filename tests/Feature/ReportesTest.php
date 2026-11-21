@@ -543,7 +543,7 @@ class ReportesTest extends TestCase
             $this->ventaDe($negocio, $admin, '2026-10-22 09:00:00', [['Producto'.$i, 10, 1]]);
         }
 
-        $this->actingAs($admin)
+        $respuesta = $this->actingAs($admin)
             ->get(route('reportes.index', ['desde' => '2026-10-22', 'hasta' => '2026-10-22']))
             ->assertOk()
             ->assertSee('data-reporte-filtros', false)
@@ -553,6 +553,17 @@ class ReportesTest extends TestCase
             ->assertSee('data-reporte-paginacion', false)
             ->assertSee('Página 1 de 2', false)
             ->assertDontSee('>Aplicar<', false);
+
+        $contenido = $respuesta->getContent();
+
+        $this->assertLessThan(
+            strpos($contenido, 'aria-label="Filtros del reporte"'),
+            strpos($contenido, 'aria-label="Resumen del período"')
+        );
+        $this->assertLessThan(
+            strpos($contenido, 'data-reporte-ventas'),
+            strpos($contenido, 'aria-label="Filtros del reporte"')
+        );
     }
 
     public function test_no_se_puede_filtrar_por_un_cajero_de_otro_negocio_o_por_un_admin(): void
@@ -856,5 +867,66 @@ class ReportesTest extends TestCase
             ->assertOk()
             ->assertSee('href="'.$urlReportes.'"', false)
             ->assertDontSee('href="'.$urlConfiguracion.'"', false);
+    }
+
+    public function test_se_puede_exportar_el_reporte_de_ventas_en_pdf(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-22 12:00:00'));
+
+        $negocio = Negocio::factory()->create([
+            'nombre_comercial' => 'JOTAPE',
+            'eslogan' => 'Jibas frescas, sabor de siempre',
+        ]);
+        $admin = User::factory()->admin()->create([
+            'negocio_id' => $negocio->id,
+            'name' => 'Ana Administradora',
+        ]);
+
+        $ventaHoy = $this->ventaDe($negocio, $admin, '2026-10-22 10:30:00', [['Café', 10, 1]]);
+        $this->ventaDe($negocio, $admin, '2026-10-21 09:00:00', [['Té', 7, 1]]);
+
+        $this->actingAs($admin)
+            ->get(route('reportes.index', ['desde' => '2026-10-22', 'hasta' => '2026-10-22']))
+            ->assertOk()
+            ->assertSee('Exportar PDF')
+            ->assertSee('id="reporte-fechas-boton"', false)
+            ->assertDontSee('type="date"')
+            ->assertSee(e(route('reportes.export.pdf', [
+                'desde' => '2026-10-22',
+                'hasta' => '2026-10-22',
+            ])), false);
+
+        $pdf = $this->actingAs($admin)
+            ->get(route('reportes.export.pdf', ['desde' => '2026-10-22', 'hasta' => '2026-10-22']))
+            ->assertOk();
+
+        $this->assertStringContainsString('application/pdf', (string) $pdf->headers->get('content-type'));
+        $this->assertStringStartsWith('%PDF-', $pdf->getContent());
+
+        $html = view('reportes.pdf', [
+            'negocio' => $negocio,
+            'usuario' => $admin,
+            'ventas' => collect([$ventaHoy]),
+            'desde' => CarbonImmutable::parse('2026-10-22'),
+            'hasta' => CarbonImmutable::parse('2026-10-22'),
+            'cajeroSeleccionado' => null,
+            'busqueda' => '',
+            'totalVendido' => 10.0,
+            'cantidadVentas' => 1,
+        ])->render();
+
+        $this->assertStringContainsString('<thead>', $html);
+        $this->assertStringContainsString('display: table-header-group', $html);
+        $this->assertStringContainsString('REPORTE DE VENTAS', $html);
+        $this->assertStringContainsString('JOTAPE', $html);
+        $this->assertStringContainsString('Jibas frescas, sabor de siempre', $html);
+        $this->assertStringContainsString('Ana Administradora', $html);
+        $this->assertStringContainsString('Usuario que genera el reporte', $html);
+        $this->assertStringContainsString('Fecha inicial', $html);
+        $this->assertStringContainsString('Fecha final', $html);
+        $this->assertStringContainsString('22/10/2026', $html);
+        $this->assertStringContainsString('Promociones', $html);
+        $this->assertStringContainsString('Café', $html);
+        $this->assertStringContainsString('10.00', $html);
     }
 }

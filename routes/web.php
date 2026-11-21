@@ -33,6 +33,7 @@ Route::middleware(['auth', 'terminos.aceptados'])->group(function () {
     Route::get('/cajas/abrir', [CajaController::class, 'create'])->name('cajas.create');
     Route::post('/cajas', [CajaController::class, 'store'])->name('cajas.store');
     Route::get('/cajas/exportar', [CajaController::class, 'exportar'])->name('cajas.export');
+    Route::get('/cajas/exportar-pdf', [CajaController::class, 'exportarPdf'])->name('cajas.export.pdf');
     Route::get('/cajas', [CajaController::class, 'index'])->name('cajas.index');
     Route::get('/cajas/{caja}', [CajaController::class, 'show'])->name('cajas.show');
     Route::get('/cajas/{caja}/cerrar', [CajaController::class, 'cerrar'])->name('cajas.cerrar');
@@ -53,4 +54,8 @@ Route::middleware(['auth', 'terminos.aceptados'])->group(function () {
     Route::get('/reportes/exportar', [ReporteController::class, 'exportar'])
         ->middleware('can:ver-reportes')
         ->name('reportes.export');
+
+    Route::get('/reportes/exportar-pdf', [ReporteController::class, 'exportarPdf'])
+        ->middleware('can:ver-reportes')
+        ->name('reportes.export.pdf');
 });

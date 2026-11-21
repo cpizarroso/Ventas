@@ -286,4 +286,59 @@ class CategoriasAdminTest extends TestCase
         $this->assertFalse($cajero->can('create', Categoria::class));
         $this->assertSame(Rol::Cajero, $cajero->rol);
     }
+
+    public function test_la_creacion_y_edicion_de_categorias_se_abren_en_un_modal(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $categoria = Categoria::factory()->create([
+            'negocio_id' => $negocio->id,
+            'nombre' => 'Bebidas',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(CategoriasAdmin::class)
+            ->assertSet('modalAbierto', false)
+            ->assertDontSeeHtml('wire:keydown.escape.window="cerrarModal"')
+            ->call('abrirModal')
+            ->assertSet('modalAbierto', true)
+            ->assertSeeHtml('wire:keydown.escape.window="cerrarModal"')
+            ->call('cerrarModal')
+            ->assertSet('modalAbierto', false)
+            ->assertDontSeeHtml('wire:keydown.escape.window="cerrarModal"')
+            ->call('iniciarEdicion', $categoria->id)
+            ->assertSet('modalAbierto', true)
+            ->assertSeeHtml('wire:keydown.escape.window="cerrarModal"')
+            ->assertSet('editandoId', $categoria->id)
+            ->assertSet('nombreEdicion', 'Bebidas');
+    }
+
+    public function test_el_listado_de_categorias_se_puede_buscar_y_pagina_de_diez(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+
+        foreach (range(1, 12) as $numero) {
+            Categoria::factory()->create([
+                'negocio_id' => $negocio->id,
+                'nombre' => 'Categoría '.str_pad((string) $numero, 2, '0', STR_PAD_LEFT),
+            ]);
+        }
+
+        $otroNegocio = Negocio::factory()->create();
+        Categoria::factory()->create([
+            'negocio_id' => $otroNegocio->id,
+            'nombre' => 'Categoría Ajena',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(CategoriasAdmin::class)
+            ->assertSee('Página 1 de 2')
+            ->assertSee('12 categorías')
+            ->assertDontSee('Categoría Ajena')
+            ->set('buscar', 'Categoría 07')
+            ->assertSee('Categoría 07')
+            ->assertDontSee('Categoría 01')
+            ->assertDontSee('Página 1 de 2');
+    }
 }

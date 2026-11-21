@@ -13,12 +13,36 @@
                     Crea administradores y cajeros, y administra sus datos de acceso.
                 </p>
             </div>
-            <span class="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-600 dark:bg-stone-700 dark:text-stone-300">
-                {{ $usuarios->count() }} {{ $usuarios->count() === 1 ? 'usuario' : 'usuarios' }}
-            </span>
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button"
+                        wire:click="abrirModal"
+                        class="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:hover:bg-amber-400">
+                    Nuevo usuario
+                </button>
+                <span class="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-600 dark:bg-stone-700 dark:text-stone-300">
+                    {{ $usuarios->total() }} {{ $usuarios->total() === 1 ? 'usuario' : 'usuarios' }}
+                </span>
+            </div>
         </div>
 
-        <form wire:submit="guardar" class="mt-5 rounded-xl border border-stone-200 bg-stone-50 p-4 dark:border-stone-700 dark:bg-stone-900/40 sm:p-5">
+        <div class="mt-5 max-w-sm">
+            <label for="buscar-usuarios" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+                Buscar usuario
+            </label>
+            <input id="buscar-usuarios"
+                   type="search"
+                   wire:model.live.debounce.300ms="buscar"
+                   placeholder="Nombre, usuario, correo o cédula"
+                   class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
+        </div>
+
+        <x-modal-configuracion id="modal-usuario"
+                               :titulo="$editandoId === null ? 'Nuevo usuario' : 'Editar usuario'"
+                               descripcion="Completa los datos de acceso y la información del usuario."
+                               cerrar="cerrarModal"
+                               ancho="max-w-4xl"
+                               :abierto="$modalAbierto">
+            <form wire:submit="guardar" class="space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <h3 class="text-sm font-semibold text-stone-800 dark:text-stone-100">
                     {{ $editandoId === null ? 'Nuevo usuario' : 'Editar usuario' }}
@@ -190,13 +214,14 @@
                     Guardar cambios
                 </button>
             </div>
-        </form>
+            </form>
+        </x-modal-configuracion>
 
         <div class="mt-6">
             @if ($usuarios->isEmpty())
                 <div class="rounded-xl border border-dashed border-stone-300 px-4 py-10 text-center dark:border-stone-600">
                     <p class="text-sm font-medium text-stone-600 dark:text-stone-300">Todavía no hay usuarios en este negocio</p>
-                    <p class="mt-1 text-xs text-stone-400 dark:text-stone-500">Crea el primero con el formulario de arriba.</p>
+                    <p class="mt-1 text-xs text-stone-400 dark:text-stone-500">Crea el primero con el botón «Nuevo usuario».</p>
                 </div>
             @else
                 <div class="overflow-x-auto">
@@ -286,6 +311,8 @@
                         </tbody>
                     </table>
                 </div>
+
+                {{ $usuarios->links('components.paginacion-compacta', ['enLivewire' => true]) }}
             @endif
         </div>
     </div>

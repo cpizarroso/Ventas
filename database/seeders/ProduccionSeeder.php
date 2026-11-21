@@ -21,8 +21,8 @@ class ProduccionSeeder extends Seeder
         $this->limpiarDatosDePrueba();
 
         $negocio = Negocio::firstOrCreate(
-            ['nombre_comercial' => 'Mi Negocio'],
-            ['eslogan' => null, 'logo' => null]
+            ['nombre_comercial' => DatabaseSeeder::NOMBRE_COMERCIAL],
+            ['eslogan' => DatabaseSeeder::ESLOGAN, 'logo' => null]
         );
 
         $this->crearCatalogoInicial($negocio);

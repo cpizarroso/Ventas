@@ -98,6 +98,36 @@ class CajasTest extends TestCase
             ->assertSee('Bs 125.00');
     }
 
+    public function test_la_lista_de_cajas_muestra_cards_filtros_y_paginacion_compacta(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+
+        Caja::factory()->count(11)->create([
+            'negocio_id' => $negocio->id,
+            'user_id' => $admin->id,
+            'fecha_apertura' => now(),
+        ]);
+
+        $respuesta = $this->actingAs($admin)
+            ->get(route('cajas.index'))
+            ->assertOk()
+            ->assertSee('Página 1 de 2')
+            ->assertSee('data-cajas-listado', false)
+            ->assertSee('data-cajas-paginacion', false);
+
+        $contenido = $respuesta->getContent();
+
+        $this->assertLessThan(
+            strpos($contenido, 'aria-label="Filtros de cajas"'),
+            strpos($contenido, 'aria-label="Resumen de cajas"')
+        );
+        $this->assertLessThan(
+            strpos($contenido, 'data-cajas-listado'),
+            strpos($contenido, 'aria-label="Filtros de cajas"')
+        );
+    }
+
     public function test_el_boton_de_la_lista_cambia_a_cerrar_caja_cuando_el_usuario_tiene_una_abierta(): void
     {
         $negocio = Negocio::factory()->create();
@@ -395,5 +425,69 @@ class CajasTest extends TestCase
             ->get(route('cajas.index'))
             ->assertOk()
             ->assertSee('Sin negocio asignado');
+    }
+
+    public function test_se_puede_exportar_el_reporte_de_cajas_en_pdf(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-22 12:00:00'));
+
+        $negocio = Negocio::factory()->create([
+            'nombre_comercial' => 'JOTAPE',
+            'eslogan' => 'Jibas frescas, sabor de siempre',
+        ]);
+        $admin = $this->adminDe($negocio);
+        $admin->update(['name' => 'Luis Administrador']);
+
+        $caja = Caja::factory()->cerrada()->create([
+            'negocio_id' => $negocio->id,
+            'user_id' => $admin->id,
+            'cerrada_por_id' => $admin->id,
+            'fecha_apertura' => now(),
+            'fecha_cierre' => now(),
+            'monto_inicial' => 10,
+            'total_ventas' => 150,
+            'total_efectivo' => 100,
+            'total_qr' => 50,
+            'cantidad_ventas' => 2,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('cajas.index', ['desde' => '2026-10-22', 'hasta' => '2026-10-22']))
+            ->assertOk()
+            ->assertSee('Exportar PDF')
+            ->assertSee('id="cajas-fechas-boton"', false)
+            ->assertDontSee('type="date"')
+            ->assertSee(e(route('cajas.export.pdf', [
+                'desde' => '2026-10-22',
+                'hasta' => '2026-10-22',
+            ])), false);
+
+        $pdf = $this->actingAs($admin)
+            ->get(route('cajas.export.pdf', ['desde' => '2026-10-22', 'hasta' => '2026-10-22']))
+            ->assertOk();
+
+        $this->assertStringContainsString('application/pdf', (string) $pdf->headers->get('content-type'));
+        $this->assertStringStartsWith('%PDF-', $pdf->getContent());
+
+        $html = view('cajas.pdf', [
+            'negocio' => $negocio,
+            'usuario' => $admin,
+            'cajas' => collect([$caja]),
+            'desde' => CarbonImmutable::parse('2026-10-22'),
+            'hasta' => CarbonImmutable::parse('2026-10-22'),
+            'estado' => null,
+        ])->render();
+
+        $this->assertStringContainsString('<thead>', $html);
+        $this->assertStringContainsString('display: table-header-group', $html);
+        $this->assertStringContainsString('REPORTE DE CAJAS', $html);
+        $this->assertStringContainsString('JOTAPE', $html);
+        $this->assertStringContainsString('Jibas frescas, sabor de siempre', $html);
+        $this->assertStringContainsString('Luis Administrador', $html);
+        $this->assertStringContainsString('Usuario que genera el reporte', $html);
+        $this->assertStringContainsString('Fecha inicial', $html);
+        $this->assertStringContainsString('Fecha final', $html);
+        $this->assertStringContainsString('22/10/2026', $html);
+        $this->assertStringContainsString('150.00', $html);
     }
 }

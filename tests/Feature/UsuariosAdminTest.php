@@ -376,4 +376,48 @@ class UsuariosAdminTest extends TestCase
             ->assertSee('x-on:toast.window', false)
             ->assertSee('Cerrar notificación');
     }
+
+    public function test_la_creacion_y_edicion_de_usuarios_se_abren_en_un_modal(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+        $usuario = $this->cajeroDe($negocio);
+
+        Livewire::actingAs($admin)
+            ->test(UsuariosAdmin::class)
+            ->assertSet('modalAbierto', false)
+            ->call('abrirModal')
+            ->assertSet('modalAbierto', true)
+            ->assertSee('Nuevo usuario')
+            ->call('cerrarModal')
+            ->assertSet('modalAbierto', false)
+            ->call('iniciarEdicion', $usuario->id)
+            ->assertSet('modalAbierto', true)
+            ->assertSet('editandoId', $usuario->id);
+    }
+
+    public function test_el_listado_de_usuarios_se_puede_buscar_y_pagina_de_diez(): void
+    {
+        $negocio = Negocio::factory()->create();
+        $admin = $this->adminDe($negocio);
+
+        foreach (range(1, 11) as $numero) {
+            $this->cajeroDe($negocio)->update([
+                'name' => 'Usuario '.str_pad((string) $numero, 2, '0', STR_PAD_LEFT),
+            ]);
+        }
+
+        $otroNegocio = Negocio::factory()->create();
+        $this->cajeroDe($otroNegocio)->update(['name' => 'Usuario Ajeno']);
+
+        Livewire::actingAs($admin)
+            ->test(UsuariosAdmin::class)
+            ->assertSee('Página 1 de 2')
+            ->assertSee('12 usuarios')
+            ->assertDontSee('Usuario Ajeno')
+            ->set('buscar', 'Usuario 07')
+            ->assertSee('Usuario 07')
+            ->assertDontSee('Usuario 01')
+            ->assertDontSee('Página 1 de 2');
+    }
 }

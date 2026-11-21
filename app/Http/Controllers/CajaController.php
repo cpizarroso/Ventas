@@ -10,6 +10,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -297,6 +298,31 @@ class CajaController extends Controller
 
             fclose($salida);
         }, $nombre, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * Download the filtered cash register report as a PDF file.
+     */
+    public function exportarPdf(Request $request): Response
+    {
+        Gate::authorize('viewAny', Caja::class);
+
+        $filtros = $this->filtros($request);
+        $cajas = (clone $filtros['consulta'])
+            ->with(['user', 'cerradaPor'])
+            ->orderBy('fecha_apertura')
+            ->orderBy('id')
+            ->get();
+        $nombre = 'reporte-cajas-'.$filtros['desde']->format('Y-m-d').'_'.$filtros['hasta']->format('Y-m-d').'.pdf';
+
+        return $this->generarPdf('cajas.pdf', [
+            'negocio' => $filtros['negocio'],
+            'usuario' => Auth::user(),
+            'cajas' => $cajas,
+            'desde' => $filtros['desde'],
+            'hasta' => $filtros['hasta'],
+            'estado' => $filtros['estado'],
+        ], $nombre);
     }
 
     /**

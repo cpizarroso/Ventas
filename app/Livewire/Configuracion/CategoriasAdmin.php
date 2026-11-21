@@ -12,13 +12,15 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Unique;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
+use Livewire\WithPagination;
 
 class CategoriasAdmin extends Component
 {
-    use FlashesSavedStatus, OptimizaImagenes, WithFileUploads;
+    use FlashesSavedStatus, OptimizaImagenes, WithFileUploads, WithPagination;
 
     public string $nombre = '';
 
@@ -62,6 +64,51 @@ class CategoriasAdmin extends Component
 
     public ?int $productoEliminandoId = null;
 
+    public bool $modalAbierto = false;
+
+    #[Url(as: 'buscar-categorias')]
+    public string $buscar = '';
+
+    /**
+     * Alias the paginator so this component does not clash with the other configuration lists.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function queryString(): array
+    {
+        return [
+            'paginators.page' => ['as' => 'pagina-categorias', 'history' => false],
+        ];
+    }
+
+    public function updatingBuscar(): void
+    {
+        $this->resetPage();
+        $this->reset('productosAbiertosId');
+        $this->resetProductos();
+    }
+
+    public function updatingPaginators(int $page, string $pageName): void
+    {
+        $this->reset('productosAbiertosId');
+        $this->resetProductos();
+    }
+
+    public function abrirModal(): void
+    {
+        $this->authorize('create', Categoria::class);
+
+        $this->reset('nombre', 'editandoId', 'nombreEdicion');
+        $this->resetValidation();
+        $this->modalAbierto = true;
+    }
+
+    public function cerrarModal(): void
+    {
+        $this->reset('nombre', 'editandoId', 'nombreEdicion', 'modalAbierto');
+        $this->resetValidation();
+    }
+
     /**
      * Create a new category for the authenticated user's business.
      */
@@ -83,7 +130,7 @@ class CategoriasAdmin extends Component
             'nombre' => trim($this->nombre),
         ]);
 
-        $this->reset('nombre');
+        $this->reset('nombre', 'modalAbierto');
 
         $this->flashSaved();
     }
@@ -100,11 +147,12 @@ class CategoriasAdmin extends Component
         $this->editandoId = $categoria->id;
         $this->nombreEdicion = $categoria->nombre;
         $this->eliminandoId = null;
+        $this->modalAbierto = true;
     }
 
     public function cancelarEdicion(): void
     {
-        $this->reset('editandoId', 'nombreEdicion');
+        $this->reset('editandoId', 'nombreEdicion', 'modalAbierto');
     }
 
     /**
@@ -134,7 +182,7 @@ class CategoriasAdmin extends Component
             'nombre' => trim($this->nombreEdicion),
         ]);
 
-        $this->reset('editandoId', 'nombreEdicion');
+        $this->reset('editandoId', 'nombreEdicion', 'modalAbierto');
 
         $this->flashSaved();
     }
@@ -149,7 +197,7 @@ class CategoriasAdmin extends Component
         $this->authorize('delete', $categoria);
 
         $this->eliminandoId = $categoria->id;
-        $this->reset('editandoId', 'nombreEdicion');
+        $this->reset('editandoId', 'nombreEdicion', 'modalAbierto');
     }
 
     public function cancelarEliminacion(): void
@@ -200,7 +248,7 @@ class CategoriasAdmin extends Component
         $this->resetProductos();
 
         $this->productosAbiertosId = $categoria->id;
-        $this->reset('editandoId', 'nombreEdicion', 'eliminandoId');
+        $this->reset('editandoId', 'nombreEdicion', 'eliminandoId', 'modalAbierto');
     }
 
     public function abrirGaleriaPredeterminada(): void
@@ -524,15 +572,21 @@ class CategoriasAdmin extends Component
     public function render(): View
     {
         $negocio = Auth::user()?->negocio;
+        $buscar = trim($this->buscar);
 
-        $categorias = $negocio
-            ? $negocio->categorias()->withCount('productos')->orderBy('orden')->orderBy('nombre')->get()
-            : collect();
+        $categorias = ($negocio !== null ? $negocio->categorias() : Categoria::query()->whereRaw('1 = 0'))
+            ->withCount('productos')
+            ->when($buscar !== '', fn ($query) => $query->where('nombre', 'like', '%'.$buscar.'%'))
+            ->orderBy('orden')
+            ->orderBy('nombre')
+            ->paginate(10);
 
         $productos = collect();
 
-        if ($this->productosAbiertosId !== null) {
-            $categoriaAbierta = $categorias->firstWhere('id', $this->productosAbiertosId);
+        if ($this->productosAbiertosId !== null && $negocio !== null) {
+            $categoriaAbierta = $negocio->categorias()
+                ->whereKey($this->productosAbiertosId)
+                ->first();
 
             $productos = $categoriaAbierta
                 ? $categoriaAbierta->productos()->orderBy('nombre')->get()

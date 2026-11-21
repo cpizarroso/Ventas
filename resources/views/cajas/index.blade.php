@@ -55,25 +55,40 @@
         </div>
     @else
         <div class="space-y-6">
+            <section class="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Resumen de cajas">
+                <div class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-800">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Cajas</p>
+                    <p class="mt-1 text-xl font-bold text-stone-900 tabular-nums dark:text-stone-100 sm:text-2xl">{{ $resumen['cantidad'] }}</p>
+                </div>
+                <div class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-800">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Total vendido</p>
+                    <p class="mt-1 break-words text-xl font-bold text-stone-900 tabular-nums dark:text-stone-100 sm:text-2xl">Bs {{ number_format($resumen['total_ventas'], 2) }}</p>
+                </div>
+                <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Efectivo</p>
+                    <p class="mt-1 break-words text-xl font-bold text-emerald-900 tabular-nums dark:text-emerald-200 sm:text-2xl">Bs {{ number_format($resumen['total_efectivo'], 2) }}</p>
+                </div>
+                <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-800 dark:bg-sky-900/20">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-400">QR</p>
+                    <p class="mt-1 break-words text-xl font-bold text-sky-900 tabular-nums dark:text-sky-200 sm:text-2xl">Bs {{ number_format($resumen['total_qr'], 2) }}</p>
+                </div>
+            </section>
+
             <section class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-800 sm:p-6" aria-label="Filtros de cajas">
                 <form method="GET" action="{{ route('cajas.index') }}" class="flex flex-wrap items-end gap-3">
-                    <div class="w-full sm:w-auto">
-                        <label for="desde" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Desde</label>
-                        <input type="date" id="desde" name="desde" value="{{ old('desde', request('desde', $desde->format('Y-m-d'))) }}"
-                               class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:[color-scheme:dark] sm:w-auto">
-                        @error('desde')
-                            <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="w-full sm:w-auto">
-                        <label for="hasta" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Hasta</label>
-                        <input type="date" id="hasta" name="hasta" value="{{ old('hasta', request('hasta', $hasta->format('Y-m-d'))) }}"
-                               class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:[color-scheme:dark] sm:w-auto">
-                        @error('hasta')
-                            <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
-                        @enderror
-                    </div>
+                    <x-calendario-rango
+                        id="cajas-fechas"
+                        etiqueta="Período"
+                        :desde="old('desde', request('desde', $desde->format('Y-m-d')))"
+                        :hasta="old('hasta', request('hasta', $hasta->format('Y-m-d')))"
+                        class="w-full sm:w-80"
+                    />
+                    @error('desde')
+                        <p class="w-full text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                    @enderror
+                    @error('hasta')
+                        <p class="w-full text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                    @enderror
 
                     <div class="w-full sm:w-auto">
                         <label for="estado" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Estado</label>
@@ -112,46 +127,38 @@
                     </button>
                 </form>
 
+                @php($filtrosExportacion = array_filter([
+                    'desde' => request('desde'),
+                    'hasta' => request('hasta'),
+                    'estado' => request('estado'),
+                    'user_id' => $esCajero ? null : request('user_id'),
+                ]))
+
                 <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-stone-50 px-4 py-3 dark:bg-stone-900/40">
                     <p class="text-sm text-stone-600 dark:text-stone-300">
                         Período:
                         <span class="font-semibold text-stone-900 dark:text-stone-100">{{ $desde->format('d/m/Y') }} — {{ $hasta->format('d/m/Y') }}</span>
                     </p>
-                    <a href="{{ route('cajas.export', array_filter([
-                        'desde' => request('desde'),
-                        'hasta' => request('hasta'),
-                        'estado' => request('estado'),
-                        'user_id' => $esCajero ? null : request('user_id'),
-                    ])) }}"
-                       class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-900/30 sm:w-auto">
-                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" />
-                        </svg>
-                        Exportar CSV
-                    </a>
+                    <div class="flex w-full flex-wrap gap-2 sm:w-auto">
+                        <a href="{{ route('cajas.export', $filtrosExportacion) }}"
+                           class="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-900/30 sm:flex-none">
+                            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" />
+                            </svg>
+                            Exportar CSV
+                        </a>
+                        <a href="{{ route('cajas.export.pdf', $filtrosExportacion) }}"
+                           class="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-600 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 dark:border-red-500 dark:text-red-400 dark:hover:bg-red-900/30 sm:flex-none">
+                            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6" />
+                            </svg>
+                            Exportar PDF
+                        </a>
+                    </div>
                 </div>
             </section>
 
-            <section class="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Resumen de cajas">
-                <div class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-800">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Cajas</p>
-                    <p class="mt-1 text-xl font-bold text-stone-900 tabular-nums dark:text-stone-100 sm:text-2xl">{{ $resumen['cantidad'] }}</p>
-                </div>
-                <div class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-800">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Total vendido</p>
-                    <p class="mt-1 break-words text-xl font-bold text-stone-900 tabular-nums dark:text-stone-100 sm:text-2xl">Bs {{ number_format($resumen['total_ventas'], 2) }}</p>
-                </div>
-                <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Efectivo</p>
-                    <p class="mt-1 break-words text-xl font-bold text-emerald-900 tabular-nums dark:text-emerald-200 sm:text-2xl">Bs {{ number_format($resumen['total_efectivo'], 2) }}</p>
-                </div>
-                <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-800 dark:bg-sky-900/20">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-400">QR</p>
-                    <p class="mt-1 break-words text-xl font-bold text-sky-900 tabular-nums dark:text-sky-200 sm:text-2xl">Bs {{ number_format($resumen['total_qr'], 2) }}</p>
-                </div>
-            </section>
-
-            <section class="rounded-2xl border border-stone-200 bg-white shadow-sm dark:border-stone-700 dark:bg-stone-800" aria-label="Cajas del período">
+            <section data-cajas-listado class="rounded-2xl border border-stone-200 bg-white shadow-sm dark:border-stone-700 dark:bg-stone-800" aria-label="Cajas del período">
                 <div class="border-b border-stone-100 px-4 py-4 dark:border-stone-700/60 sm:px-6">
                     <h2 class="text-base font-semibold text-stone-900 dark:text-stone-100">Cajas registradas</h2>
                 </div>
@@ -239,11 +246,56 @@
                         </table>
                     </div>
 
-                    <div class="border-t border-stone-100 px-4 py-4 dark:border-stone-700/60 sm:px-6">
-                        {{ $cajas->links() }}
+                    <div class="border-t border-stone-100 px-4 py-4 dark:border-stone-700/60 sm:px-6" data-cajas-paginacion>
+                        {{ $cajas->links('components.paginacion-compacta') }}
                     </div>
                 @endif
             </section>
         </div>
     @endif
+
+    <script>
+        (() => {
+            const cargarPagina = async (url, actualizarHistorial) => {
+                try {
+                    const respuesta = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+
+                    if (! respuesta.ok) {
+                        window.location.href = url;
+                        return;
+                    }
+
+                    const documento = new DOMParser().parseFromString(await respuesta.text(), 'text/html');
+                    const contenedor = document.querySelector('[data-cajas-listado]');
+                    const nuevoContenedor = documento.querySelector('[data-cajas-listado]');
+
+                    if (! contenedor || ! nuevoContenedor) {
+                        window.location.href = url;
+                        return;
+                    }
+
+                    contenedor.replaceWith(nuevoContenedor);
+
+                    if (actualizarHistorial) {
+                        window.history.pushState({}, '', url);
+                    }
+                } catch (error) {
+                    window.location.href = url;
+                }
+            };
+
+            document.addEventListener('click', (event) => {
+                const enlace = event.target.closest('[data-cajas-paginacion] a[href]');
+
+                if (! enlace) {
+                    return;
+                }
+
+                event.preventDefault();
+                cargarPagina(enlace.href, true);
+            });
+
+            window.addEventListener('popstate', () => cargarPagina(window.location.href, false));
+        })();
+    </script>
 </x-layouts.app>
