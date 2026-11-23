@@ -31,7 +31,6 @@ class DatabaseSeeder extends Seeder
         $this->call([
             SuperadminSeeder::class,
             ProduccionSeeder::class,
-            ReportePruebasSeeder::class,
         ]);
     }
 
