@@ -18,7 +18,12 @@ export default defineConfig({
     ],
     server: {
         watch: {
-            ignored: ['**/storage/framework/views/**'],
+            ignored: [
+                '**/storage/framework/views/**',
+                '**/public/img/productos-predeterminados/**',
+                '**/public/build/**',
+                '**/public/storage/**',
+            ],
         },
     },
     optimizeDeps: {
