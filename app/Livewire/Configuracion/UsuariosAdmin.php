@@ -44,11 +44,23 @@ class UsuariosAdmin extends Component
 
     public bool $modalReporteAbierto = false;
 
+    public bool $modalResetAbierto = false;
+
+    public ?int $resetUsuarioId = null;
+
+    public ?string $resetNombre = null;
+
+    public ?string $resetUsuario = null;
+
+    public string $passwordReset = '';
+
     public ?string $passwordGenerada = null;
 
     public ?string $reporteNombre = null;
 
     public ?string $reporteUsuario = null;
+
+    public ?string $reporteFecha = null;
 
     public ?string $reporteMensaje = null;
 
@@ -233,27 +245,77 @@ class UsuariosAdmin extends Component
     }
 
     /**
-     * Generate an eight-digit password and show a report the admin can copy.
+     * Open the reset form with an editable eight-digit password proposal.
      */
-    public function restablecerPassword(int $usuarioId): void
+    public function abrirResetPassword(int $usuarioId): void
     {
         $usuario = $this->usuarioDelNegocio($usuarioId);
 
         $this->authorize('update', $usuario);
 
-        $nuevaPassword = str_pad((string) random_int(0, 99999999), 8, '0', STR_PAD_LEFT);
-
-        $usuario->update(['password' => $nuevaPassword]);
-
         $this->eliminandoId = null;
         $this->modalAbierto = false;
-        $this->passwordGenerada = $nuevaPassword;
+        $this->modalReporteAbierto = false;
+        $this->resetUsuarioId = $usuario->id;
+        $this->resetNombre = $usuario->name;
+        $this->resetUsuario = $usuario->username ?? '';
+        $this->passwordReset = $this->generarPasswordAleatoria();
+        $this->modalResetAbierto = true;
+
+        $this->resetValidation();
+    }
+
+    /**
+     * Replace the proposed password with a new random eight-digit number.
+     */
+    public function generarPasswordReset(): void
+    {
+        $this->passwordReset = $this->generarPasswordAleatoria();
+        $this->resetValidation();
+    }
+
+    public function cancelarResetPassword(): void
+    {
+        $this->modalResetAbierto = false;
+        $this->resetUsuarioId = null;
+        $this->resetNombre = null;
+        $this->resetUsuario = null;
+        $this->passwordReset = '';
+
+        $this->resetValidation();
+    }
+
+    /**
+     * Persist the chosen password and show the report the admin can copy.
+     */
+    public function guardarResetPassword(): void
+    {
+        $this->validate([
+            'passwordReset' => ['required', 'string', 'digits:8'],
+        ], [
+            'passwordReset.required' => 'La contraseña temporal es obligatoria.',
+            'passwordReset.digits' => 'La contraseña temporal debe tener exactamente 8 dígitos.',
+        ], [
+            'passwordReset' => 'contraseña temporal',
+        ]);
+
+        $usuario = $this->usuarioDelNegocio((int) $this->resetUsuarioId);
+
+        $this->authorize('update', $usuario);
+
+        $usuario->update(['password' => $this->passwordReset]);
+
+        $fecha = now()->format('d/m/Y H:i');
+        $this->passwordGenerada = $this->passwordReset;
         $this->reporteNombre = $usuario->name;
         $this->reporteUsuario = $usuario->username ?? '';
-        $this->reporteMensaje = "Hola {$usuario->name}, tus credenciales para ingresar al sistema son:\n"
+        $this->reporteFecha = $fecha;
+        $this->reporteMensaje = "Hola {$usuario->name}, se restableció tu contraseña el {$fecha}.\n\n"
             ."Usuario: {$usuario->username}\n"
-            ."Contraseña: {$nuevaPassword}\n\n"
-            .'Por seguridad, cambia tu contraseña después de iniciar sesión.';
+            ."Contraseña temporal: {$this->passwordReset}\n\n"
+            .'Por seguridad, debes actualizar tu contraseña después de iniciar sesión.';
+
+        $this->cancelarResetPassword();
         $this->modalReporteAbierto = true;
     }
 
@@ -263,7 +325,9 @@ class UsuariosAdmin extends Component
         $this->passwordGenerada = null;
         $this->reporteNombre = null;
         $this->reporteUsuario = null;
+        $this->reporteFecha = null;
         $this->reporteMensaje = null;
+        $this->cancelarResetPassword();
     }
 
     /**
@@ -336,9 +400,15 @@ class UsuariosAdmin extends Component
             'password_confirmation',
             'editandoId',
             'modalAbierto',
+            'modalResetAbierto',
+            'resetUsuarioId',
+            'resetNombre',
+            'resetUsuario',
+            'passwordReset',
             'passwordGenerada',
             'reporteNombre',
             'reporteUsuario',
+            'reporteFecha',
             'reporteMensaje',
         );
 
@@ -346,6 +416,11 @@ class UsuariosAdmin extends Component
         $this->modalReporteAbierto = false;
 
         $this->resetValidation();
+    }
+
+    private function generarPasswordAleatoria(): string
+    {
+        return str_pad((string) random_int(0, 99999999), 8, '0', STR_PAD_LEFT);
     }
 
     private function negocioDelUsuario(): Negocio

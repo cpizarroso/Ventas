@@ -217,15 +217,65 @@
             </form>
         </x-modal-configuracion>
 
+        <x-modal-configuracion id="modal-reset-password"
+                               titulo="Restablecer contraseña"
+                               descripcion="El sistema propone una contraseña de 8 dígitos, pero puedes editarla antes de guardar."
+                               cerrar="cancelarResetPassword"
+                               :abierto="$modalResetAbierto"
+                               ancho="max-w-md">
+            <form wire:submit="guardarResetPassword" class="space-y-4">
+                <p class="text-sm text-stone-600 dark:text-stone-300">
+                    Se restablecerá la contraseña de
+                    <strong class="font-semibold">{{ $resetNombre }}</strong>
+                    <span class="text-stone-500 dark:text-stone-400">({{ $resetUsuario }})</span>.
+                </p>
+
+                <div>
+                    <label for="password-reset" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+                        Contraseña temporal <span class="text-red-500" aria-hidden="true">*</span>
+                    </label>
+                    <input id="password-reset"
+                           type="text"
+                           inputmode="numeric"
+                           maxlength="8"
+                           wire:model="passwordReset"
+                           autocomplete="off"
+                           placeholder="8 dígitos"
+                           class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 font-mono text-base tracking-widest shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
+                    <p class="mt-1 text-xs text-stone-400 dark:text-stone-500">Puedes modificar el número generado.</p>
+                    @error('passwordReset')
+                        <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div class="flex flex-wrap justify-end gap-2">
+                    <button type="button"
+                            wire:click="generarPasswordReset"
+                            class="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-400 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
+                        Generar otro número
+                    </button>
+                    <button type="button"
+                            wire:click="cancelarResetPassword"
+                            class="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-400 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                            class="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-stone-900 hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-stone-900">
+                        Guardar
+                    </button>
+                </div>
+            </form>
+        </x-modal-configuracion>
+
         <x-modal-configuracion id="modal-reporte-password"
                                titulo="Contraseña restablecida"
-                               descripcion="Copia el mensaje y envíalo al usuario con sus nuevas credenciales."
+                               descripcion="Confirma el restablecimiento y copia el mensaje para enviarlo al usuario."
                                cerrar="cerrarReporte"
                                :abierto="$modalReporteAbierto"
                                ancho="max-w-lg">
             <div class="space-y-4">
                 <p class="text-sm text-stone-600 dark:text-stone-300">
-                    Se generó una contraseña temporal de 8 dígitos para
+                    Se restableció la contraseña de
                     <strong class="font-semibold">{{ $reporteNombre }}</strong>.
                 </p>
 
@@ -235,8 +285,12 @@
                         <dd class="font-semibold text-stone-800 dark:text-stone-100">{{ $reporteUsuario }}</dd>
                     </div>
                     <div class="flex items-center justify-between gap-3">
-                        <dt class="text-stone-500 dark:text-stone-400">Contraseña</dt>
+                        <dt class="text-stone-500 dark:text-stone-400">Contraseña temporal</dt>
                         <dd class="font-mono text-base font-semibold tracking-widest text-stone-900 dark:text-stone-100">{{ $passwordGenerada }}</dd>
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <dt class="text-stone-500 dark:text-stone-400">Fecha del reseteo</dt>
+                        <dd class="font-semibold text-stone-800 dark:text-stone-100">{{ $reporteFecha }}</dd>
                     </div>
                 </dl>
 
@@ -330,7 +384,7 @@
                                                 </svg>
                                             </button>
                                             <button type="button"
-                                                    wire:click="restablecerPassword({{ $usuario->id }})"
+                                                    wire:click="abrirResetPassword({{ $usuario->id }})"
                                                     data-preservar-scroll
                                                     title="Restablecer contraseña de {{ $usuario->name }}"
                                                     aria-label="Restablecer contraseña de {{ $usuario->name }}"

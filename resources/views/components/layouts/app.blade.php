@@ -101,17 +101,7 @@
                             @endif
                         </div>
 
-                        <div
-                            class="flex min-w-0 shrink items-center gap-2 rounded-full border border-stone-200 bg-stone-50 py-1 pl-1 pr-2.5 dark:border-stone-700 dark:bg-stone-700/40"
-                            title="{{ auth()->user()->name }}"
-                        >
-                            <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-amber-500 text-xs font-bold uppercase text-stone-900" aria-hidden="true">
-                                {{ mb_substr(trim(auth()->user()->name), 0, 1) }}
-                            </span>
-                            <span class="max-w-20 truncate text-xs font-semibold text-stone-700 dark:text-stone-200 sm:max-w-40 sm:text-sm">
-                                <span class="sr-only">Usuario: </span>{{ auth()->user()->name }}
-                            </span>
-                        </div>
+                        <livewire:cuenta.menu-usuario />
 
                         <div class="relative">
                             <button
@@ -177,14 +167,6 @@
                             </svg>
                         </button>
 
-                        <form method="POST" action="{{ route('logout') }}" class="hidden lg:block">
-                            @csrf
-                            <button type="submit"
-                                    class="rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-700 dark:hover:text-white">
-                                Cerrar sesión
-                            </button>
-                        </form>
-
                         <button
                             type="button"
                             x-on:click="mobileMenuOpen = ! mobileMenuOpen"
@@ -237,14 +219,6 @@
                                 Configuración
                             </x-nav-link>
                         @endif
-
-                        <form method="POST" action="{{ route('logout') }}" class="pt-1">
-                            @csrf
-                            <button type="submit"
-                                    class="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-700 dark:hover:text-white">
-                                Cerrar sesión
-                            </button>
-                        </form>
                     </div>
                 </nav>
             @endauth
