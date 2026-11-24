@@ -15,6 +15,7 @@
 /.vscode
 /.zed
 /auth.json
+/bootstrap/app.hostinger.php
 /node_modules
 /public/fonts-manifest.dev.json
 /public/hot
