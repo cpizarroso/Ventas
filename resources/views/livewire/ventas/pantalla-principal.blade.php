@@ -444,11 +444,24 @@
         @if ($cantidadItems > 0)
             <div class="fixed inset-x-0 bottom-0 z-30 border-t border-stone-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-stone-700 dark:bg-stone-800/95 lg:hidden">
                 <div class="mx-auto flex w-full max-w-2xl items-center justify-between gap-3">
-                    <div class="min-w-0">
-                        <p class="truncate text-xs font-medium text-stone-500 dark:text-stone-400">
-                            {{ $cantidadItems }} {{ $cantidadItems === 1 ? 'ítem' : 'ítems' }} en el detalle
-                        </p>
-                        <p class="text-lg font-bold text-stone-900 tabular-nums dark:text-stone-100">Bs {{ $totalCarrito }}</p>
+                    <div class="flex min-w-0 items-center gap-2">
+                        <button
+                            type="button"
+                            wire:click="pedirCancelacion"
+                            class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-stone-300 text-stone-500 hover:border-red-300 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 dark:border-stone-600 dark:text-stone-400 dark:hover:border-red-800 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                            aria-label="Cancelar venta"
+                            title="Cancelar venta"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-5" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                            </svg>
+                        </button>
+                        <div class="min-w-0">
+                            <p class="truncate text-xs font-medium text-stone-500 dark:text-stone-400">
+                                {{ $cantidadItems }} {{ $cantidadItems === 1 ? 'ítem' : 'ítems' }} en el detalle
+                            </p>
+                            <p class="text-lg font-bold text-stone-900 tabular-nums dark:text-stone-100">Bs {{ $totalCarrito }}</p>
+                        </div>
                     </div>
                     <button
                         type="button"
@@ -704,7 +717,7 @@
                             wire:click="cerrarModalPago"
                             class="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-400 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700"
                         >
-                            Cancelar
+                            Volver
                         </button>
                         <button
                             type="button"
@@ -758,5 +771,53 @@
                 @endif
             </div>
         </div>
+
     @endif
+
+        @if ($confirmandoCancelarVenta)
+            <div class="fixed inset-0 z-[70] flex items-end justify-center bg-stone-900/60 p-4 backdrop-blur-sm sm:items-center"
+                 role="alertdialog"
+                 aria-modal="true"
+                 aria-labelledby="cancelar-venta-titulo"
+                 aria-describedby="cancelar-venta-descripcion"
+                 wire:keydown.escape.window="cerrarCancelacion">
+                <div class="absolute inset-0" wire:click="cerrarCancelacion" aria-hidden="true"></div>
+
+                <div class="relative w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-stone-800 sm:p-6">
+                    <div class="flex items-start gap-3">
+                        <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-5" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                            </svg>
+                        </span>
+                        <div class="min-w-0">
+                            <h3 id="cancelar-venta-titulo" class="text-base font-semibold text-stone-900 dark:text-stone-100">
+                                ¿Cancelar esta venta?
+                            </h3>
+                            <p id="cancelar-venta-descripcion" class="mt-1 text-sm text-stone-600 dark:text-stone-300">
+                                Se perderán los {{ $cantidadItems }} {{ $cantidadItems === 1 ? 'ítem agregado' : 'ítems agregados' }}, junto con el cliente, la glosa y el método de pago. Esta acción no se puede deshacer.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <button
+                            type="button"
+                            wire:click="cerrarCancelacion"
+                            class="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-400 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700"
+                        >
+                            Volver
+                        </button>
+                        <button
+                            type="button"
+                            wire:click="cancelarVenta"
+                            x-on:click="carritoAbierto = false"
+                            class="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-stone-800"
+                        >
+                            Sí, cancelar venta
+                        </button>
+                    </div>
+                </div>
+            </div>
+        @endif
 </div>

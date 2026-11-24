@@ -4,6 +4,7 @@ namespace App\Livewire\Configuracion;
 
 use App\Livewire\Concerns\FlashesSavedStatus;
 use App\Livewire\Concerns\OptimizaImagenes;
+use App\Support\ImagenesPredeterminadas as Catalogo;
 use App\Models\Categoria;
 use App\Models\Producto;
 use Illuminate\Contracts\View\View;
@@ -815,12 +816,12 @@ class CategoriasAdmin extends Component
             ? collect()
             : ($categorias->firstWhere('id', $this->productosAbiertosId)?->productos ?? collect());
 
-        $urlBase = trim((string) config('productos.url_imagenes_predeterminadas'), '/');
+        $tamano = (int) config('productos.tamano_predeterminada_defecto', 512);
 
         $imagenesPredeterminadas = array_map(
-            fn (string $archivo): array => [
-                'archivo' => $archivo,
-                'url' => asset($urlBase.'/'.$archivo),
+            fn (string $id): array => [
+                'archivo' => $id,
+                'url' => Catalogo::url($id, $tamano),
             ],
             $this->imagenesPredeterminadas(),
         );
@@ -897,23 +898,11 @@ class CategoriasAdmin extends Component
      */
     private function imagenesPredeterminadas(): array
     {
-        $directorio = $this->directorioImagenesPredeterminadas();
-
-        if (! File::isDirectory($directorio)) {
-            return [];
-        }
-
-        return collect(File::files($directorio))
-            ->filter(fn (\SplFileInfo $archivo): bool => in_array(strtolower($archivo->getExtension()), ['jpg', 'jpeg', 'png', 'webp'], true))
-            ->map(fn (\SplFileInfo $archivo): string => $archivo->getFilename())
+        return collect(Catalogo::todos())
+            ->map(fn (array $entrada, string $id): string => $id)
             ->sort()
             ->values()
             ->all();
-    }
-
-    private function directorioImagenesPredeterminadas(): string
-    {
-        return (string) config('productos.imagenes_predeterminadas', public_path('img/productos-predeterminados'));
     }
 
     private function guardarImagenProducto(TemporaryUploadedFile $archivo): string
@@ -921,9 +910,14 @@ class CategoriasAdmin extends Component
         return $this->guardarImagenOptimizada($archivo, 'productos', 'producto');
     }
 
-    private function guardarImagenPredeterminada(string $archivo): string
+    private function guardarImagenPredeterminada(string $id): string
     {
-        $ruta = $this->directorioImagenesPredeterminadas().DIRECTORY_SEPARATOR.$archivo;
+        $tamano = (int) config('productos.tamano_predeterminada_defecto', 512);
+        $ruta = Catalogo::rutaDerivado($id, $tamano);
+
+        if ($ruta === '' || ! File::exists($ruta)) {
+            return '';
+        }
 
         return $this->guardarImagenOptimizada($ruta, 'productos', 'producto');
     }

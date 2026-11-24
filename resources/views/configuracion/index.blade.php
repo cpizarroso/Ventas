@@ -28,6 +28,7 @@
         <div class="space-y-8">
             <livewire:configuracion.identidad-negocio />
             <livewire:configuracion.usuarios-admin lazy />
+            <livewire:configuracion.imagenes-predeterminadas-admin lazy />
             <livewire:configuracion.categorias-admin lazy />
             <livewire:configuracion.promociones-admin lazy />
         </div>

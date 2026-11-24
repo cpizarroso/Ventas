@@ -1,0 +1,534 @@
+{
+    "producto_001.png": {
+        "archivo": "producto_001.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_002.png": {
+        "archivo": "producto_002.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_003.png": {
+        "archivo": "producto_003.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_004.png": {
+        "archivo": "producto_004.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_005.png": {
+        "archivo": "producto_005.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_006.png": {
+        "archivo": "producto_006.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_007.png": {
+        "archivo": "producto_007.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_008.png": {
+        "archivo": "producto_008.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_009.png": {
+        "archivo": "producto_009.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_010.png": {
+        "archivo": "producto_010.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_011.png": {
+        "archivo": "producto_011.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_012.png": {
+        "archivo": "producto_012.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_013.png": {
+        "archivo": "producto_013.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_014.png": {
+        "archivo": "producto_014.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_015.png": {
+        "archivo": "producto_015.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_016.png": {
+        "archivo": "producto_016.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_017.png": {
+        "archivo": "producto_017.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_018.png": {
+        "archivo": "producto_018.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_019.png": {
+        "archivo": "producto_019.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_020.png": {
+        "archivo": "producto_020.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_021.png": {
+        "archivo": "producto_021.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_022.png": {
+        "archivo": "producto_022.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_023.png": {
+        "archivo": "producto_023.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_024.png": {
+        "archivo": "producto_024.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_025.png": {
+        "archivo": "producto_025.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_026.png": {
+        "archivo": "producto_026.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_027.png": {
+        "archivo": "producto_027.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_028.png": {
+        "archivo": "producto_028.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_029.png": {
+        "archivo": "producto_029.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_030.png": {
+        "archivo": "producto_030.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_031.png": {
+        "archivo": "producto_031.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_032.png": {
+        "archivo": "producto_032.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_033.png": {
+        "archivo": "producto_033.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_034.png": {
+        "archivo": "producto_034.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_035.png": {
+        "archivo": "producto_035.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_036.png": {
+        "archivo": "producto_036.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_037.png": {
+        "archivo": "producto_037.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_038.png": {
+        "archivo": "producto_038.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_039.png": {
+        "archivo": "producto_039.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_040.png": {
+        "archivo": "producto_040.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_041.png": {
+        "archivo": "producto_041.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_042.png": {
+        "archivo": "producto_042.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_043.png": {
+        "archivo": "producto_043.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_044.png": {
+        "archivo": "producto_044.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_045.png": {
+        "archivo": "producto_045.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_046.png": {
+        "archivo": "producto_046.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_047.png": {
+        "archivo": "producto_047.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_048.png": {
+        "archivo": "producto_048.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_049.png": {
+        "archivo": "producto_049.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_050.png": {
+        "archivo": "producto_050.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_051.png": {
+        "archivo": "producto_051.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_052.png": {
+        "archivo": "producto_052.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_053.png": {
+        "archivo": "producto_053.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_054.png": {
+        "archivo": "producto_054.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_055.png": {
+        "archivo": "producto_055.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_056.png": {
+        "archivo": "producto_056.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_057.png": {
+        "archivo": "producto_057.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_058.png": {
+        "archivo": "producto_058.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_059.png": {
+        "archivo": "producto_059.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_060.png": {
+        "archivo": "producto_060.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_061.png": {
+        "archivo": "producto_061.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_062.png": {
+        "archivo": "producto_062.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_063.png": {
+        "archivo": "producto_063.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_064.png": {
+        "archivo": "producto_064.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_065.png": {
+        "archivo": "producto_065.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_066.png": {
+        "archivo": "producto_066.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_067.png": {
+        "archivo": "producto_067.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_068.png": {
+        "archivo": "producto_068.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_069.png": {
+        "archivo": "producto_069.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_070.png": {
+        "archivo": "producto_070.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_071.png": {
+        "archivo": "producto_071.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_072.png": {
+        "archivo": "producto_072.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_073.png": {
+        "archivo": "producto_073.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_074.png": {
+        "archivo": "producto_074.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_075.png": {
+        "archivo": "producto_075.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    },
+    "producto_076.png": {
+        "archivo": "producto_076.png",
+        "sizes": [
+            256
+        ],
+        "legacy": true
+    }
+}

@@ -161,6 +161,51 @@ trait OptimizaImagenes
         return $destino;
     }
 
+    /**
+     * Genera un derivado cuadrado centrado con el lado indicado.
+     */
+    protected function generarDerivado(string $origen, string $destino, int $lado, string $extension): bool
+    {
+        $contenido = @file_get_contents($origen);
+
+        if ($contenido === false) {
+            return false;
+        }
+
+        $imagen = @imagecreatefromstring($contenido);
+
+        if ($imagen === false) {
+            return false;
+        }
+
+        $ancho = imagesx($imagen);
+        $alto = imagesy($imagen);
+        $ladoOrigen = min($ancho, $alto);
+
+        $derivado = $this->copiarImagen(
+            $imagen,
+            $lado,
+            $lado,
+            (int) floor(($ancho - $ladoOrigen) / 2),
+            (int) floor(($alto - $ladoOrigen) / 2),
+            $ladoOrigen,
+            $ladoOrigen,
+        );
+
+        $bytes = $this->codificarImagen($derivado, $extension, self::PERFIL_PRODUCTO);
+
+        imagedestroy($imagen);
+        imagedestroy($derivado);
+
+        if ($bytes === false || $bytes === '') {
+            return false;
+        }
+
+        File::ensureDirectoryExists(dirname($destino));
+
+        return File::put($destino, $bytes) !== false;
+    }
+
     private function codificarImagen(\GdImage $imagen, string $extension, string $perfil): string|false
     {
         ob_start();

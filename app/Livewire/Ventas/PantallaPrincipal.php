@@ -47,6 +47,8 @@ class PantallaPrincipal extends Component
 
     public bool $mostrarModalPago = false;
 
+    public bool $confirmandoCancelarVenta = false;
+
     public ?int $ventaParaImprimirId = null;
 
     public ?int $ventaParaImprimirNumero = null;
@@ -198,8 +200,35 @@ class PantallaPrincipal extends Component
         $this->cliente = '';
         $this->paraLlevar = false;
         $this->mostrarModalPago = false;
+        $this->confirmandoCancelarVenta = false;
         $this->resetErrorBag('carrito');
         $this->resetValidation(['metodoPago', 'montoRecibido', 'glosa', 'cliente']);
+    }
+
+    /**
+     * Ask for confirmation before discarding an in-progress sale.
+     */
+    public function pedirCancelacion(): void
+    {
+        if (array_sum($this->carrito) + array_sum($this->carritoPromociones) <= 0) {
+            return;
+        }
+
+        $this->confirmandoCancelarVenta = true;
+    }
+
+    public function cerrarCancelacion(): void
+    {
+        $this->confirmandoCancelarVenta = false;
+    }
+
+    /**
+     * Discard the current sale detail and every unsaved field.
+     */
+    public function cancelarVenta(): void
+    {
+        $this->vaciarCarrito();
+        $this->dispatch('toast', message: 'Venta cancelada');
     }
 
     /**
