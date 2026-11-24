@@ -14,6 +14,15 @@ class FaviconController extends Controller
 
     public function index(): BinaryFileResponse
     {
+        $disk = Storage::disk('public');
+
+        if ($disk->exists('favicons/favicon.png')) {
+            return response()->file($disk->path('favicons/favicon.png'), [
+                ...self::CABECERAS,
+                'Content-Type' => 'image/png',
+            ]);
+        }
+
         $negocio = Negocio::query()->oldest('id')->first();
         $logo = $negocio?->logo;
 

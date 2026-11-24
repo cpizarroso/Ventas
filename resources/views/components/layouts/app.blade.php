@@ -7,6 +7,7 @@
     <link rel="icon" href="{{ $faviconUrl }}">
     <title>{{ $title ?? __('Ventas') }} · {{ config('app.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @livewireStyles
     <script>
         // Aplicar el tema guardado antes del primer pintado para evitar destellos.
         (function () {
@@ -394,5 +395,6 @@
             document.addEventListener('livewire:navigated', ocultarCarga);
         })();
     </script>
+    @livewireScripts
 </body>
 </html>

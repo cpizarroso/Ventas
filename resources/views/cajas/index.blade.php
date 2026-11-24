@@ -91,12 +91,18 @@
                     @enderror
 
                     <div class="w-full sm:w-auto">
-                        <label for="estado" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Estado</label>
-                        <select id="estado" name="estado" class="selector-tema sm:w-auto">
-                            <option value="">Todas</option>
-                            <option value="abierta" @selected(old('estado', $estado) === 'abierta')>Abiertas</option>
-                            <option value="cerrada" @selected(old('estado', $estado) === 'cerrada')>Cerradas</option>
-                        </select>
+                        <x-select-tema
+                            id="estado"
+                            name="estado"
+                            label="Estado"
+                            :options="[
+                                ['valor' => '', 'etiqueta' => 'Todas'],
+                                ['valor' => 'abierta', 'etiqueta' => 'Abiertas'],
+                                ['valor' => 'cerrada', 'etiqueta' => 'Cerradas'],
+                            ]"
+                            :selected="old('estado', $estado)"
+                            class="w-full sm:w-auto"
+                        />
                         @error('estado')
                             <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
                         @enderror
@@ -104,15 +110,20 @@
 
                     @if (! $esCajero)
                         <div class="w-full sm:w-auto">
-                            <label for="user_id" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Usuario</label>
-                            <select id="user_id" name="user_id" class="selector-tema sm:w-auto">
-                                <option value="">Todos los usuarios</option>
-                                @foreach ($usuarios as $usuario)
-                                    <option value="{{ $usuario->id }}" @selected((string) old('user_id', $usuarioId) === (string) $usuario->id)>
-                                        {{ $usuario->name }}
-                                    </option>
-                                @endforeach
-                            </select>
+                            <x-select-tema
+                                id="user_id"
+                                name="user_id"
+                                label="Usuario"
+                                :options="array_merge(
+                                    [['valor' => '', 'etiqueta' => 'Todos los usuarios']],
+                                    $usuarios->map(fn ($usuario) => [
+                                        'valor' => (string) $usuario->id,
+                                        'etiqueta' => $usuario->name,
+                                    ])->all(),
+                                )"
+                                :selected="old('user_id', $usuarioId)"
+                                class="w-full sm:w-auto"
+                            />
                             @error('user_id')
                                 <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
                             @enderror

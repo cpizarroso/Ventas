@@ -1,6 +1,44 @@
 <div
     class="pb-24 lg:pb-0"
-    x-data="{ carritoAbierto: false, qrAmpliado: false }"
+    x-data="{
+        carritoAbierto: false,
+        qrAmpliado: false,
+        cobrandoConEnter: false,
+
+        async cobrarConEnter(event) {
+            if (event.target instanceof Element && event.target.closest('button, a, input[type=checkbox], input[type=radio]')) {
+                return;
+            }
+
+            const modal = document.querySelector('[aria-labelledby=titulo-pago]');
+
+            if (! modal || (event.target !== document.body && ! modal.contains(event.target))) {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (this.cobrandoConEnter) {
+                return;
+            }
+
+            this.cobrandoConEnter = true;
+
+            try {
+                for (const id of ['montoRecibido', 'glosa', 'cliente']) {
+                    const campo = document.getElementById(id);
+
+                    if (campo) {
+                        await this.$wire.set(id, campo.value);
+                    }
+                }
+
+                await this.$wire.call('cobrar');
+            } finally {
+                this.cobrandoConEnter = false;
+            }
+        },
+    }"
     x-on:keydown.escape.window="carritoAbierto = false; qrAmpliado = false"
 >
     @if (session('status'))
@@ -453,6 +491,7 @@
             aria-modal="true"
             aria-labelledby="titulo-pago"
             wire:keydown.escape.window="cerrarModalPago"
+            x-on:keydown.enter.window="cobrarConEnter($event)"
         >
             <div class="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-stone-200 bg-white shadow-xl dark:border-stone-700 dark:bg-stone-800 sm:rounded-2xl">
                 <div class="flex items-center justify-between gap-3 border-b border-stone-100 px-5 py-4 dark:border-stone-700/60">
@@ -655,6 +694,10 @@
                         <p class="mb-2 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
                     @enderror
 
+                    <p class="mb-2 text-[11px] text-stone-400 dark:text-stone-500">
+                        Presiona <kbd class="rounded border border-stone-300 px-1 font-semibold dark:border-stone-600">Enter</kbd> para registrar la venta.
+                    </p>
+
                     <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                         <button
                             type="button"
@@ -668,6 +711,8 @@
                             wire:click="cobrar"
                             wire:loading.attr="disabled"
                             wire:target="cobrar"
+                            aria-keyshortcuts="Enter"
+                            title="Presiona Enter para registrar la venta"
                             @disabled(! $puedeCobrar)
                             class="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 dark:focus:ring-offset-stone-800"
                         >

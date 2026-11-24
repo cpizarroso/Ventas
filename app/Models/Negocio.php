@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\MetodoPago;
+use App\Services\FaviconGenerator;
 use Database\Factories\NegocioFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -63,7 +64,11 @@ class Negocio extends Model
     public function faviconUrl(): string
     {
         $disk = Storage::disk('public');
-        $version = null;
+        $version = app(FaviconGenerator::class)->version();
+
+        if ($version !== null) {
+            return $disk->url(FaviconGenerator::ARCHIVO).'?v='.md5($version);
+        }
 
         if ($this->logo !== null && $this->logo !== '' && $disk->exists($this->logo)) {
             $version = $this->logo.'@'.$disk->lastModified($this->logo);

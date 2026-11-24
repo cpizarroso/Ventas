@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\Negocio;
 use App\Models\User;
+use App\Services\FaviconGenerator;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
@@ -41,7 +42,8 @@ class AppServiceProvider extends ServiceProvider
 
                 $clave = 'favicon-url:'.($negocio?->id ?? 'sin-negocio')
                     .':'.($negocio?->logo ?? 'sin-logo')
-                    .':'.($negocio?->updated_at?->timestamp ?? 0);
+                    .':'.($negocio?->updated_at?->timestamp ?? 0)
+                    .':'.(app(FaviconGenerator::class)->version() ?? 'sin-favicon');
 
                 $datos = [
                     'faviconUrl' => Cache::remember(
