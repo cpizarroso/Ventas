@@ -300,7 +300,7 @@
                         No hay productos individuales para mostrar; puedes vender las promociones de arriba.
                     </p>
                 @elseif ($vista === 'grid')
-                    <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                    <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                         @foreach ($productos as $producto)
                             @php
                                 $enCarrito = $cantidadesPorProducto[$producto->id] ?? 0;
@@ -312,11 +312,11 @@
                                 wire:key="producto-{{ $producto->id }}"
                                 wire:click="agregarProducto({{ $producto->id }})"
                                 aria-label="Agregar {{ $producto->nombre }} al detalle"
-                                class="group relative flex aspect-square flex-col overflow-hidden rounded-xl border border-stone-200 bg-white text-left shadow-sm transition duration-150 hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 active:translate-y-0 dark:border-stone-700 dark:bg-stone-800 dark:hover:border-amber-500/60 dark:focus:ring-offset-stone-900"
+                                class="group relative flex flex-col overflow-hidden rounded-xl border border-stone-200 bg-white text-left shadow-sm transition duration-150 hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 active:translate-y-0 dark:border-stone-700 dark:bg-stone-800 dark:hover:border-amber-500/60 dark:focus:ring-offset-stone-900"
                             >
-                                <div class="relative min-h-0 flex-1 overflow-hidden bg-stone-100 dark:bg-stone-700">
+                                <div class="relative h-24 shrink-0 overflow-hidden bg-stone-100 dark:bg-stone-700">
                                     @if ($producto->imagenUrl())
-                                        <img src="{{ $producto->imagenUrl() }}" alt="{{ $producto->nombre }}" class="size-full object-cover transition duration-200 group-hover:scale-105" loading="lazy">
+                                        <img src="{{ $producto->imagenUrl() }}" alt="{{ $producto->nombre }}" class="mx-auto size-full max-w-32 object-cover transition duration-200 group-hover:scale-105" loading="lazy">
                                     @else
                                         <div class="flex size-full items-center justify-center text-stone-400 dark:text-stone-500">
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-7" aria-hidden="true">
