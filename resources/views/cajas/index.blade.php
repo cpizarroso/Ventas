@@ -169,6 +169,64 @@
                 </div>
             </section>
 
+            @php($etiquetaGranularidad = match ($granularidadVentas) { 'semana' => 'por semana', 'mes' => 'por mes', default => 'por día' })
+
+            <section class="grid gap-5 lg:grid-cols-2" aria-label="Gráficos del período">
+                <div class="min-w-0 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-800 sm:p-6">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h2 class="text-base font-semibold text-stone-900 dark:text-stone-100">Productos vendidos</h2>
+                            <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">
+                                Cantidad vendida de cada producto en el período seleccionado.
+                            </p>
+                        </div>
+                        <span class="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                            {{ count($graficoProductos) }} productos
+                        </span>
+                    </div>
+
+                    @if (empty($graficoProductos))
+                        <div class="mt-5 flex h-64 items-center justify-center rounded-xl border border-dashed border-stone-200 bg-stone-50 px-4 text-center text-sm text-stone-500 dark:border-stone-700 dark:bg-stone-900/30 dark:text-stone-400">
+                            Sin productos vendidos en el período seleccionado.
+                        </div>
+                    @else
+                        <div class="mt-5 max-h-[420px] overflow-y-auto pr-1">
+                            <div class="relative" style="height: {{ max(280, count($graficoProductos) * 26) }}px;">
+                                <canvas id="grafico-productos" role="img" aria-label="Cantidad vendida por producto"></canvas>
+                            </div>
+                        </div>
+                    @endif
+
+                    <script type="application/json" id="datos-grafico-productos">@json($graficoProductos)</script>
+                </div>
+
+                <div class="min-w-0 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-800 sm:p-6">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h2 class="text-base font-semibold text-stone-900 dark:text-stone-100">Ventas del período</h2>
+                            <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">
+                                Total vendido en Bs {{ $etiquetaGranularidad }}.
+                            </p>
+                        </div>
+                        <span class="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                            Bs {{ number_format(array_sum(array_column($graficoVentas, 'total')), 2) }}
+                        </span>
+                    </div>
+
+                    @if (empty($graficoVentas))
+                        <div class="mt-5 flex h-64 items-center justify-center rounded-xl border border-dashed border-stone-200 bg-stone-50 px-4 text-center text-sm text-stone-500 dark:border-stone-700 dark:bg-stone-900/30 dark:text-stone-400">
+                            Sin ventas en el período seleccionado.
+                        </div>
+                    @else
+                        <div class="relative mt-5 h-72">
+                            <canvas id="grafico-ventas" role="img" aria-label="Total de ventas por período"></canvas>
+                        </div>
+                    @endif
+
+                    <script type="application/json" id="datos-grafico-ventas">@json($graficoVentas)</script>
+                </div>
+            </section>
+
             <section data-cajas-listado class="rounded-2xl border border-stone-200 bg-white shadow-sm dark:border-stone-700 dark:bg-stone-800" aria-label="Cajas del período">
                 <div class="border-b border-stone-100 px-4 py-4 dark:border-stone-700/60 sm:px-6">
                     <h2 class="text-base font-semibold text-stone-900 dark:text-stone-100">Cajas registradas</h2>

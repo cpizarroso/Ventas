@@ -6,6 +6,9 @@ use App\Enums\EstadoCaja;
 use App\Models\Caja;
 use App\Models\Negocio;
 use App\Models\User;
+use App\Models\Venta;
+use App\Models\VentaDetalle;
+use App\Models\VentaDetallePromocionItem;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -37,6 +40,8 @@ class CajaController extends Controller
             ->selectRaw('COUNT(*) as cantidad, COALESCE(SUM(monto_inicial), 0) as monto_inicial, COALESCE(SUM(total_ventas), 0) as total_ventas, COALESCE(SUM(total_efectivo), 0) as total_efectivo, COALESCE(SUM(total_qr), 0) as total_qr, COALESCE(SUM(diferencia), 0) as diferencia')
             ->first();
 
+        $graficos = $this->datosGraficos($filtros);
+
         $cajas = $filtros['consulta']
             ->with(['user', 'cerradaPor'])
             ->orderByDesc('fecha_apertura')
@@ -54,6 +59,9 @@ class CajaController extends Controller
             'usuarioId' => $filtros['usuarioId'],
             'desde' => $filtros['desde'],
             'hasta' => $filtros['hasta'],
+            'graficoProductos' => $graficos['productos'],
+            'graficoVentas' => $graficos['ventas'],
+            'granularidadVentas' => $graficos['granularidad'],
             'resumen' => [
                 'cantidad' => (int) ($resumen->cantidad ?? 0),
                 'monto_inicial' => (float) ($resumen->monto_inicial ?? 0),
@@ -385,6 +393,122 @@ class CajaController extends Controller
             'usuarioId' => $usuarioId,
             'desde' => $desde,
             'hasta' => $hasta,
+        ];
+    }
+
+    /**
+     * Build the chart datasets with the same filters used by the cash register list.
+     *
+     * @param  array{negocio: Negocio|null, consulta: Builder<Caja>, estado: string|null, usuarioId: int|null, desde: CarbonImmutable, hasta: CarbonImmutable}  $filtros
+     * @return array{productos: array<int, array{nombre: string, cantidad: int}>, ventas: array<int, array{periodo: string, etiqueta: string, total: float, cantidad: int}>, granularidad: string}
+     */
+    private function datosGraficos(array $filtros): array
+    {
+        $negocio = $filtros['negocio'];
+
+        if ($negocio === null) {
+            return ['productos' => [], 'ventas' => [], 'granularidad' => 'dia'];
+        }
+
+        $cajaIds = fn () => (clone $filtros['consulta'])->select('cajas.id');
+
+        $productosNormales = VentaDetalle::query()
+            ->join('ventas', 'ventas.id', '=', 'venta_detalles.venta_id')
+            ->where('ventas.negocio_id', $negocio->id)
+            ->whereIn('ventas.caja_id', $cajaIds())
+            ->where('venta_detalles.es_promocion', false)
+            ->selectRaw('venta_detalles.nombre as nombre, SUM(venta_detalles.cantidad) as cantidad')
+            ->groupBy('venta_detalles.nombre')
+            ->get();
+
+        $productosPromocion = VentaDetallePromocionItem::query()
+            ->join('venta_detalles', 'venta_detalles.id', '=', 'venta_detalle_promocion_items.venta_detalle_id')
+            ->join('ventas', 'ventas.id', '=', 'venta_detalles.venta_id')
+            ->where('ventas.negocio_id', $negocio->id)
+            ->whereIn('ventas.caja_id', $cajaIds())
+            ->selectRaw('venta_detalle_promocion_items.nombre as nombre, SUM(venta_detalle_promocion_items.cantidad) as cantidad')
+            ->groupBy('venta_detalle_promocion_items.nombre')
+            ->get();
+
+        $productos = $productosNormales
+            ->concat($productosPromocion)
+            ->groupBy('nombre')
+            ->map(fn ($filas, string $nombre) => [
+                'nombre' => $nombre,
+                'cantidad' => (int) $filas->sum('cantidad'),
+            ])
+            ->sortByDesc('cantidad')
+            ->values()
+            ->all();
+
+        $desde = $filtros['desde'];
+        $hasta = $filtros['hasta'];
+        $dias = $desde->diffInDays($hasta) + 1;
+
+        $granularidad = match (true) {
+            $dias <= 31 => 'dia',
+            $dias <= 180 => 'semana',
+            default => 'mes',
+        };
+
+        $formatoSql = match ($granularidad) {
+            'semana' => '%x-%v',
+            'mes' => '%Y-%m',
+            default => '%Y-%m-%d',
+        };
+
+        $porPeriodo = Venta::query()
+            ->where('ventas.negocio_id', $negocio->id)
+            ->whereIn('ventas.caja_id', $cajaIds())
+            ->selectRaw(
+                'DATE_FORMAT(COALESCE(ventas.fecha_ticket, DATE(ventas.created_at)), ?) as periodo, COUNT(*) as cantidad, COALESCE(SUM(ventas.total), 0) as total',
+                [$formatoSql]
+            )
+            ->groupBy('periodo')
+            ->orderBy('periodo')
+            ->get()
+            ->keyBy('periodo');
+
+        $claves = [];
+        $fecha = $desde;
+
+        while ($fecha->lessThanOrEqualTo($hasta)) {
+            $claves[] = match ($granularidad) {
+                'semana' => $fecha->format('o-W'),
+                'mes' => $fecha->format('Y-m'),
+                default => $fecha->format('Y-m-d'),
+            };
+
+            $fecha = match ($granularidad) {
+                'semana' => $fecha->addWeek(),
+                'mes' => $fecha->addMonth(),
+                default => $fecha->addDay(),
+            };
+        }
+
+        $ventas = collect(array_values(array_unique($claves)))
+            ->map(function (string $clave) use ($porPeriodo, $granularidad) {
+                $fila = $porPeriodo->get($clave);
+
+                $etiqueta = match ($granularidad) {
+                    'semana' => 'Sem '.substr($clave, -2),
+                    'mes' => CarbonImmutable::createFromFormat('!Y-m', $clave)->format('m/Y'),
+                    default => CarbonImmutable::createFromFormat('!Y-m-d', $clave)->format('d/m'),
+                };
+
+                return [
+                    'periodo' => $clave,
+                    'etiqueta' => $etiqueta,
+                    'total' => round((float) ($fila->total ?? 0), 2),
+                    'cantidad' => (int) ($fila->cantidad ?? 0),
+                ];
+            })
+            ->all();
+
+        return [
+            'productos' => $productos,
+            'ventas' => $ventas,
+            'granularidad' => $granularidad,
         ];
     }
 
