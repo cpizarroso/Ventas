@@ -250,7 +250,7 @@
             @endauth
         </header>
 
-        <div class="relative min-h-0 flex-1 overflow-y-auto">
+        <div class="relative min-h-0 flex-1 overflow-y-auto" data-scroll-principal>
             <div id="cargando-overlay"
                  class="absolute inset-0 z-30 hidden items-center justify-center bg-white/65 backdrop-blur-[1px] dark:bg-stone-900/55"
                  role="status"

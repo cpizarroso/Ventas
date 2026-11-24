@@ -305,6 +305,10 @@ document.addEventListener('livewire:init', () => {
     Livewire.on('recorte-cerrado', () => destruirCropper());
 });
 
+const CLAVE_SCROLL_RECARGA = 'ventas.scroll.configuracion';
+
+const contenedorPrincipal = () => document.querySelector('[data-scroll-principal]');
+
 const contenedorConScroll = (elemento) => {
     let nodo = elemento?.parentElement;
     let exterior = null;
@@ -319,7 +323,94 @@ const contenedorConScroll = (elemento) => {
         nodo = nodo.parentElement;
     }
 
-    return exterior;
+    return exterior || contenedorPrincipal();
+};
+
+const enfocarAreaImagenes = (destino) => {
+    const area = document.getElementById('area-imagenes-predeterminadas');
+
+    if (! area || ! destino) {
+        return false;
+    }
+
+    destino.scrollTop += Math.round(
+        area.getBoundingClientRect().top - destino.getBoundingClientRect().top,
+    ) - 24;
+
+    return true;
+};
+
+const capturarScroll = (contenedor, enfocarArea) => ({
+    ventana: window.scrollY,
+    contenedor,
+    selector: contenedor ? '[data-scroll-principal]' : null,
+    posicion: contenedor?.scrollTop ?? 0,
+    enfocarArea,
+});
+
+const guardarScrollSesion = (estado) => {
+    try {
+        sessionStorage.setItem(CLAVE_SCROLL_RECARGA, JSON.stringify({
+            ruta: location.pathname,
+            ventana: estado.ventana,
+            posicion: estado.posicion,
+            momento: Date.now(),
+        }));
+    } catch (error) {
+        // El navegador puede bloquear sessionStorage; la restauración en memoria sigue funcionando.
+    }
+};
+
+const leerScrollSesion = () => {
+    try {
+        const datos = JSON.parse(sessionStorage.getItem(CLAVE_SCROLL_RECARGA) || 'null');
+
+        if (! datos || datos.ruta !== location.pathname || Date.now() - datos.momento > 30000) {
+            sessionStorage.removeItem(CLAVE_SCROLL_RECARGA);
+
+            return null;
+        }
+
+        return datos;
+    } catch (error) {
+        return null;
+    }
+};
+
+const borrarScrollSesion = () => {
+    try {
+        sessionStorage.removeItem(CLAVE_SCROLL_RECARGA);
+    } catch (error) {
+        // Nada que limpiar.
+    }
+};
+
+const aplicarScroll = (estado) => {
+    const restaurar = () => {
+        window.scrollTo(0, estado.ventana);
+
+        const destino = estado.contenedor?.isConnected
+            ? estado.contenedor
+            : (estado.selector ? document.querySelector(estado.selector) : contenedorPrincipal());
+
+        if (! destino) {
+            return;
+        }
+
+        if (estado.enfocarArea) {
+            [0, 150, 350, 650].forEach((espera) => {
+                window.setTimeout(() => enfocarAreaImagenes(destino), espera);
+            });
+
+            return;
+        }
+
+        destino.scrollTop = estado.posicion;
+    };
+
+    requestAnimationFrame(restaurar);
+    window.setTimeout(restaurar, 150);
+    window.setTimeout(restaurar, 450);
 };
 
 let estadoScroll = null;
@@ -332,13 +423,13 @@ document.addEventListener('click', (event) => {
     }
 
     const contenedor = contenedorConScroll(boton);
+    const enfocarArea = boton.hasAttribute('data-recargar-scroll');
 
-    estadoScroll = {
-        ventana: window.scrollY,
-        contenedor,
-        selector: contenedor ? `.${Array.from(contenedor.classList).join('.')}` : null,
-        posicion: contenedor?.scrollTop ?? 0,
-    };
+    estadoScroll = capturarScroll(contenedor, enfocarArea);
+
+    if (enfocarArea) {
+        guardarScrollSesion(estadoScroll);
+    }
 });
 
 document.addEventListener('livewire:updated', () => {
@@ -346,20 +437,7 @@ document.addEventListener('livewire:updated', () => {
         const estado = estadoScroll;
         estadoScroll = null;
 
-        const restaurar = () => {
-            window.scrollTo(0, estado.ventana);
-
-            const destino = estado.contenedor?.isConnected
-                ? estado.contenedor
-                : (estado.selector ? document.querySelector(estado.selector) : null);
-
-            if (destino) {
-                destino.scrollTop = estado.posicion;
-            }
-        };
-
-        requestAnimationFrame(restaurar);
-        window.setTimeout(restaurar, 150);
+        aplicarScroll(estado);
     }
 
     const imagen = document.getElementById('imagen-recorte');
@@ -368,3 +446,56 @@ document.addEventListener('livewire:updated', () => {
         requestAnimationFrame(crearCropper);
     }
 });
+
+const restaurarScrollTrasRecarga = () => {
+    const datos = leerScrollSesion();
+
+    if (datos === null) {
+        return;
+    }
+
+    const estado = {
+        ventana: datos.ventana,
+        posicion: datos.posicion,
+        enfocarArea: true,
+        contenedor: null,
+        selector: '[data-scroll-principal]',
+    };
+
+    const contenedorInicial = contenedorPrincipal();
+
+    if (contenedorInicial) {
+        contenedorInicial.scrollTop = estado.posicion;
+    }
+
+    const intentar = (intento = 0) => {
+        const contenedor = contenedorPrincipal();
+
+        if (enfocarAreaImagenes(contenedor)) {
+            window.scrollTo(0, estado.ventana);
+            borrarScrollSesion();
+
+            [150, 350, 650].forEach((espera) => {
+                window.setTimeout(() => enfocarAreaImagenes(contenedor), espera);
+            });
+
+            return;
+        }
+
+        if (intento < 80) {
+            window.setTimeout(() => intentar(intento + 1), 100);
+        } else {
+            borrarScrollSesion();
+        }
+    };
+
+    window.setTimeout(() => intentar(), 50);
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', restaurarScrollTrasRecarga);
+} else {
+    restaurarScrollTrasRecarga();
+}
+
+document.addEventListener('livewire:navigated', restaurarScrollTrasRecarga);

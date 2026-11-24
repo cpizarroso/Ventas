@@ -1,4 +1,4 @@
-<div>
+<div id="area-imagenes-predeterminadas">
     @if (session('status'))
         <div class="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" role="status">
             {{ session('status') }}
@@ -180,6 +180,7 @@
                 </button>
                 <button type="submit"
                         data-preservar-scroll
+                        data-recargar-scroll
                         class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500">
                     Guardar
                 </button>
@@ -206,6 +207,7 @@
             <button type="button"
                     wire:click="eliminar"
                     data-preservar-scroll
+                    data-recargar-scroll
                     class="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500">
                 Eliminar
             </button>

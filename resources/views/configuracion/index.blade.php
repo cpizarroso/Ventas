@@ -9,7 +9,7 @@
         </a>
         <h1 class="mt-2 text-xl font-semibold text-stone-900 dark:text-stone-100 sm:text-2xl">Configuración</h1>
         <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">
-            Identidad del negocio, usuarios, categorías de venta y promociones.
+            Identidad del negocio, usuarios, categorías de venta, promociones e imágenes predeterminadas.
         </p>
         <a href="{{ route('configuracion.aceptaciones.index') }}"
            class="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 underline decoration-amber-300 underline-offset-4 hover:text-amber-800 dark:text-amber-400 dark:decoration-amber-700 dark:hover:text-amber-300">
@@ -28,9 +28,9 @@
         <div class="space-y-8">
             <livewire:configuracion.identidad-negocio />
             <livewire:configuracion.usuarios-admin lazy />
-            <livewire:configuracion.imagenes-predeterminadas-admin lazy />
             <livewire:configuracion.categorias-admin lazy />
             <livewire:configuracion.promociones-admin lazy />
+            <livewire:configuracion.imagenes-predeterminadas-admin lazy />
         </div>
     @endif
 </x-layouts.app>
