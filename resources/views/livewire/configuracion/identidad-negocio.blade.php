@@ -116,7 +116,7 @@
                                         'border-stone-300 text-stone-600 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700' => $metodo_pago_predeterminado !== $metodoPago->value,
                                     ])>
                                         <input type="radio"
-                                               wire:model="metodo_pago_predeterminado"
+                                               wire:model.live="metodo_pago_predeterminado"
                                                value="{{ $metodoPago->value }}"
                                                class="sr-only">
                                         {{ $metodoPago->etiqueta() }}
