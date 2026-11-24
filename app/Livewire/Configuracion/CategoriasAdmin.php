@@ -44,6 +44,8 @@ class CategoriasAdmin extends Component
 
     public ?string $productoImagenPredeterminada = null;
 
+    public bool $guardarEnPredeterminadas = false;
+
     public bool $mostrarGaleriaPredeterminada = false;
 
     public ?int $productoEditandoId = null;
@@ -58,6 +60,8 @@ class CategoriasAdmin extends Component
     public $productoImagenEdicion = null;
 
     public ?string $productoImagenPredeterminadaEdicion = null;
+
+    public bool $guardarEnPredeterminadasEdicion = false;
 
     public bool $mostrarGaleriaPredeterminadaEdicion = false;
 
@@ -319,6 +323,7 @@ class CategoriasAdmin extends Component
             'productoStock',
             'productoImagen',
             'productoImagenPredeterminada',
+            'guardarEnPredeterminadas',
             'mostrarGaleriaPredeterminada',
             'productoEditandoId',
             'productoEliminandoId',
@@ -365,6 +370,7 @@ class CategoriasAdmin extends Component
             'productoStock',
             'productoImagen',
             'productoImagenPredeterminada',
+            'guardarEnPredeterminadas',
             'mostrarGaleriaPredeterminada',
         );
         $this->resetValidation();
@@ -500,6 +506,10 @@ class CategoriasAdmin extends Component
 
         if ($this->productoImagen !== null) {
             $imagen = $this->guardarImagenProducto($this->productoImagen);
+
+            if ($this->guardarEnPredeterminadas) {
+                $this->guardarImagenEnCatalogo($this->productoImagen);
+            }
         } elseif ($this->productoImagenPredeterminada !== null) {
             $imagen = $this->guardarImagenPredeterminada($this->productoImagenPredeterminada);
         }
@@ -518,6 +528,7 @@ class CategoriasAdmin extends Component
             'productoStock',
             'productoImagen',
             'productoImagenPredeterminada',
+            'guardarEnPredeterminadas',
             'mostrarGaleriaPredeterminada',
         );
         $this->resetValidation();
@@ -541,6 +552,7 @@ class CategoriasAdmin extends Component
         $this->productoStockEdicion = $producto->stock === null ? '' : (string) $producto->stock;
         $this->productoImagenEdicion = null;
         $this->productoImagenPredeterminadaEdicion = null;
+        $this->guardarEnPredeterminadasEdicion = false;
         $this->mostrarGaleriaPredeterminadaEdicion = false;
         $this->quitarImagenEdicion = false;
         $this->productoEliminandoId = null;
@@ -596,6 +608,7 @@ class CategoriasAdmin extends Component
             'productoStockEdicion',
             'productoImagenEdicion',
             'productoImagenPredeterminadaEdicion',
+            'guardarEnPredeterminadasEdicion',
             'mostrarGaleriaPredeterminadaEdicion',
             'quitarImagenEdicion',
         );
@@ -704,6 +717,10 @@ class CategoriasAdmin extends Component
             $this->eliminarImagenProducto($producto->imagen);
 
             $imagen = $this->guardarImagenProducto($this->productoImagenEdicion);
+
+            if ($this->guardarEnPredeterminadasEdicion) {
+                $this->guardarImagenEnCatalogo($this->productoImagenEdicion);
+            }
         } elseif ($this->productoImagenPredeterminadaEdicion !== null) {
             $this->eliminarImagenProducto($producto->imagen);
 
@@ -728,6 +745,7 @@ class CategoriasAdmin extends Component
             'productoStockEdicion',
             'productoImagenEdicion',
             'productoImagenPredeterminadaEdicion',
+            'guardarEnPredeterminadasEdicion',
             'mostrarGaleriaPredeterminadaEdicion',
             'quitarImagenEdicion',
         );
@@ -753,6 +771,7 @@ class CategoriasAdmin extends Component
             'productoStockEdicion',
             'productoImagenEdicion',
             'productoImagenPredeterminadaEdicion',
+            'guardarEnPredeterminadasEdicion',
             'mostrarGaleriaPredeterminadaEdicion',
             'quitarImagenEdicion',
         );
@@ -878,6 +897,7 @@ class CategoriasAdmin extends Component
             'productoStock',
             'productoImagen',
             'productoImagenPredeterminada',
+            'guardarEnPredeterminadas',
             'mostrarGaleriaPredeterminada',
             'productoEditandoId',
             'productoNombreEdicion',
@@ -885,6 +905,7 @@ class CategoriasAdmin extends Component
             'productoStockEdicion',
             'productoImagenEdicion',
             'productoImagenPredeterminadaEdicion',
+            'guardarEnPredeterminadasEdicion',
             'mostrarGaleriaPredeterminadaEdicion',
             'quitarImagenEdicion',
             'productoEliminandoId',
@@ -908,6 +929,52 @@ class CategoriasAdmin extends Component
     private function guardarImagenProducto(TemporaryUploadedFile $archivo): string
     {
         return $this->guardarImagenOptimizada($archivo, 'productos', 'producto');
+    }
+
+    private function guardarImagenEnCatalogo(TemporaryUploadedFile $archivo): void
+    {
+        $info = @getimagesize($archivo->getRealPath());
+
+        if ($info === false) {
+            return;
+        }
+
+        $ancho = (int) $info[0];
+        $alto = (int) $info[1];
+        $lado = min($ancho, $alto);
+        $objetivo = (int) config('productos.maestra_lado_objetivo', 800);
+        $nombre = Catalogo::siguienteId();
+        $maestra = Catalogo::rutaMaestraPara($nombre);
+
+        $creada = $this->generarMaestraConRecorte(
+            $archivo->getRealPath(),
+            $maestra,
+            (int) floor(($ancho - $lado) / 2),
+            (int) floor(($alto - $lado) / 2),
+            $lado,
+            $objetivo,
+        );
+
+        if (! $creada) {
+            return;
+        }
+
+        $tamanos = array_values(array_map(
+            'intval',
+            (array) config('productos.tamanos_predeterminadas', [256, 512, 800]),
+        ));
+
+        foreach ($tamanos as $tamano) {
+            $this->generarDerivado($maestra, Catalogo::rutaDerivadoPara($tamano, $nombre), $tamano, 'webp');
+        }
+
+        $todos = Catalogo::todos();
+        $todos[$nombre] = [
+            'archivo' => $nombre,
+            'sizes' => $tamanos,
+            'legacy' => false,
+        ];
+        Catalogo::escribir($todos);
     }
 
     private function guardarImagenPredeterminada(string $id): string

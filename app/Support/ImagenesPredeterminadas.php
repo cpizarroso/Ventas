@@ -107,6 +107,21 @@ final class ImagenesPredeterminadas
         return self::directorio().DIRECTORY_SEPARATOR.$tamano.DIRECTORY_SEPARATOR.$archivo;
     }
 
+    public static function siguienteId(): string
+    {
+        $numeros = [];
+
+        foreach (array_keys(self::todos()) as $id) {
+            if (preg_match('/^producto_(\d+)\./', (string) $id, $coincidencia) === 1) {
+                $numeros[] = (int) $coincidencia[1];
+            }
+        }
+
+        $siguiente = $numeros === [] ? 1 : max($numeros) + 1;
+
+        return 'producto_'.str_pad((string) $siguiente, 3, '0', STR_PAD_LEFT).'.webp';
+    }
+
     /**
      * @param  array<string, array{archivo: string, sizes: array<int>, legacy: bool}>  $todos
      */

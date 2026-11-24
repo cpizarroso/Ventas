@@ -10,11 +10,12 @@
             <div>
                 <h2 class="text-base font-semibold text-stone-900 dark:text-stone-100">Imágenes predeterminadas</h2>
                 <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">
-                    Sube una imagen maestra de al menos 800 × 800 px. El sistema genera las versiones de 256, 512 y 800 px automáticamente.
+                    Elige una imagen, selecciona el área cuadrada y el sistema genera las versiones de 256, 512 y 800 px automáticamente.
                 </p>
             </div>
             <button type="button"
                     wire:click="abrirNueva"
+                    data-preservar-scroll
                     class="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:hover:bg-amber-400">
                 Agregar imagen
             </button>
@@ -26,6 +27,7 @@
                 @foreach ($tamanos as $tamano)
                     <button type="button"
                             wire:click="$set('tamanoVista', {{ $tamano }})"
+                            data-preservar-scroll
                             @class([
                                 'rounded-lg px-3 py-1.5 text-xs font-semibold transition',
                                 'bg-amber-500 text-stone-900 shadow-sm' => $tamanoVista === $tamano,
@@ -58,12 +60,14 @@
                             <div class="absolute inset-x-0 bottom-0 flex justify-center gap-1 bg-stone-900/60 px-1 py-1 opacity-0 transition group-hover:opacity-100">
                                 <button type="button"
                                         wire:click="abrirEdicion('{{ $imagen['id'] }}')"
+                                        data-preservar-scroll
                                         class="rounded-lg bg-white/90 px-2 py-1 text-xs font-semibold text-stone-800 hover:bg-white"
                                         aria-label="Editar {{ $imagen['archivo'] }}">
                                     Editar
                                 </button>
                                 <button type="button"
                                         wire:click="confirmarEliminacion('{{ $imagen['id'] }}')"
+                                        data-preservar-scroll
                                         class="rounded-lg bg-red-600/90 px-2 py-1 text-xs font-semibold text-white hover:bg-red-600"
                                         aria-label="Eliminar {{ $imagen['archivo'] }}">
                                     Eliminar
@@ -101,35 +105,61 @@
                            cerrar="cerrarModal"
                            :abierto="$modalAbierto"
                            ancho="max-w-lg">
-        <form wire:submit="guardar" class="space-y-4">
+        <form x-on:submit.prevent="window.guardarRecorte($wire)" class="space-y-4">
             @php
                 $campo = $editandoId === null ? 'imagenNueva' : 'imagenEdicion';
                 $archivo = $editandoId === null ? $imagenNueva : $imagenEdicion;
             @endphp
 
-            <div class="flex items-center gap-3">
-                <div class="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-stone-100 text-stone-400 dark:bg-stone-700 dark:text-stone-500">
-                    @if ($archivo && $archivo->isPreviewable())
-                        <img src="{{ $archivo->temporaryUrl() }}" alt="Vista previa de la imagen" class="size-full object-cover">
-                    @else
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-7" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 1 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375 0 1 0-.75 0 .375.375 0 0 0 .75 0Z" />
-                        </svg>
-                    @endif
-                </div>
-                <div class="min-w-0">
-                    <label for="imagen-predeterminada-archivo"
-                           class="inline-flex cursor-pointer items-center rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 ring-1 ring-stone-200 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-200 dark:ring-stone-600 dark:hover:bg-stone-700">
-                        Elegir imagen
-                    </label>
-                    <input id="imagen-predeterminada-archivo"
-                           type="file"
-                           wire:model="{{ $campo }}"
-                           accept="image/jpeg,image/png,image/webp"
-                           class="sr-only">
-                    <p class="mt-1 text-xs text-stone-500 dark:text-stone-400">JPG, PNG o WebP · máx. 4 MB · mínimo 800 × 800 px</p>
-                </div>
+            <div>
+                <label for="imagen-predeterminada-archivo"
+                       class="inline-flex cursor-pointer items-center rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 ring-1 ring-stone-200 hover:bg-stone-100 dark:bg-stone-800 dark:text-stone-200 dark:ring-stone-600 dark:hover:bg-stone-700">
+                    Elegir imagen
+                </label>
+                <input id="imagen-predeterminada-archivo"
+                       type="file"
+                       wire:model="{{ $campo }}"
+                       x-on:change="window.prepararRecorte()"
+                       accept="image/jpeg,image/png,image/webp"
+                       class="sr-only">
+                <p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
+                    JPG, PNG o WebP · máx. 4 MB · arrastra el recuadro para elegir la parte cuadrada.
+                </p>
             </div>
+
+            <div class="relative h-64 w-full overflow-hidden rounded-xl bg-stone-100 dark:bg-stone-700">
+                <img id="imagen-recorte"
+                     src="{{ $archivo && $archivo->isPreviewable() ? $archivo->temporaryUrl() : '' }}"
+                     alt="Editor de recorte cuadrado"
+                     class="block size-full object-contain"
+                     @style(['display: none' => ! $archivo])>
+                @if (! $archivo)
+                    <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 text-stone-400 dark:text-stone-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4m0-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                        <span class="text-xs">Elige una imagen para recortarla</span>
+                    </div>
+                @endif
+            </div>
+
+            @if ($archivo)
+                <div class="flex items-center gap-3">
+                    <span class="text-xs font-semibold text-stone-500 dark:text-stone-400">Zoom</span>
+                    <input type="range" min="1" max="3" step="0.05" value="1"
+                           x-on:input="window.ajustarZoomRecorte($event.target.value)"
+                           class="h-1 flex-1 accent-amber-500"
+                           aria-label="Zoom del recorte">
+                    <button type="button"
+                            x-on:click="window.reiniciarRecorte()"
+                            class="rounded-lg border border-stone-300 px-2.5 py-1 text-xs font-semibold text-stone-600 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700">
+                        Restablecer
+                    </button>
+                </div>
+                <p id="aviso-recorte-pequeno" class="hidden rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                    El área elegida es menor a 800 px; se ampliará y puede perder nitidez.
+                </p>
+            @endif
 
             @error($campo)
                 <p class="text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
@@ -144,10 +174,12 @@
             <div class="flex flex-wrap justify-end gap-2">
                 <button type="button"
                         wire:click="cerrarModal"
+                        data-preservar-scroll
                         class="rounded-xl border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
                     Cancelar
                 </button>
                 <button type="submit"
+                        data-preservar-scroll
                         class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500">
                     Guardar
                 </button>
@@ -167,11 +199,13 @@
         <div class="mt-5 flex flex-wrap justify-end gap-2">
             <button type="button"
                     wire:click="cancelarEliminacion"
+                    data-preservar-scroll
                     class="rounded-xl border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
                 Cancelar
             </button>
             <button type="button"
                     wire:click="eliminar"
+                    data-preservar-scroll
                     class="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500">
                 Eliminar
             </button>

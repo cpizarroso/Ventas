@@ -206,6 +206,69 @@ trait OptimizaImagenes
         return File::put($destino, $bytes) !== false;
     }
 
+    /**
+     * Recorta un área cuadrada elegida por el usuario y la escala a maestra.
+     */
+    protected function generarMaestraConRecorte(
+        string $origen,
+        string $destino,
+        int $x,
+        int $y,
+        int $lado,
+        int $ladoDestino,
+    ): bool {
+        $contenido = @file_get_contents($origen);
+
+        if ($contenido === false) {
+            return false;
+        }
+
+        $imagen = @imagecreatefromstring($contenido);
+
+        if ($imagen === false) {
+            return false;
+        }
+
+        $ancho = imagesx($imagen);
+        $alto = imagesy($imagen);
+        $lado = max(1, min($lado, $ancho, $alto));
+        $x = max(0, min($x, $ancho - $lado));
+        $y = max(0, min($y, $alto - $lado));
+
+        $recortada = imagecrop($imagen, [
+            'x' => $x,
+            'y' => $y,
+            'width' => $lado,
+            'height' => $lado,
+        ]);
+
+        imagedestroy($imagen);
+
+        if ($recortada === false) {
+            return false;
+        }
+
+        $maestra = imagescale($recortada, $ladoDestino, $ladoDestino, IMG_BICUBIC);
+
+        imagedestroy($recortada);
+
+        if ($maestra === false) {
+            return false;
+        }
+
+        $bytes = $this->codificarImagen($maestra, 'webp', self::PERFIL_PRODUCTO);
+
+        imagedestroy($maestra);
+
+        if ($bytes === false || $bytes === '') {
+            return false;
+        }
+
+        File::ensureDirectoryExists(dirname($destino));
+
+        return File::put($destino, $bytes) !== false;
+    }
+
     private function codificarImagen(\GdImage $imagen, string $extension, string $perfil): string|false
     {
         ob_start();

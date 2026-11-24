@@ -42,6 +42,16 @@ class UsuariosAdmin extends Component
 
     public bool $modalAbierto = false;
 
+    public bool $modalReporteAbierto = false;
+
+    public ?string $passwordGenerada = null;
+
+    public ?string $reporteNombre = null;
+
+    public ?string $reporteUsuario = null;
+
+    public ?string $reporteMensaje = null;
+
     #[Url(as: 'buscar-usuarios')]
     public string $buscar = '';
 
@@ -223,6 +233,40 @@ class UsuariosAdmin extends Component
     }
 
     /**
+     * Generate an eight-digit password and show a report the admin can copy.
+     */
+    public function restablecerPassword(int $usuarioId): void
+    {
+        $usuario = $this->usuarioDelNegocio($usuarioId);
+
+        $this->authorize('update', $usuario);
+
+        $nuevaPassword = str_pad((string) random_int(0, 99999999), 8, '0', STR_PAD_LEFT);
+
+        $usuario->update(['password' => $nuevaPassword]);
+
+        $this->eliminandoId = null;
+        $this->modalAbierto = false;
+        $this->passwordGenerada = $nuevaPassword;
+        $this->reporteNombre = $usuario->name;
+        $this->reporteUsuario = $usuario->username ?? '';
+        $this->reporteMensaje = "Hola {$usuario->name}, tus credenciales para ingresar al sistema son:\n"
+            ."Usuario: {$usuario->username}\n"
+            ."Contraseña: {$nuevaPassword}\n\n"
+            .'Por seguridad, cambia tu contraseña después de iniciar sesión.';
+        $this->modalReporteAbierto = true;
+    }
+
+    public function cerrarReporte(): void
+    {
+        $this->modalReporteAbierto = false;
+        $this->passwordGenerada = null;
+        $this->reporteNombre = null;
+        $this->reporteUsuario = null;
+        $this->reporteMensaje = null;
+    }
+
+    /**
      * Delete the confirmed user. Historical sales keep their record.
      */
     public function eliminar(): void
@@ -292,9 +336,14 @@ class UsuariosAdmin extends Component
             'password_confirmation',
             'editandoId',
             'modalAbierto',
+            'passwordGenerada',
+            'reporteNombre',
+            'reporteUsuario',
+            'reporteMensaje',
         );
 
         $this->rol = Rol::Cajero->value;
+        $this->modalReporteAbierto = false;
 
         $this->resetValidation();
     }

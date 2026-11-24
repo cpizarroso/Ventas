@@ -42,6 +42,7 @@ class ImagenesPredeterminadasAdmin extends Component
         $this->reset(['imagenNueva', 'imagenEdicion', 'editandoId', 'eliminandoId']);
         $this->resetErrorBag();
         $this->modalAbierto = true;
+        $this->dispatch('recorte-cerrado');
     }
 
     public function abrirEdicion(string $id): void
@@ -50,6 +51,7 @@ class ImagenesPredeterminadasAdmin extends Component
         $this->resetErrorBag();
         $this->editandoId = $id;
         $this->modalAbierto = true;
+        $this->dispatch('recorte-cerrado');
     }
 
     public function cerrarModal(): void
@@ -57,6 +59,17 @@ class ImagenesPredeterminadasAdmin extends Component
         $this->reset(['imagenNueva', 'imagenEdicion', 'editandoId']);
         $this->resetErrorBag();
         $this->modalAbierto = false;
+        $this->dispatch('recorte-cerrado');
+    }
+
+    public function updatedImagenNueva(): void
+    {
+        $this->dispatch('recorte-listo');
+    }
+
+    public function updatedImagenEdicion(): void
+    {
+        $this->dispatch('recorte-listo');
     }
 
     public function confirmarEliminacion(string $id): void
@@ -89,7 +102,7 @@ class ImagenesPredeterminadasAdmin extends Component
         $this->flashSaved();
     }
 
-    public function guardar(): void
+    public function guardar(int $x, int $y, int $lado): void
     {
         $esEdicion = $this->editandoId !== null;
         $campo = $esEdicion ? 'imagenEdicion' : 'imagenNueva';
@@ -104,16 +117,17 @@ class ImagenesPredeterminadasAdmin extends Component
             "$campo.max" => 'La imagen no puede superar los 4 MB.',
         ]);
 
-        /** @var TemporaryUploadedFile $archivo */
-        $info = @getimagesize($archivo->getRealPath());
-        $minimo = (int) config('productos.maestra_lado_minimo', 800);
+        $minimo = (int) config('productos.recorte_lado_minimo', 64);
 
-        if ($info === false || min((int) $info[0], (int) $info[1]) < $minimo) {
-            $this->addError($campo, "La imagen debe medir al menos {$minimo} × {$minimo} píxeles.");
+        if ($lado < $minimo) {
+            $this->addError($campo, "El área cuadrada debe medir al menos {$minimo} × {$minimo} píxeles.");
 
             return;
         }
 
+        $objetivo = (int) config('productos.maestra_lado_objetivo', 800);
+
+        /** @var TemporaryUploadedFile $archivo */
         $entradaAnterior = $esEdicion ? (Catalogo::todos()[$this->editandoId] ?? null) : null;
         $esLegacyAnterior = (bool) ($entradaAnterior['legacy'] ?? false);
 
@@ -126,11 +140,11 @@ class ImagenesPredeterminadasAdmin extends Component
 
         $nombre = $esEdicion && ! $esLegacyAnterior
             ? $this->editandoId
-            : $this->siguienteArchivo();
+            : Catalogo::siguienteId();
 
         $maestra = Catalogo::rutaMaestraPara($nombre);
 
-        if (! $this->generarDerivado($archivo->getRealPath(), $maestra, $minimo, 'webp')) {
+        if (! $this->generarMaestraConRecorte($archivo->getRealPath(), $maestra, $x, $y, $lado, $objetivo)) {
             $this->addError($campo, 'No se pudo procesar la imagen. Intenta con otro archivo.');
 
             return;
@@ -185,21 +199,6 @@ class ImagenesPredeterminadasAdmin extends Component
             'imagenes' => $imagenes,
             'tamanos' => $tamanos,
         ]);
-    }
-
-    private function siguienteArchivo(): string
-    {
-        $numeros = [];
-
-        foreach (array_keys(Catalogo::todos()) as $id) {
-            if (preg_match('/^producto_(\d+)\./', (string) $id, $coincidencia) === 1) {
-                $numeros[] = (int) $coincidencia[1];
-            }
-        }
-
-        $siguiente = $numeros === [] ? 1 : max($numeros) + 1;
-
-        return 'producto_'.str_pad((string) $siguiente, 3, '0', STR_PAD_LEFT).'.webp';
     }
 
     private function eliminarArchivos(string $id): void

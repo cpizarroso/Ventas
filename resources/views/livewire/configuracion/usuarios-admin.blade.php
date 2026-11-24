@@ -217,6 +217,55 @@
             </form>
         </x-modal-configuracion>
 
+        <x-modal-configuracion id="modal-reporte-password"
+                               titulo="Contraseña restablecida"
+                               descripcion="Copia el mensaje y envíalo al usuario con sus nuevas credenciales."
+                               cerrar="cerrarReporte"
+                               :abierto="$modalReporteAbierto"
+                               ancho="max-w-lg">
+            <div class="space-y-4">
+                <p class="text-sm text-stone-600 dark:text-stone-300">
+                    Se generó una contraseña temporal de 8 dígitos para
+                    <strong class="font-semibold">{{ $reporteNombre }}</strong>.
+                </p>
+
+                <dl class="grid gap-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-700 dark:bg-stone-900/50">
+                    <div class="flex items-center justify-between gap-3">
+                        <dt class="text-stone-500 dark:text-stone-400">Usuario</dt>
+                        <dd class="font-semibold text-stone-800 dark:text-stone-100">{{ $reporteUsuario }}</dd>
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <dt class="text-stone-500 dark:text-stone-400">Contraseña</dt>
+                        <dd class="font-mono text-base font-semibold tracking-widest text-stone-900 dark:text-stone-100">{{ $passwordGenerada }}</dd>
+                    </div>
+                </dl>
+
+                <div>
+                    <label for="reporte-mensaje" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+                        Mensaje para enviar
+                    </label>
+                    <textarea id="reporte-mensaje"
+                              rows="5"
+                              readonly
+                              class="w-full resize-none rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100">{{ $reporteMensaje }}</textarea>
+                </div>
+
+                <div class="flex flex-wrap justify-end gap-2">
+                    <button type="button"
+                            wire:click="cerrarReporte"
+                            data-preservar-scroll
+                            class="rounded-xl border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
+                        Cerrar
+                    </button>
+                    <button type="button"
+                            x-on:click="window.copiarReporte($event.currentTarget)"
+                            class="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-amber-400">
+                        Copiar mensaje
+                    </button>
+                </div>
+            </div>
+        </x-modal-configuracion>
+
         <div class="mt-6">
             @if ($usuarios->isEmpty())
                 <div class="rounded-xl border border-dashed border-stone-300 px-4 py-10 text-center dark:border-stone-600">
@@ -269,18 +318,40 @@
                                         </span>
                                     </td>
                                     <td class="whitespace-nowrap px-4 py-3 text-right">
-                                        <button type="button"
-                                                wire:click="iniciarEdicion({{ $usuario->id }})"
-                                                class="rounded-lg px-3 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-700 dark:hover:text-white">
-                                            Editar
-                                        </button>
-                                        @if ($usuario->id !== $usuarioActualId)
+                                        <div class="flex items-center justify-end gap-1">
                                             <button type="button"
-                                                    wire:click="confirmarEliminacion({{ $usuario->id }})"
-                                                    class="rounded-lg px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/40">
-                                                Eliminar
+                                                    wire:click="iniciarEdicion({{ $usuario->id }})"
+                                                    data-preservar-scroll
+                                                    title="Editar {{ $usuario->name }}"
+                                                    aria-label="Editar {{ $usuario->name }}"
+                                                    class="rounded-lg p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 0 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+                                                </svg>
                                             </button>
-                                        @endif
+                                            <button type="button"
+                                                    wire:click="restablecerPassword({{ $usuario->id }})"
+                                                    data-preservar-scroll
+                                                    title="Restablecer contraseña de {{ $usuario->name }}"
+                                                    aria-label="Restablecer contraseña de {{ $usuario->name }}"
+                                                    class="rounded-lg p-2 text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/30">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                                </svg>
+                                            </button>
+                                            @if ($usuario->id !== $usuarioActualId)
+                                                <button type="button"
+                                                        wire:click="confirmarEliminacion({{ $usuario->id }})"
+                                                        data-preservar-scroll
+                                                        title="Eliminar {{ $usuario->name }}"
+                                                        aria-label="Eliminar {{ $usuario->name }}"
+                                                        class="rounded-lg p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/40">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4" aria-hidden="true">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 3h6m-9 3h12M10 3v3m4-3v3m-7 0 1 15h8l1-15" />
+                                                    </svg>
+                                                </button>
+                                            @endif
+                                        </div>
                                     </td>
                                 </tr>
 

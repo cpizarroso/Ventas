@@ -10,6 +10,9 @@ return [
     /** Tamaño que usa el catálogo de productos cuando no se indica otro. */
     'tamano_predeterminada_defecto' => 512,
 
-    /** Lado mínimo exigido a la imagen maestra para generar los tres derivados. */
-    'maestra_lado_minimo' => 800,
+    /** Lado de la imagen maestra generada (los derivados salen desde aquí). */
+    'maestra_lado_objetivo' => 800,
+
+    /** Lado mínimo del área recortada; por debajo se ampliará la maestra. */
+    'recorte_lado_minimo' => 64,
 ];

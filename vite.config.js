@@ -21,4 +21,7 @@ export default defineConfig({
             ignored: ['**/storage/framework/views/**'],
         },
     },
+    optimizeDeps: {
+        exclude: ['cropperjs'],
+    },
 });

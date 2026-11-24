@@ -142,6 +142,14 @@
                         <p class="mt-1 text-[11px] text-stone-500 dark:text-stone-400">
                             Imagen cuadrada ideal 800×800 px. JPG, PNG o WebP. Máx. 2 MB. Se optimiza automáticamente.
                         </p>
+                        @if ($productoImagen)
+                            <label class="mt-2 inline-flex cursor-pointer items-center gap-1.5 text-[11px] font-medium text-stone-600 dark:text-stone-300">
+                                <input type="checkbox"
+                                       wire:model="guardarEnPredeterminadas"
+                                       class="rounded border-stone-300 text-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-900">
+                                Guardar esta imagen en imágenes predeterminadas
+                            </label>
+                        @endif
                         <p wire:loading wire:target="productoImagen" class="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
                             Subiendo imagen…
                         </p>
@@ -285,6 +293,14 @@
                             <p class="mt-1 text-[11px] text-stone-500 dark:text-stone-400">
                                 Cuadrada ideal 800×800 px. JPG, PNG o WebP. Máx. 2 MB. Se optimiza automáticamente.
                             </p>
+                            @if ($productoImagenEdicion)
+                                <label class="mt-2 inline-flex cursor-pointer items-center gap-1.5 text-[11px] font-medium text-stone-600 dark:text-stone-300">
+                                    <input type="checkbox"
+                                           wire:model="guardarEnPredeterminadasEdicion"
+                                           class="rounded border-stone-300 text-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-900">
+                                    Guardar esta imagen en imágenes predeterminadas
+                                </label>
+                            @endif
                             <p wire:loading wire:target="productoImagenEdicion" class="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
                                 Subiendo imagen…
                             </p>
