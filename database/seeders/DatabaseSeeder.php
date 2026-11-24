@@ -25,7 +25,7 @@ class DatabaseSeeder extends Seeder
 
         Negocio::firstOrCreate(
             ['nombre_comercial' => self::NOMBRE_COMERCIAL],
-            ['eslogan' => self::ESLOGAN, 'logo' => null]
+            ['eslogan' => self::ESLOGAN, 'logo' => null, 'metodo_pago_predeterminado' => 'efectivo']
         );
 
         $this->call([

@@ -50,6 +50,11 @@ class PromocionesAdmin extends Component
         $this->resetForm();
     }
 
+    public function placeholder(): View
+    {
+        return view('components.configuracion-modulo-placeholder', ['titulo' => 'promociones']);
+    }
+
     /**
      * Alias the paginator so this component does not clash with the other configuration lists.
      *

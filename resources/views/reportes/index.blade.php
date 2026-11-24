@@ -126,6 +126,7 @@
                     </p>
                     <div class="flex w-full flex-wrap gap-2 sm:w-auto">
                         <a href="{{ route('reportes.export', $filtrosExportacion) }}"
+                           data-no-loading
                            class="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-900/30 sm:flex-none">
                             <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" />
@@ -133,6 +134,7 @@
                             Exportar CSV
                         </a>
                         <a href="{{ route('reportes.export.pdf', $filtrosExportacion) }}"
+                           data-no-loading
                            class="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-600 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 dark:border-red-500 dark:text-red-400 dark:hover:bg-red-900/30 sm:flex-none">
                             <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6" />

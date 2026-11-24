@@ -27,9 +27,9 @@
     @else
         <div class="space-y-8">
             <livewire:configuracion.identidad-negocio />
-            <livewire:configuracion.usuarios-admin />
-            <livewire:configuracion.categorias-admin />
-            <livewire:configuracion.promociones-admin />
+            <livewire:configuracion.usuarios-admin lazy />
+            <livewire:configuracion.categorias-admin lazy />
+            <livewire:configuracion.promociones-admin lazy />
         </div>
     @endif
 </x-layouts.app>

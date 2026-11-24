@@ -250,7 +250,12 @@ class PantallaPrincipal extends Component
             return;
         }
 
+        $negocio = Auth::user()?->negocio;
+        $metodoPredeterminado = $negocio?->metodoPagoPredeterminado() ?? MetodoPago::Efectivo;
+
         $this->mostrarModalPago = true;
+        $this->metodoPago = $metodoPredeterminado->value;
+        $this->montoRecibido = $metodoPredeterminado === MetodoPago::Efectivo ? '' : null;
         $this->resetValidation(['metodoPago', 'montoRecibido', 'glosa', 'cliente']);
     }
 

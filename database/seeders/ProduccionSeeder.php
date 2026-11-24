@@ -22,7 +22,7 @@ class ProduccionSeeder extends Seeder
 
         $negocio = Negocio::firstOrCreate(
             ['nombre_comercial' => DatabaseSeeder::NOMBRE_COMERCIAL],
-            ['eslogan' => DatabaseSeeder::ESLOGAN, 'logo' => null]
+            ['eslogan' => DatabaseSeeder::ESLOGAN, 'logo' => null, 'metodo_pago_predeterminado' => 'efectivo']
         );
 
         $this->crearCatalogoInicial($negocio);

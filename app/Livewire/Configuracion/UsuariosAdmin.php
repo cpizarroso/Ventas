@@ -50,6 +50,11 @@ class UsuariosAdmin extends Component
         $this->authorize('viewAny', User::class);
     }
 
+    public function placeholder(): View
+    {
+        return view('components.configuracion-modulo-placeholder', ['titulo' => 'usuarios']);
+    }
+
     /**
      * Alias the paginator so this component does not clash with the other configuration lists.
      *

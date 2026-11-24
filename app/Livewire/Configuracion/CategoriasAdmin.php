@@ -66,6 +66,20 @@ class CategoriasAdmin extends Component
 
     public bool $modalAbierto = false;
 
+    public bool $modalProductoAbierto = false;
+
+    /**
+     * Original values captured when a modal is opened, used to detect unsaved changes.
+     *
+     * @var array<string, mixed>
+     */
+    public array $original = [];
+
+    /**
+     * Which modal is waiting for the "discard changes" confirmation: categoria, producto or item.
+     */
+    public ?string $confirmandoDescartar = null;
+
     #[Url(as: 'buscar-categorias')]
     public string $buscar = '';
 
@@ -101,12 +115,41 @@ class CategoriasAdmin extends Component
         $this->reset('nombre', 'editandoId', 'nombreEdicion');
         $this->resetValidation();
         $this->modalAbierto = true;
+        $this->original = [
+            'tipo' => 'categoria',
+            'nombre' => $this->nombre,
+            'nombreEdicion' => $this->nombreEdicion,
+        ];
+    }
+
+    /**
+     * Ask before closing the category modal when the user edited something.
+     */
+    public function solicitarCierreCategoria(): void
+    {
+        if ($this->hayCambiosCategoria()) {
+            $this->confirmandoDescartar = 'categoria';
+
+            return;
+        }
+
+        $this->cerrarCategoria();
     }
 
     public function cerrarModal(): void
     {
+        $this->solicitarCierreCategoria();
+    }
+
+    /**
+     * Close the category modal and forget its original values.
+     */
+    private function cerrarCategoria(): void
+    {
         $this->reset('nombre', 'editandoId', 'nombreEdicion', 'modalAbierto');
         $this->resetValidation();
+        $this->original = [];
+        $this->confirmandoDescartar = null;
     }
 
     /**
@@ -131,6 +174,7 @@ class CategoriasAdmin extends Component
         ]);
 
         $this->reset('nombre', 'modalAbierto');
+        $this->original = [];
 
         $this->flashSaved();
     }
@@ -148,11 +192,16 @@ class CategoriasAdmin extends Component
         $this->nombreEdicion = $categoria->nombre;
         $this->eliminandoId = null;
         $this->modalAbierto = true;
+        $this->original = [
+            'tipo' => 'categoria',
+            'nombre' => $this->nombre,
+            'nombreEdicion' => $this->nombreEdicion,
+        ];
     }
 
     public function cancelarEdicion(): void
     {
-        $this->reset('editandoId', 'nombreEdicion', 'modalAbierto');
+        $this->solicitarCierreCategoria();
     }
 
     /**
@@ -183,6 +232,7 @@ class CategoriasAdmin extends Component
         ]);
 
         $this->reset('editandoId', 'nombreEdicion', 'modalAbierto');
+        $this->original = [];
 
         $this->flashSaved();
     }
@@ -198,6 +248,7 @@ class CategoriasAdmin extends Component
 
         $this->eliminandoId = $categoria->id;
         $this->reset('editandoId', 'nombreEdicion', 'modalAbierto');
+        $this->original = [];
     }
 
     public function cancelarEliminacion(): void
@@ -248,7 +299,76 @@ class CategoriasAdmin extends Component
         $this->resetProductos();
 
         $this->productosAbiertosId = $categoria->id;
-        $this->reset('editandoId', 'nombreEdicion', 'eliminandoId', 'modalAbierto');
+        $this->reset('editandoId', 'nombreEdicion', 'eliminandoId', 'modalAbierto', 'modalProductoAbierto');
+        $this->original = [];
+    }
+
+    /**
+     * Open the modal to create a product in the open category.
+     */
+    public function abrirModalProducto(): void
+    {
+        $categoria = $this->categoriaDelUsuario((int) $this->productosAbiertosId);
+
+        $this->authorize('create', [Producto::class, $categoria]);
+
+        $this->reset(
+            'productoNombre',
+            'productoPrecio',
+            'productoStock',
+            'productoImagen',
+            'productoImagenPredeterminada',
+            'mostrarGaleriaPredeterminada',
+            'productoEditandoId',
+            'productoEliminandoId',
+        );
+        $this->resetValidation();
+
+        $this->modalProductoAbierto = true;
+        $this->original = [
+            'tipo' => 'producto',
+            'productoNombre' => $this->productoNombre,
+            'productoPrecio' => $this->productoPrecio,
+            'productoStock' => $this->productoStock,
+        ];
+    }
+
+    /**
+     * Ask before closing the create-product modal when the user edited something.
+     */
+    public function solicitarCierreProducto(): void
+    {
+        if ($this->hayCambiosProducto()) {
+            $this->confirmandoDescartar = 'producto';
+
+            return;
+        }
+
+        $this->cerrarProducto();
+    }
+
+    public function cerrarModalProducto(): void
+    {
+        $this->solicitarCierreProducto();
+    }
+
+    /**
+     * Close the create-product modal and forget its original values.
+     */
+    private function cerrarProducto(): void
+    {
+        $this->reset(
+            'modalProductoAbierto',
+            'productoNombre',
+            'productoPrecio',
+            'productoStock',
+            'productoImagen',
+            'productoImagenPredeterminada',
+            'mostrarGaleriaPredeterminada',
+        );
+        $this->resetValidation();
+        $this->original = [];
+        $this->confirmandoDescartar = null;
     }
 
     public function abrirGaleriaPredeterminada(): void
@@ -391,6 +511,7 @@ class CategoriasAdmin extends Component
         ]);
 
         $this->reset(
+            'modalProductoAbierto',
             'productoNombre',
             'productoPrecio',
             'productoStock',
@@ -398,6 +519,8 @@ class CategoriasAdmin extends Component
             'productoImagenPredeterminada',
             'mostrarGaleriaPredeterminada',
         );
+        $this->resetValidation();
+        $this->original = [];
 
         $this->flashSaved();
     }
@@ -420,9 +543,50 @@ class CategoriasAdmin extends Component
         $this->mostrarGaleriaPredeterminadaEdicion = false;
         $this->quitarImagenEdicion = false;
         $this->productoEliminandoId = null;
+        $this->resetValidation();
+        $this->original = [
+            'tipo' => 'item',
+            'productoNombreEdicion' => $this->productoNombreEdicion,
+            'productoPrecioEdicion' => $this->productoPrecioEdicion,
+            'productoStockEdicion' => $this->productoStockEdicion,
+        ];
+    }
+
+    /**
+     * Product shown by the edit modal.
+     */
+    public function productoEditando(): ?Producto
+    {
+        if ($this->productoEditandoId === null) {
+            return null;
+        }
+
+        return $this->productoDelUsuario($this->productoEditandoId);
+    }
+
+    /**
+     * Ask before closing the edit-product modal when the user edited something.
+     */
+    public function solicitarCierreEdicionProducto(): void
+    {
+        if ($this->hayCambiosEdicionProducto()) {
+            $this->confirmandoDescartar = 'item';
+
+            return;
+        }
+
+        $this->cerrarEdicionProducto();
     }
 
     public function cancelarEdicionProducto(): void
+    {
+        $this->solicitarCierreEdicionProducto();
+    }
+
+    /**
+     * Close the edit-product modal and forget its original values.
+     */
+    private function cerrarEdicionProducto(): void
     {
         $this->reset(
             'productoEditandoId',
@@ -434,6 +598,64 @@ class CategoriasAdmin extends Component
             'mostrarGaleriaPredeterminadaEdicion',
             'quitarImagenEdicion',
         );
+        $this->resetValidation();
+        $this->original = [];
+        $this->confirmandoDescartar = null;
+    }
+
+    /**
+     * Whether the category modal has values the user changed since it was opened.
+     */
+    private function hayCambiosCategoria(): bool
+    {
+        return ($this->original['nombre'] ?? '') !== $this->nombre
+            || ($this->original['nombreEdicion'] ?? '') !== $this->nombreEdicion;
+    }
+
+    /**
+     * Whether the create-product modal has unsaved values.
+     */
+    private function hayCambiosProducto(): bool
+    {
+        return ($this->original['productoNombre'] ?? '') !== $this->productoNombre
+            || ($this->original['productoPrecio'] ?? '') !== $this->productoPrecio
+            || ($this->original['productoStock'] ?? '') !== $this->productoStock
+            || $this->productoImagen !== null
+            || $this->productoImagenPredeterminada !== null;
+    }
+
+    /**
+     * Whether the edit-product modal has values the user changed since it was opened.
+     */
+    private function hayCambiosEdicionProducto(): bool
+    {
+        return ($this->original['productoNombreEdicion'] ?? '') !== $this->productoNombreEdicion
+            || ($this->original['productoPrecioEdicion'] ?? '') !== $this->productoPrecioEdicion
+            || ($this->original['productoStockEdicion'] ?? '') !== $this->productoStockEdicion
+            || $this->productoImagenEdicion !== null
+            || $this->productoImagenPredeterminadaEdicion !== null
+            || $this->quitarImagenEdicion;
+    }
+
+    /**
+     * Close the modal that was waiting for confirmation, discarding its changes.
+     */
+    public function descartarCambios(): void
+    {
+        match ($this->confirmandoDescartar) {
+            'categoria' => $this->cerrarCategoria(),
+            'producto' => $this->cerrarProducto(),
+            'item' => $this->cerrarEdicionProducto(),
+            default => null,
+        };
+    }
+
+    /**
+     * Keep editing after the confirmation prompt.
+     */
+    public function mantenerCambios(): void
+    {
+        $this->confirmandoDescartar = null;
     }
 
     /**
@@ -508,6 +730,7 @@ class CategoriasAdmin extends Component
             'mostrarGaleriaPredeterminadaEdicion',
             'quitarImagenEdicion',
         );
+        $this->original = [];
 
         $this->flashSaved();
     }
@@ -532,6 +755,7 @@ class CategoriasAdmin extends Component
             'mostrarGaleriaPredeterminadaEdicion',
             'quitarImagenEdicion',
         );
+        $this->original = [];
     }
 
     public function cancelarEliminacionProducto(): void
@@ -569,6 +793,11 @@ class CategoriasAdmin extends Component
         $this->flashSaved();
     }
 
+    public function placeholder(): View
+    {
+        return view('components.configuracion-modulo-placeholder', ['titulo' => 'categorías e ítems']);
+    }
+
     public function render(): View
     {
         $negocio = Auth::user()?->negocio;
@@ -576,22 +805,15 @@ class CategoriasAdmin extends Component
 
         $categorias = ($negocio !== null ? $negocio->categorias() : Categoria::query()->whereRaw('1 = 0'))
             ->withCount('productos')
+            ->with(['productos' => fn ($query) => $query->orderBy('nombre')])
             ->when($buscar !== '', fn ($query) => $query->where('nombre', 'like', '%'.$buscar.'%'))
             ->orderBy('orden')
             ->orderBy('nombre')
             ->paginate(10);
 
-        $productos = collect();
-
-        if ($this->productosAbiertosId !== null && $negocio !== null) {
-            $categoriaAbierta = $negocio->categorias()
-                ->whereKey($this->productosAbiertosId)
-                ->first();
-
-            $productos = $categoriaAbierta
-                ? $categoriaAbierta->productos()->orderBy('nombre')->get()
-                : collect();
-        }
+        $productos = $this->productosAbiertosId === null
+            ? collect()
+            : ($categorias->firstWhere('id', $this->productosAbiertosId)?->productos ?? collect());
 
         $urlBase = trim((string) config('productos.url_imagenes_predeterminadas'), '/');
 
@@ -649,6 +871,7 @@ class CategoriasAdmin extends Component
     {
         $this->reset(
             'productosAbiertosId',
+            'modalProductoAbierto',
             'productoNombre',
             'productoPrecio',
             'productoStock',
@@ -665,6 +888,8 @@ class CategoriasAdmin extends Component
             'quitarImagenEdicion',
             'productoEliminandoId',
         );
+        $this->original = [];
+        $this->confirmandoDescartar = null;
     }
 
     /**

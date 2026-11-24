@@ -92,8 +92,7 @@
 
                     <div class="w-full sm:w-auto">
                         <label for="estado" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Estado</label>
-                        <select id="estado" name="estado"
-                                class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:[color-scheme:dark] sm:w-auto">
+                        <select id="estado" name="estado" class="selector-tema sm:w-auto">
                             <option value="">Todas</option>
                             <option value="abierta" @selected(old('estado', $estado) === 'abierta')>Abiertas</option>
                             <option value="cerrada" @selected(old('estado', $estado) === 'cerrada')>Cerradas</option>
@@ -106,8 +105,7 @@
                     @if (! $esCajero)
                         <div class="w-full sm:w-auto">
                             <label for="user_id" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Usuario</label>
-                            <select id="user_id" name="user_id"
-                                    class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:[color-scheme:dark] sm:w-auto">
+                            <select id="user_id" name="user_id" class="selector-tema sm:w-auto">
                                 <option value="">Todos los usuarios</option>
                                 @foreach ($usuarios as $usuario)
                                     <option value="{{ $usuario->id }}" @selected((string) old('user_id', $usuarioId) === (string) $usuario->id)>
@@ -141,6 +139,7 @@
                     </p>
                     <div class="flex w-full flex-wrap gap-2 sm:w-auto">
                         <a href="{{ route('cajas.export', $filtrosExportacion) }}"
+                           data-no-loading
                            class="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-900/30 sm:flex-none">
                             <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" />
@@ -148,6 +147,7 @@
                             Exportar CSV
                         </a>
                         <a href="{{ route('cajas.export.pdf', $filtrosExportacion) }}"
+                           data-no-loading
                            class="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-600 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 dark:border-red-500 dark:text-red-400 dark:hover:bg-red-900/30 sm:flex-none">
                             <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6" />

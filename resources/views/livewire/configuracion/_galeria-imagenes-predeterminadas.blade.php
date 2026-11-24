@@ -1,5 +1,5 @@
 <div wire:key="galeria-predeterminada-{{ $prefijo }}"
-     class="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-sm"
+     class="fixed inset-0 z-[60] flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-sm"
      role="dialog"
      aria-modal="true"
      aria-labelledby="{{ $tituloId }}"

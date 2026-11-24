@@ -177,7 +177,7 @@
     <button
         id="{{ $id }}-boton"
         type="button"
-        x-on:click="abierto = ! abierto"
+        x-on:click.stop="abierto = ! abierto"
         x-bind:aria-expanded="abierto ? 'true' : 'false'"
         aria-haspopup="dialog"
         aria-controls="{{ $id }}-panel"
@@ -198,9 +198,14 @@
         role="dialog"
         aria-label="{{ $etiqueta }}"
         x-show="abierto"
-        x-cloak
-        x-transition.opacity.duration.150ms
-        class="absolute left-0 z-30 mt-2 w-72 rounded-2xl border border-stone-200 bg-white p-3 shadow-xl dark:border-stone-700 dark:bg-stone-800"
+        x-transition:enter="transition duration-150 ease-out"
+        x-transition:enter-start="opacity-0 -translate-y-1 scale-95"
+        x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+        x-transition:leave="transition duration-100 ease-in"
+        x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+        x-transition:leave-end="opacity-0 -translate-y-1 scale-95"
+        style="display: none"
+        class="absolute left-0 z-40 mt-2 w-72 origin-top-left rounded-2xl border border-stone-200 bg-white p-3 shadow-xl dark:border-stone-700 dark:bg-stone-800"
     >
         <div class="mb-2 flex items-center justify-between gap-2">
             <button type="button" x-on:click="mesAnterior()" aria-label="Mes anterior"

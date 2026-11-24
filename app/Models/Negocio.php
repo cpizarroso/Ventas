@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\MetodoPago;
 use Database\Factories\NegocioFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 
-#[Fillable(['nombre_comercial', 'eslogan', 'logo', 'qr_pago'])]
+#[Fillable(['nombre_comercial', 'eslogan', 'logo', 'qr_pago', 'metodo_pago_predeterminado'])]
 class Negocio extends Model
 {
     /** @use HasFactory<NegocioFactory> */
@@ -38,6 +39,14 @@ class Negocio extends Model
     public function promociones(): HasMany
     {
         return $this->hasMany(Promocion::class);
+    }
+
+    /**
+     * Payment method preselected when opening the checkout modal.
+     */
+    public function metodoPagoPredeterminado(): MetodoPago
+    {
+        return MetodoPago::tryFrom($this->metodo_pago_predeterminado ?? '') ?? MetodoPago::Efectivo;
     }
 
     /**

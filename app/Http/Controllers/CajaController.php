@@ -128,8 +128,8 @@ class CajaController extends Controller
         ]);
 
         return $volverAVentas
-            ? redirect()->route('ventas.index')->with('status', 'Caja abierta correctamente.')
-            : redirect()->route('cajas.show', $caja)->with('status', 'Caja abierta correctamente.');
+            ? redirect()->route('ventas.index')
+            : redirect()->route('cajas.show', $caja);
     }
 
     /**

@@ -5,6 +5,7 @@
     'cerrar' => 'cerrarModal',
     'ancho' => 'max-w-3xl',
     'abierto' => false,
+    'escape' => true,
 ])
 
 <div @class([
@@ -14,7 +15,7 @@
      role="dialog"
      aria-modal="true"
      aria-labelledby="{{ $id }}-titulo"
-     @if ($abierto) wire:keydown.escape.window="{{ $cerrar }}" @endif
+     @if ($abierto && $escape) wire:keydown.escape.window="{{ $cerrar }}" @endif
      @if (! $abierto) aria-hidden="true" @endif>
     <div class="absolute inset-0" wire:click="{{ $cerrar }}" aria-hidden="true"></div>
 

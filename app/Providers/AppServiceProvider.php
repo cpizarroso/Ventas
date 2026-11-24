@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Negocio;
 use App\Models\User;
 use Illuminate\Contracts\View\View as ViewContract;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -35,9 +36,28 @@ class AppServiceProvider extends ServiceProvider
         View::composer(
             ['components.layouts.app', 'components.layouts.legal', 'components.error-page', 'auth.login', 'errors.*'],
             function (ViewContract $view): void {
-                $negocio = Negocio::query()->oldest('id')->first();
+                $usuario = auth()->user();
+                $negocio = $usuario?->negocio ?? Negocio::query()->oldest('id')->first();
 
-                $view->with('faviconUrl', $negocio?->faviconUrl() ?? route('favicon'));
+                $clave = 'favicon-url:'.($negocio?->id ?? 'sin-negocio')
+                    .':'.($negocio?->logo ?? 'sin-logo')
+                    .':'.($negocio?->updated_at?->timestamp ?? 0);
+
+                $datos = [
+                    'faviconUrl' => Cache::remember(
+                        $clave,
+                        now()->addDay(),
+                        fn () => $negocio?->faviconUrl() ?? route('favicon'),
+                    ),
+                ];
+
+                if ($view->name() === 'components.layouts.app') {
+                    $datos['usuarioNav'] = $usuario;
+                    $datos['negocioNav'] = $usuario?->negocio;
+                    $datos['cajaNav'] = once(fn () => $usuario?->cajaAbierta());
+                }
+
+                $view->with($datos);
             }
         );
     }

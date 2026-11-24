@@ -16,6 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'terminos.aceptados' => EnsureTermsAccepted::class,
         ]);
+
+        // El aviso de caja se escribe desde JS, por lo que no debe cifrarse.
+        $middleware->encryptCookies(except: ['aviso_caja_cerrado']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

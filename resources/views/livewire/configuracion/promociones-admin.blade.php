@@ -162,7 +162,7 @@
                                 <label for="promocion-item-{{ $indice }}" class="sr-only">Ítem {{ $indice + 1 }}</label>
                                 <select id="promocion-item-{{ $indice }}"
                                         wire:model="items.{{ $indice }}.producto_id"
-                                        class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:focus:border-amber-500">
+                                        class="selector-tema">
                                     <option value="">Selecciona un ítem</option>
                                     @foreach ($productos->groupBy(fn ($producto) => $producto->categoria?->nombre ?? 'Sin categoría') as $categoria => $grupo)
                                         <optgroup label="{{ $categoria }}">

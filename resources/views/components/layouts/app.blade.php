@@ -21,9 +21,9 @@
 <body class="h-dvh overflow-hidden font-sans">
     <div class="flex h-full min-h-0 flex-col">
         <header
-            x-data="{ mobileMenuOpen: false }"
-            x-on:keydown.escape.window="mobileMenuOpen = false"
-            x-on:click.outside="mobileMenuOpen = false"
+            x-data="{ mobileMenuOpen: false, notificacionesAbiertas: false }"
+            x-on:keydown.escape.window="mobileMenuOpen = false; notificacionesAbiertas = false"
+            x-on:click.outside="mobileMenuOpen = false; notificacionesAbiertas = false"
             x-on:resize.window="if (window.innerWidth >= 1024) mobileMenuOpen = false"
             class="z-20 shrink-0 border-b border-stone-200 bg-white/90 backdrop-blur dark:border-stone-700 dark:bg-stone-800/90"
         >
@@ -31,12 +31,13 @@
                 <div class="flex min-w-0 items-center gap-3">
                     @auth
                         <a href="{{ route('ventas.index') }}"
+                           data-cargando="Ventas"
                            class="flex min-w-0 items-center gap-3 rounded-lg -m-1 p-1 hover:bg-stone-100 dark:hover:bg-stone-700/60"
                            aria-label="Ir a la pantalla principal de ventas">
-                            @if (auth()->user()->negocio)
-                                @if (auth()->user()->negocio->logoUrl())
-                                    <img src="{{ auth()->user()->negocio->logoUrl() }}"
-                                         alt="Logo de {{ auth()->user()->negocio->nombre_comercial }}"
+                            @if ($negocioNav ?? null)
+                                @if ($negocioNav->logoUrl())
+                                    <img src="{{ $negocioNav->logoUrl() }}"
+                                         alt="Logo de {{ $negocioNav->nombre_comercial }}"
                                          class="size-10 shrink-0 rounded-xl object-cover ring-1 ring-stone-200 dark:ring-stone-600">
                                 @else
                                     <div class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" aria-hidden="true">
@@ -50,11 +51,11 @@
                                 @endif
                                 <div class="min-w-0">
                                     <p class="truncate text-sm font-semibold text-stone-900 dark:text-stone-100">
-                                        {{ auth()->user()->negocio->nombre_comercial }}
+                                        {{ $negocioNav->nombre_comercial }}
                                     </p>
-                                    @if (auth()->user()->negocio->eslogan)
+                                    @if ($negocioNav->eslogan)
                                         <p class="truncate text-xs text-stone-500 dark:text-stone-400">
-                                            {{ auth()->user()->negocio->eslogan }}
+                                            {{ $negocioNav->eslogan }}
                                         </p>
                                     @endif
                                 </div>
@@ -78,22 +79,22 @@
                 <div class="flex items-center justify-end gap-1.5 sm:gap-2">
                     @auth
                         <div class="hidden items-center gap-1.5 lg:flex sm:gap-2">
-                            <x-nav-link :href="route('ventas.index')" :active="request()->routeIs('ventas.*')">
+                            <x-nav-link :href="route('ventas.index')" :active="request()->routeIs('ventas.*')" data-cargando="Ventas">
                                 Ventas
                             </x-nav-link>
 
-                            <x-nav-link :href="route('cajas.index')" :active="request()->routeIs('cajas.*')">
+                            <x-nav-link :href="route('cajas.index')" :active="request()->routeIs('cajas.*')" data-cargando="Cajas">
                                 Cajas
                             </x-nav-link>
 
                             @can('ver-reportes')
-                                <x-nav-link :href="route('reportes.index')" :active="request()->routeIs('reportes.*')">
+                                <x-nav-link :href="route('reportes.index')" :active="request()->routeIs('reportes.*')" data-cargando="Reportes">
                                     Reportes
                                 </x-nav-link>
                             @endcan
 
                             @if (auth()->user()->puedeGestionarConfiguracion())
-                                <x-nav-link :href="route('configuracion.index')" :active="request()->routeIs('configuracion.*')">
+                                <x-nav-link :href="route('configuracion.index')" :active="request()->routeIs('configuracion.*')" data-cargando="Configuración">
                                     Configuración
                                 </x-nav-link>
                             @endif
@@ -109,6 +110,54 @@
                             <span class="max-w-20 truncate text-xs font-semibold text-stone-700 dark:text-stone-200 sm:max-w-40 sm:text-sm">
                                 <span class="sr-only">Usuario: </span>{{ auth()->user()->name }}
                             </span>
+                        </div>
+
+                        <div class="relative">
+                            <button
+                                type="button"
+                                x-on:click="notificacionesAbiertas = ! notificacionesAbiertas"
+                                x-bind:aria-expanded="notificacionesAbiertas ? 'true' : 'false'"
+                                aria-label="{{ $cajaNav !== null ? 'Caja abierta. Ver notificaciones' : 'Sin caja abierta. Ver notificaciones' }}"
+                                title="Estado de la caja"
+                                class="relative rounded-lg p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
+                            >
+                                <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+                                    <path d="M10 21h4" />
+                                </svg>
+                                <span @class([
+                                    'absolute right-1.5 top-1.5 size-2 rounded-full ring-2 ring-white dark:ring-stone-800',
+                                    'bg-emerald-500' => $cajaNav !== null,
+                                    'bg-amber-400' => $cajaNav === null,
+                                ]) aria-hidden="true"></span>
+                            </button>
+
+                            <div
+                                x-show="notificacionesAbiertas"
+                                x-cloak
+                                x-transition.opacity.duration.150ms
+                                role="dialog"
+                                aria-label="Estado de la caja"
+                                class="absolute right-0 z-30 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-stone-200 bg-white p-3 shadow-xl dark:border-stone-700 dark:bg-stone-800"
+                            >
+                                <div class="mb-2 flex items-center justify-between gap-2">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+                                        Estado de caja
+                                    </p>
+                                    <button
+                                        type="button"
+                                        x-on:click="notificacionesAbiertas = false"
+                                        class="rounded-lg p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-700 dark:hover:text-stone-200"
+                                        aria-label="Cerrar notificaciones"
+                                    >
+                                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M6 6l12 12M18 6 6 18" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <x-resumen-caja :caja="$cajaNav" variante="popover" />
+                            </div>
                         </div>
 
                         <button
@@ -200,8 +249,25 @@
             @endauth
         </header>
 
-        <div class="min-h-0 flex-1 overflow-y-auto">
-            <main class="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+        <div class="relative min-h-0 flex-1 overflow-y-auto">
+            <div id="cargando-overlay"
+                 class="absolute inset-0 z-30 hidden items-center justify-center bg-white/65 backdrop-blur-[1px] dark:bg-stone-900/55"
+                 role="status"
+                 aria-live="polite"
+                 aria-label="Cargando sección">
+                <div class="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white/95 px-4 py-3 shadow-lg dark:border-stone-700 dark:bg-stone-800/95">
+                    <svg class="size-5 animate-spin text-amber-600 dark:text-amber-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <div>
+                        <p class="text-sm font-semibold text-stone-800 dark:text-stone-100">Cargando sección…</p>
+                        <p id="cargando-mensaje" class="text-xs text-stone-500 dark:text-stone-400">Preparando la página</p>
+                    </div>
+                </div>
+            </div>
+
+            <main id="contenido-principal" class="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
                 {{ $slot }}
             </main>
         </div>
@@ -213,7 +279,7 @@
             <p>
                 &copy; {{ date('Y') }} SofCruz. Todos los derechos reservados.
                 <span aria-hidden="true">·</span>
-                <a href="{{ route('terminos.index') }}" class="underline decoration-stone-300 underline-offset-4 hover:text-stone-800 dark:decoration-stone-600 dark:hover:text-stone-200">
+                <a href="{{ route('terminos.index') }}" data-cargando="Términos" class="underline decoration-stone-300 underline-offset-4 hover:text-stone-800 dark:decoration-stone-600 dark:hover:text-stone-200">
                     Términos y privacidad
                 </a>
             </p>
@@ -235,6 +301,97 @@
                     applyTheme(!document.documentElement.classList.contains('dark'));
                 }
             });
+
+            const overlay = document.getElementById('cargando-overlay');
+            const mensaje = document.getElementById('cargando-mensaje');
+            const contenido = document.getElementById('contenido-principal');
+            let cargando = false;
+            let temporizadorSeguridad = null;
+
+            function ocultarCarga() {
+                window.clearTimeout(temporizadorSeguridad);
+
+                if (! cargando) {
+                    return;
+                }
+
+                cargando = false;
+
+                if (overlay) {
+                    overlay.classList.add('hidden');
+                    overlay.classList.remove('flex');
+                }
+
+                if (contenido) {
+                    contenido.removeAttribute('aria-busy');
+                }
+            }
+
+            function mostrarCarga(etiqueta) {
+                if (! overlay || cargando) {
+                    return;
+                }
+
+                cargando = true;
+                window.clearTimeout(temporizadorSeguridad);
+
+                if (mensaje) {
+                    mensaje.textContent = 'Cargando ' + etiqueta + '…';
+                }
+
+                overlay.classList.remove('hidden');
+                overlay.classList.add('flex');
+
+                if (contenido) {
+                    contenido.setAttribute('aria-busy', 'true');
+                }
+
+                temporizadorSeguridad = window.setTimeout(ocultarCarga, 8000);
+            }
+
+            document.addEventListener('click', function (event) {
+                if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                    return;
+                }
+
+                const enlace = event.target.closest('a[href]');
+
+                if (! enlace || enlace.hasAttribute('download') || enlace.target === '_blank' || enlace.hasAttribute('data-no-loading')) {
+                    return;
+                }
+
+                let destino;
+
+                try {
+                    destino = new URL(enlace.href, window.location.href);
+                } catch (error) {
+                    return;
+                }
+
+                if (destino.origin !== window.location.origin) {
+                    return;
+                }
+
+                if (destino.pathname === window.location.pathname
+                    && destino.search === window.location.search
+                    && destino.hash) {
+                    return;
+                }
+
+                if (destino.pathname === window.location.pathname && destino.search === window.location.search) {
+                    return;
+                }
+
+                const etiqueta = enlace.dataset.cargando
+                    || enlace.textContent.replace(/\s+/g, ' ').trim()
+                    || 'la sección';
+
+                mostrarCarga(etiqueta);
+            });
+
+            window.addEventListener('pageshow', ocultarCarga);
+            window.addEventListener('popstate', ocultarCarga);
+            document.addEventListener('livewire:navigated', ocultarCarga);
         })();
     </script>
 </body>

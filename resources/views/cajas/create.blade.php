@@ -31,7 +31,7 @@
                 <div class="relative">
                     <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-semibold text-stone-500 dark:text-stone-400">Bs</span>
                     <input type="number" id="monto_inicial" name="monto_inicial" step="0.01" min="0" max="9999999"
-                           value="{{ old('monto_inicial') }}" required autofocus
+                           value="{{ old('monto_inicial', '0.00') }}" required autofocus
                            class="w-full rounded-xl border border-stone-300 bg-white py-2.5 pl-10 pr-3 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100">
                 </div>
                 @error('monto_inicial')

@@ -158,7 +158,7 @@
                             wire:model="rol"
                             required
                             @disabled($editandoId === $usuarioActualId)
-                            class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 disabled:cursor-not-allowed disabled:bg-stone-100 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:disabled:bg-stone-800 dark:focus:border-amber-500">
+                            class="selector-tema disabled:cursor-not-allowed disabled:bg-stone-100 dark:disabled:bg-stone-800">
                         @foreach ($roles as $opcion)
                             <option value="{{ $opcion->value }}">{{ $opcion->etiqueta() }}</option>
                         @endforeach

@@ -22,6 +22,7 @@ class NegocioFactory extends Factory
             'eslogan' => fake()->optional()->sentence(4),
             'logo' => null,
             'qr_pago' => null,
+            'metodo_pago_predeterminado' => 'efectivo',
         ];
     }
 }

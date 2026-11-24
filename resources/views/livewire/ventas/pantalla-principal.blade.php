@@ -72,27 +72,9 @@
             </p>
         </div>
     @else
-        @if ($cajaAbierta === null)
-            <div class="mb-4 flex flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200 sm:flex-row sm:items-center sm:justify-between" role="alert">
-                <div>
-                    <p class="font-semibold">No tienes una caja abierta.</p>
-                    <p class="text-xs">Abre tu caja e ingresa el monto inicial antes de cobrar.</p>
-                </div>
-                <a href="{{ route('cajas.create', ['origen' => 'ventas']) }}" class="shrink-0 rounded-lg bg-amber-500 px-4 py-2 text-center text-xs font-bold uppercase tracking-wide text-stone-900 hover:bg-amber-400">
-                    Abrir caja
-                </a>
-            </div>
-        @else
-            <div class="mb-4 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 sm:flex-row sm:items-center sm:justify-between" role="status">
-                <div>
-                    <p class="font-semibold">Caja abierta desde {{ $cajaAbierta->fecha_apertura->format('d/m/Y H:i') }}.</p>
-                    <p class="text-xs">Monto inicial: Bs {{ number_format((float) $cajaAbierta->monto_inicial, 2) }}</p>
-                </div>
-                <a href="{{ route('cajas.cerrar', $cajaAbierta) }}" class="shrink-0 rounded-lg border border-emerald-300 px-4 py-2 text-center text-xs font-bold uppercase tracking-wide text-emerald-800 hover:bg-emerald-100 dark:border-emerald-700 dark:text-emerald-200 dark:hover:bg-emerald-900/50">
-                    Cerrar caja
-                </a>
-            </div>
-        @endif
+        <div class="mb-4">
+            <x-resumen-caja :caja="$cajaAbierta" />
+        </div>
 
         <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6">
             <section class="min-w-0" aria-label="Productos">
@@ -543,6 +525,8 @@
                             <input
                                 type="number"
                                 id="montoRecibido"
+                                x-data
+                                x-init="$nextTick(() => $el.focus())"
                                 wire:model.live.debounce.250ms="montoRecibido"
                                 min="0"
                                 step="0.01"
