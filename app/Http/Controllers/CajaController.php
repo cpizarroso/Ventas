@@ -252,15 +252,11 @@ class CajaController extends Controller
         Gate::authorize('viewAny', Caja::class);
 
         $filtros = $this->filtros($request);
-        $cajas = $filtros['consulta']
-            ->with(['user', 'cerradaPor'])
-            ->orderBy('fecha_apertura')
-            ->orderBy('id')
-            ->get();
+        $consulta = $filtros['consulta'];
 
         $nombre = 'reporte-cajas-'.$filtros['desde']->format('Y-m-d').'_'.$filtros['hasta']->format('Y-m-d').'.csv';
 
-        return response()->streamDownload(function () use ($cajas): void {
+        return response()->streamDownload(function () use ($consulta): void {
             $salida = fopen('php://output', 'w');
 
             fwrite($salida, "\xEF\xBB\xBF");
@@ -283,26 +279,28 @@ class CajaController extends Controller
                 'Observaciones cierre',
             ], ';');
 
-            foreach ($cajas as $caja) {
-                fputcsv($salida, [
-                    $caja->id,
-                    $caja->estado->etiqueta(),
-                    $caja->user?->name ?? '—',
-                    $caja->cerradaPor?->name ?? '',
-                    $caja->fecha_apertura?->format('d/m/Y H:i') ?? '',
-                    $caja->fecha_cierre?->format('d/m/Y H:i') ?? '',
-                    number_format((float) $caja->monto_inicial, 2, '.', ''),
-                    $caja->cantidad_ventas,
-                    number_format((float) $caja->total_ventas, 2, '.', ''),
-                    number_format((float) $caja->total_efectivo, 2, '.', ''),
-                    number_format((float) $caja->total_qr, 2, '.', ''),
-                    number_format($caja->montoEsperadoEfectivo(), 2, '.', ''),
-                    $caja->monto_cierre !== null ? number_format((float) $caja->monto_cierre, 2, '.', '') : '',
-                    $caja->diferencia !== null ? number_format((float) $caja->diferencia, 2, '.', '') : '',
-                    $caja->observaciones_apertura ?? '',
-                    $caja->observaciones_cierre ?? '',
-                ], ';');
-            }
+            $this->cadaLoteDeCajas($consulta, function (Collection $cajas) use ($salida): void {
+                foreach ($cajas as $caja) {
+                    fputcsv($salida, [
+                        $caja->id,
+                        $caja->estado->etiqueta(),
+                        $caja->user?->name ?? '—',
+                        $caja->cerradaPor?->name ?? '',
+                        $caja->fecha_apertura?->format('d/m/Y H:i') ?? '',
+                        $caja->fecha_cierre?->format('d/m/Y H:i') ?? '',
+                        number_format((float) $caja->monto_inicial, 2, '.', ''),
+                        $caja->cantidad_ventas,
+                        number_format((float) $caja->total_ventas, 2, '.', ''),
+                        number_format((float) $caja->total_efectivo, 2, '.', ''),
+                        number_format((float) $caja->total_qr, 2, '.', ''),
+                        number_format($caja->montoEsperadoEfectivo(), 2, '.', ''),
+                        $caja->monto_cierre !== null ? number_format((float) $caja->monto_cierre, 2, '.', '') : '',
+                        $caja->diferencia !== null ? number_format((float) $caja->diferencia, 2, '.', '') : '',
+                        $caja->observaciones_apertura ?? '',
+                        $caja->observaciones_cierre ?? '',
+                    ], ';');
+                }
+            });
 
             fclose($salida);
         }, $nombre, ['Content-Type' => 'text/csv; charset=UTF-8']);
@@ -316,21 +314,65 @@ class CajaController extends Controller
         Gate::authorize('viewAny', Caja::class);
 
         $filtros = $this->filtros($request);
-        $cajas = (clone $filtros['consulta'])
-            ->with(['user', 'cerradaPor'])
-            ->orderBy('fecha_apertura')
-            ->orderBy('id')
-            ->get();
+        $filasHtml = '';
+        $cantidadCajas = 0;
+        $totalVendido = 0.0;
+        $diferencia = 0.0;
+
+        $this->cadaLoteDeCajas($filtros['consulta'], function (Collection $cajas) use (&$filasHtml, &$cantidadCajas, &$totalVendido, &$diferencia): void {
+            $filasHtml .= view('cajas._filas-pdf', ['cajas' => $cajas])->render();
+            $cantidadCajas += $cajas->count();
+            $totalVendido += (float) $cajas->sum('total_ventas');
+            $diferencia += (float) $cajas->sum('diferencia');
+        });
+
         $nombre = 'reporte-cajas-'.$filtros['desde']->format('Y-m-d').'_'.$filtros['hasta']->format('Y-m-d').'.pdf';
 
         return $this->generarPdf('cajas.pdf', [
             'negocio' => $filtros['negocio'],
             'usuario' => Auth::user(),
-            'cajas' => $cajas,
+            'hayCajas' => $cantidadCajas > 0,
+            'filasHtml' => $filasHtml,
+            'cantidadCajas' => $cantidadCajas,
+            'totalVendido' => $totalVendido,
+            'diferencia' => $diferencia,
             'desde' => $filtros['desde'],
             'hasta' => $filtros['hasta'],
             'estado' => $filtros['estado'],
         ], $nombre);
+    }
+
+    /**
+     * Iterate cash registers in fixed-size batches without losing the report
+     * order. The cursor uses the same two columns as the ORDER BY, so batches
+     * neither skip nor repeat a box when two share the same opening date.
+     *
+     * @param  Builder<Caja>  $consulta
+     * @param  callable(Collection<int, Caja>): void  $callback
+     */
+    private function cadaLoteDeCajas(Builder $consulta, callable $callback, int $limite = 500): void
+    {
+        $consulta = (clone $consulta)
+            ->select('cajas.*')
+            ->with(['user', 'cerradaPor'])
+            ->orderBy('fecha_apertura')
+            ->orderBy('id');
+
+        do {
+            $cajas = (clone $consulta)->limit($limite)->get();
+
+            if ($cajas->isEmpty()) {
+                return;
+            }
+
+            $callback($cajas);
+
+            $ultima = $cajas->last();
+            $consulta->whereRaw('(fecha_apertura, id) > (?, ?)', [
+                $ultima->fecha_apertura,
+                (int) $ultima->id,
+            ]);
+        } while ($cajas->count() === $limite);
     }
 
     /**

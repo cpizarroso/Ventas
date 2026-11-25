@@ -54,9 +54,9 @@
                 </tr>
             @endif
             <tr>
-                <td class="resumen" colspan="4">Cajas: {{ $cajas->count() }}</td>
-                <td class="resumen" colspan="4">Total vendido: Bs {{ number_format((float) $cajas->sum('total_ventas'), 2) }}</td>
-                <td class="resumen" colspan="3">Diferencia: Bs {{ number_format((float) $cajas->sum('diferencia'), 2) }}</td>
+                <td class="resumen" colspan="4">Cajas: {{ $cantidadCajas }}</td>
+                <td class="resumen" colspan="4">Total vendido: Bs {{ number_format($totalVendido, 2) }}</td>
+                <td class="resumen" colspan="3">Diferencia: Bs {{ number_format($diferencia, 2) }}</td>
             </tr>
             <tr>
                 <th class="columna">Caja</th>
@@ -73,26 +73,12 @@
             </tr>
         </thead>
         <tbody>
-            @if ($cajas->isEmpty())
+            @if ($hayCajas)
+                {!! $filasHtml !!}
+            @else
                 <tr>
                     <td class="sin-datos" colspan="11">No hay cajas en el período seleccionado.</td>
                 </tr>
-            @else
-                @foreach ($cajas as $caja)
-                    <tr>
-                        <td>#{{ $caja->id }}</td>
-                        <td>{{ $caja->estado->etiqueta() }}</td>
-                        <td>{{ $caja->user?->name ?? '—' }}</td>
-                        <td>{{ $caja->fecha_apertura?->format('d/m/Y H:i') ?? '—' }}</td>
-                        <td>{{ $caja->fecha_cierre?->format('d/m/Y H:i') ?? '—' }}</td>
-                        <td class="derecha">Bs {{ number_format((float) $caja->monto_inicial, 2) }}</td>
-                        <td class="derecha">{{ $caja->cantidad_ventas }}</td>
-                        <td class="derecha">Bs {{ number_format((float) $caja->total_ventas, 2) }}</td>
-                        <td class="derecha">Bs {{ number_format((float) $caja->total_efectivo, 2) }}</td>
-                        <td class="derecha">Bs {{ number_format((float) $caja->total_qr, 2) }}</td>
-                        <td class="derecha">Bs {{ number_format((float) $caja->diferencia, 2) }}</td>
-                    </tr>
-                @endforeach
             @endif
         </tbody>
     </table>
