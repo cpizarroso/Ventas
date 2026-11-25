@@ -34,8 +34,14 @@ final class ImagenPublica
 
     public static function url(string $ruta): string
     {
-        return self::esPublica($ruta)
-            ? asset($ruta)
-            : Storage::disk('public')->url($ruta);
+        if (! self::esPublica($ruta)) {
+            return Storage::disk('public')->url($ruta);
+        }
+
+        $normalizada = ltrim(str_replace('\\', '/', $ruta), '/');
+
+        return str_starts_with($normalizada, ImagenInicial::CARPETA.'/')
+            ? ImagenInicial::url($normalizada)
+            : asset($ruta);
     }
 }

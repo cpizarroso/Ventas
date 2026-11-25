@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Categoria;
 use App\Models\Negocio;
 use App\Models\Producto;
+use App\Support\ImagenInicial;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -61,6 +62,7 @@ class RestaurantePollosSeeder extends Seeder
                 // tuviera el producto, en vez de borrársela al repetir el seed.
                 if ($imagen !== null) {
                     $valores['imagen'] = $imagen;
+                    ImagenInicial::sincronizar($imagen);
                 }
 
                 Producto::updateOrCreate(
