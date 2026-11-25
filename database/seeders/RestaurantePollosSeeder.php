@@ -50,7 +50,12 @@ class RestaurantePollosSeeder extends Seeder
                     'stock' => null,
                 ];
 
-                $imagen = $this->imagenPara($config, $nombre, $producto['imagen']);
+                $imagen = $this->imagenPara(
+                    $config,
+                    $nombre,
+                    $producto['imagen'],
+                    $producto['imagen_marca'] ?? null
+                );
 
                 // Si no hay ninguna imagen disponible se conserva la que ya
                 // tuviera el producto, en vez de borrársela al repetir el seed.
@@ -70,7 +75,7 @@ class RestaurantePollosSeeder extends Seeder
     }
 
     /**
-     * @return array<int, array{nombre: string, orden: int, imagen_categoria: string, imagen_generica: string, productos: array<string, array{precio: float, imagen: string}>}>
+     * @return array<int, array{nombre: string, orden: int, imagen_categoria: string, imagen_generica: string, productos: array<string, array{precio: float, imagen: string, imagen_marca?: string}>}>
      */
     private function catalogo(): array
     {
@@ -100,6 +105,7 @@ class RestaurantePollosSeeder extends Seeder
                 $gaseosas["{$marca} {$presentacion}"] = [
                     'precio' => $precio,
                     'imagen' => "Gaseosa-{$slug}-{$presentacion}.png",
+                    'imagen_marca' => Str::lower($slug).'.png',
                 ];
             }
         }
@@ -125,14 +131,24 @@ class RestaurantePollosSeeder extends Seeder
     /**
      * @param  array{nombre: string, imagen_categoria: string, imagen_generica: string}  $categoria
      */
-    private function imagenPara(array $categoria, string $nombreProducto, string $archivo): ?string
-    {
+    private function imagenPara(
+        array $categoria,
+        string $nombreProducto,
+        string $archivo,
+        ?string $archivoMarca = null
+    ): ?string {
         $candidatos = [
             self::CARPETA_IMAGENES.$archivo,
             self::CARPETA_IMAGENES.Str::ascii(Str::lower($archivo)),
-            self::CARPETA_IMAGENES.$categoria['imagen_categoria'],
-            $categoria['imagen_generica'],
         ];
+
+        if ($archivoMarca !== null) {
+            $candidatos[] = self::CARPETA_IMAGENES.$archivoMarca;
+            $candidatos[] = self::CARPETA_IMAGENES.Str::ascii(Str::lower($archivoMarca));
+        }
+
+        $candidatos[] = self::CARPETA_IMAGENES.$categoria['imagen_categoria'];
+        $candidatos[] = $categoria['imagen_generica'];
 
         foreach (array_unique($candidatos) as $ruta) {
             $real = $this->rutaReal($ruta);
