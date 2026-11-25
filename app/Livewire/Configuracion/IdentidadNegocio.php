@@ -6,6 +6,7 @@ use App\Enums\MetodoPago;
 use App\Livewire\Concerns\FlashesSavedStatus;
 use App\Livewire\Concerns\OptimizaImagenes;
 use App\Models\Negocio;
+use App\Support\LogoDerivado;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -72,9 +73,12 @@ class IdentidadNegocio extends Component
             'qr_nuevo' => 'QR de pago',
         ]);
 
+        $logoAnterior = $negocio->logo;
+
         if ($this->logo_nuevo !== null) {
-            if ($negocio->logo !== null) {
-                Storage::disk('public')->delete($negocio->logo);
+            if ($logoAnterior !== null) {
+                Storage::disk('public')->delete($logoAnterior);
+                LogoDerivado::eliminar($logoAnterior);
             }
 
             $negocio->logo = $this->guardarImagenOptimizada($this->logo_nuevo, 'logos', 'logo');
@@ -94,6 +98,8 @@ class IdentidadNegocio extends Component
             : null;
         $negocio->metodo_pago_predeterminado = $this->metodo_pago_predeterminado;
         $negocio->save();
+
+        LogoDerivado::sincronizar($negocio);
 
         $this->logo_actual = $negocio->logo;
         $this->logo_nuevo = null;
@@ -133,7 +139,9 @@ class IdentidadNegocio extends Component
         $this->authorize('update', $negocio);
 
         if ($negocio->logo !== null) {
-            Storage::disk('public')->delete($negocio->logo);
+            $logoAnterior = $negocio->logo;
+            Storage::disk('public')->delete($logoAnterior);
+            LogoDerivado::eliminar($logoAnterior);
             $negocio->logo = null;
             $negocio->save();
         }
@@ -240,6 +248,12 @@ class IdentidadNegocio extends Component
         }
 
         if ($columna === 'logo') {
+            LogoDerivado::sincronizar($negocio);
+
+            if ($rutaAnterior !== null && $rutaAnterior !== $negocio->{$columna}) {
+                LogoDerivado::eliminar($rutaAnterior);
+            }
+
             $this->logo_actual = $negocio->logo;
             $this->logo_nuevo = null;
             $this->confirmarEliminacionLogo = false;

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\MetodoPago;
 use App\Services\FaviconGenerator;
+use App\Support\LogoDerivado;
 use Database\Factories\NegocioFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -69,6 +70,14 @@ class Negocio extends Model
     public function logoUrl(): ?string
     {
         return $this->versionedStorageUrl($this->logo);
+    }
+
+    /**
+     * Get the lightweight logo URL for the interface, with the original as fallback.
+     */
+    public function logoOptimizadoUrl(): ?string
+    {
+        return LogoDerivado::url($this);
     }
 
     /**

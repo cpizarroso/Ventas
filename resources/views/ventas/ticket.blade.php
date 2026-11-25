@@ -292,8 +292,8 @@
 
     <main class="ticket" aria-label="Ticket de venta #{{ $venta->numeroTicket() }}">
         <header class="ticket-header">
-            @if ($venta->negocio->logoUrl())
-                <img src="{{ $venta->negocio->logoUrl() }}"
+            @if ($logoUrl = $venta->negocio->logoOptimizadoUrl())
+                <img src="{{ $logoUrl }}"
                      alt="Logo de {{ $venta->negocio->nombre_comercial }}"
                      class="logo">
             @endif

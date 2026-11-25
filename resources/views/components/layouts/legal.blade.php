@@ -33,8 +33,8 @@
             <div class="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
                 <a href="{{ url('/') }}"
                    class="-m-1 flex min-w-0 items-center gap-3 rounded-lg p-1 hover:bg-stone-100 dark:hover:bg-stone-700/60">
-                    @if ($negocio?->logoUrl())
-                        <img src="{{ $negocio->logoUrl() }}"
+                    @if ($logoUrl = $negocio?->logoOptimizadoUrl())
+                        <img src="{{ $logoUrl }}"
                              alt="Logo de {{ $nombreComercial }}"
                              class="size-9 shrink-0 rounded-xl object-cover ring-1 ring-stone-200 dark:ring-stone-600">
                     @else

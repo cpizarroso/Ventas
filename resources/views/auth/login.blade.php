@@ -21,8 +21,8 @@
     <div class="flex flex-1 items-center justify-center px-4 py-12">
         <div class="w-full max-w-sm">
             <div class="mb-8 text-center">
-                @if ($negocio?->logoUrl())
-                    <img src="{{ $negocio->logoUrl() }}"
+                @if ($logoUrl = $negocio?->logoOptimizadoUrl())
+                    <img src="{{ $logoUrl }}"
                          alt="Logo de {{ $nombreComercial }}"
                          class="mx-auto mb-3 block size-14 rounded-2xl object-cover ring-1 ring-stone-200 dark:ring-stone-600">
                 @else

@@ -36,8 +36,8 @@
                            class="flex min-w-0 items-center gap-3 rounded-lg -m-1 p-1 hover:bg-stone-100 dark:hover:bg-stone-700/60"
                            aria-label="Ir a la pantalla principal de ventas">
                             @if ($negocioNav ?? null)
-                                @if ($negocioNav->logoUrl())
-                                    <img src="{{ $negocioNav->logoUrl() }}"
+                                @if ($logoNavUrl = $negocioNav->logoOptimizadoUrl())
+                                    <img src="{{ $logoNavUrl }}"
                                          alt="Logo de {{ $negocioNav->nombre_comercial }}"
                                          class="size-10 shrink-0 rounded-xl object-cover ring-1 ring-stone-200 dark:ring-stone-600">
                                 @else
