@@ -51,7 +51,7 @@ class ReporteController extends Controller
             fwrite($salida, "\xEF\xBB\xBF");
             fputcsv($salida, ['Venta', 'Fecha', 'Hora', 'Vendedor', 'Tipo', 'Para llevar', 'Promociones', 'Ítems', 'Total', 'Método', 'Recibido'], ';');
 
-            $consulta->chunkById(500, function (Collection $ventas) use ($salida): void {
+            $this->cadaLoteDeVentas($consulta, function (Collection $ventas) use ($salida): void {
                 foreach ($ventas as $venta) {
                     fputcsv($salida, [
                         $venta->numeroTicket(),
@@ -67,7 +67,7 @@ class ReporteController extends Controller
                         $venta->monto_recibido !== null ? number_format((float) $venta->monto_recibido, 2, '.', '') : '',
                     ], ';');
                 }
-            }, 'id');
+            });
 
             fclose($salida);
         }, $nombre, ['Content-Type' => 'text/csv; charset=UTF-8']);
@@ -100,46 +100,57 @@ class ReporteController extends Controller
     }
 
     /**
-     * Render the PDF table body in fixed-size batches.
+     * Iterate report sales in fixed-size batches using the same ordering as the
+     * on-screen report. chunkById() would order by id, which can diverge from
+     * the displayed daily ticket sequence when sales are backfilled.
      *
-     * DomPDF still needs the complete HTML to paginate, but this avoids keeping
-     * every sale (and all of its relations) in memory at the same time. The
-     * cursor uses the same three columns as the report ordering, so batches do
-     * not skip or duplicate rows when a ticket number or date is missing.
+     * @param  Builder<Venta>|HasMany<Negocio, Venta>  $consulta
+     * @param  callable(Collection<int, Venta>): void  $callback
+     */
+    private function cadaLoteDeVentas(Builder|HasMany $consulta, callable $callback, int $limite = 500): void
+    {
+        $consulta = (clone $consulta)
+            ->select('ventas.*')
+            ->selectRaw('COALESCE(ventas.fecha_ticket, DATE(ventas.created_at)) as orden_fecha')
+            ->selectRaw('COALESCE(ventas.numero_ticket, ventas.id) as orden_numero')
+            ->with(['user', 'detalles.promocionItems'])
+            ->ordenadasPorFechaYNumeroTicket();
+
+        do {
+            $ventas = (clone $consulta)->limit($limite)->get();
+
+            if ($ventas->isEmpty()) {
+                return;
+            }
+
+            $callback($ventas);
+
+            $ultima = $ventas->last();
+            $consulta->whereRaw(
+                '(COALESCE(ventas.fecha_ticket, DATE(ventas.created_at)), '
+                    .'COALESCE(ventas.numero_ticket, ventas.id), ventas.id) > (?, ?, ?)',
+                [$ultima->orden_fecha, (int) $ultima->orden_numero, (int) $ultima->id]
+            );
+        } while ($ventas->count() === $limite);
+    }
+
+    /**
+     * Render the PDF table body in fixed-size batches. DomPDF still needs the
+     * complete HTML to paginate, but this avoids keeping every sale (and all
+     * of its relations) in memory at the same time.
      *
      * @param  Builder<Venta>|HasMany<Negocio, Venta>  $consulta
      * @return array{0: string, 1: int}
      */
     private function filasHtmlPdf(Builder|HasMany $consulta): array
     {
-        $consulta = (clone $consulta)
-            ->select('ventas.*')
-            ->selectRaw('COALESCE(ventas.fecha_ticket, DATE(ventas.created_at)) as pdf_fecha_orden')
-            ->selectRaw('COALESCE(ventas.numero_ticket, ventas.id) as pdf_numero_orden')
-            ->with(['user', 'detalles.promocionItems'])
-            ->ordenadasPorFechaYNumeroTicket();
-
-        $limite = 500;
         $filasHtml = '';
         $cantidadFilas = 0;
 
-        do {
-            $ventas = (clone $consulta)->limit($limite)->get();
-
-            if ($ventas->isEmpty()) {
-                break;
-            }
-
+        $this->cadaLoteDeVentas($consulta, function (Collection $ventas) use (&$filasHtml, &$cantidadFilas): void {
             $filasHtml .= view('reportes._filas-pdf', ['ventas' => $ventas])->render();
             $cantidadFilas += $ventas->count();
-
-            $ultima = $ventas->last();
-            $consulta->whereRaw(
-                '(COALESCE(ventas.fecha_ticket, DATE(ventas.created_at)), '
-                    .'COALESCE(ventas.numero_ticket, ventas.id), ventas.id) > (?, ?, ?)',
-                [$ultima->pdf_fecha_orden, (int) $ultima->pdf_numero_orden, (int) $ultima->id]
-            );
-        } while ($ventas->count() === $limite);
+        });
 
         return [$filasHtml, $cantidadFilas];
     }
