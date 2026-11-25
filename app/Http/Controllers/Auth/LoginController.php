@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\AceptacionTerminos;
 use App\Models\Negocio;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -70,43 +69,27 @@ class LoginController extends Controller
             ]);
         }
 
-        if (! $user->haAceptadoTerminosActuales()) {
-            if (! $request->boolean('aceptar_terminos')) {
-                return redirect()
-                    ->route('login')
-                    ->withInput($request->only('login', 'remember'))
-                    ->with('requiere_aceptar_terminos', true)
-                    ->withErrors([
-                        'aceptar_terminos' => 'Debes aceptar los Términos y Condiciones y la Política de Privacidad vigentes para iniciar sesión.',
-                    ]);
-            }
-
-            $this->registrarAceptacion($request, $user);
-        }
-
-        Auth::login($user, $remember);
+        // Se autentica sin "Recordarme" hasta que acepte los términos vigentes.
+        Auth::login($user, false);
 
         $request->session()->regenerate();
 
-        return redirect()->route('ventas.index');
-    }
+        if (! $user->haAceptadoTerminosActuales()) {
+            $destino = $request->session()->pull('url.intended', route('ventas.index'));
 
-    /**
-     * Record the acceptance of the current terms version for the user.
-     */
-    private function registrarAceptacion(Request $request, User $user): void
-    {
-        AceptacionTerminos::query()->firstOrCreate(
-            [
-                'user_id' => $user->id,
-                'version' => config('jibas.terminos.version'),
-            ],
-            [
-                'aceptado_en' => now(),
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ],
-        );
+            $request->session()->put([
+                'terminos.destino' => $destino,
+                'terminos.recordar' => $remember,
+            ]);
+
+            return redirect()->route('terminos.aceptar');
+        }
+
+        if ($remember) {
+            Auth::login($user, true);
+        }
+
+        return redirect()->intended(route('ventas.index'));
     }
 
     /**

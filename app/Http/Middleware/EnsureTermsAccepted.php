@@ -4,13 +4,12 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureTermsAccepted
 {
     /**
-     * Force re-authentication when the current terms version has not been accepted.
+     * Send users without the current terms acceptance to the mandatory modal.
      *
      * @param  Closure(Request): (Response)  $next
      */
@@ -19,16 +18,15 @@ class EnsureTermsAccepted
         $user = $request->user();
 
         if ($user !== null && ! $user->haAceptadoTerminosActuales()) {
-            Auth::guard('web')->logout();
+            $destino = $request->isMethod('GET')
+                ? $request->getRequestUri()
+                : route('ventas.index');
 
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+            $request->session()->put('terminos.destino', $destino);
 
             return redirect()
-                ->route('login')
-                ->withErrors([
-                    'login' => 'Debes aceptar la versión vigente de los Términos y Condiciones para continuar.',
-                ]);
+                ->route('terminos.aceptar')
+                ->with('aviso_terminos', 'Debes revisar y aceptar los términos vigentes para continuar.');
         }
 
         return $next($request);

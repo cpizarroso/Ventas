@@ -37,36 +37,36 @@ class ReporteController extends Controller
     public function exportar(Request $request): StreamedResponse
     {
         $reporte = $this->reporte($request);
-        $ventas = (clone $reporte['consulta'])
-            ->with(['user', 'detalles.promocionItems'])
-            ->ordenadasPorFechaYNumeroTicket()
-            ->get();
+        $consulta = (clone $reporte['consulta'])
+            ->with(['user', 'detalles.promocionItems']);
         $sufijo = $reporte['cajeroSeleccionado'] !== null
             ? '-cajero-'.$reporte['cajeroSeleccionado']->id
             : '';
         $nombre = 'reporte-ventas-'.$reporte['desde']->format('Y-m-d').'_'.$reporte['hasta']->format('Y-m-d').$sufijo.'.csv';
 
-        return response()->streamDownload(function () use ($ventas): void {
+        return response()->streamDownload(function () use ($consulta): void {
             $salida = fopen('php://output', 'w');
 
             fwrite($salida, "\xEF\xBB\xBF");
             fputcsv($salida, ['Venta', 'Fecha', 'Hora', 'Vendedor', 'Tipo', 'Para llevar', 'Promociones', 'Ítems', 'Total', 'Método', 'Recibido'], ';');
 
-            foreach ($ventas as $venta) {
-                fputcsv($salida, [
-                    $venta->numeroTicket(),
-                    $venta->created_at->format('d/m/Y'),
-                    $venta->created_at->format('H:i'),
-                    $venta->user?->name ?? '—',
-                    $venta->etiquetaTipoReporte(),
-                    $venta->para_llevar ? 'Sí' : 'No',
-                    $venta->promocionesNombres(),
-                    $venta->detalles->sum('cantidad'),
-                    number_format((float) $venta->total, 2, '.', ''),
-                    $venta->metodo_pago?->etiqueta() ?? MetodoPago::Efectivo->etiqueta(),
-                    $venta->monto_recibido !== null ? number_format((float) $venta->monto_recibido, 2, '.', '') : '',
-                ], ';');
-            }
+            $consulta->chunkById(500, function (Collection $ventas) use ($salida): void {
+                foreach ($ventas as $venta) {
+                    fputcsv($salida, [
+                        $venta->numeroTicket(),
+                        $venta->created_at->format('d/m/Y'),
+                        $venta->created_at->format('H:i'),
+                        $venta->user?->name ?? '—',
+                        $venta->etiquetaTipoReporte(),
+                        $venta->para_llevar ? 'Sí' : 'No',
+                        $venta->promocionesNombres(),
+                        $venta->detalles->sum('cantidad'),
+                        number_format((float) $venta->total, 2, '.', ''),
+                        $venta->metodo_pago?->etiqueta() ?? MetodoPago::Efectivo->etiqueta(),
+                        $venta->monto_recibido !== null ? number_format((float) $venta->monto_recibido, 2, '.', '') : '',
+                    ], ';');
+                }
+            }, 'id');
 
             fclose($salida);
         }, $nombre, ['Content-Type' => 'text/csv; charset=UTF-8']);
@@ -114,7 +114,6 @@ class ReporteController extends Controller
      *     cajeroSeleccionado: User|null,
      *     cajeroId: int|null,
      *     busqueda: string,
-     *     cajero: string,
      *     totalVendido: float,
      *     totalEfectivo: float,
      *     totalQr: float,
@@ -136,7 +135,6 @@ class ReporteController extends Controller
             'desde' => ['nullable', 'date_format:Y-m-d', 'required_with:hasta'],
             'hasta' => ['nullable', 'date_format:Y-m-d', 'required_with:desde', 'after_or_equal:desde'],
             'busqueda' => ['nullable', 'string', 'max:100'],
-            'cajero' => ['nullable', 'string', 'max:100'],
         ];
 
         if (! $esCajero) {
@@ -159,7 +157,6 @@ class ReporteController extends Controller
             ? CarbonImmutable::createFromFormat('Y-m-d', $datos['hasta'])->endOfDay()
             : $hoy->endOfMonth();
         $busqueda = trim((string) ($datos['busqueda'] ?? ''));
-        $cajeroNombre = trim((string) ($datos['cajero'] ?? ''));
 
         $cajeroId = $esCajero
             ? $user->id
@@ -178,26 +175,11 @@ class ReporteController extends Controller
             ? $user
             : ($cajeroId !== null ? $cajeros->firstWhere('id', $cajeroId) : null);
 
-        $cajeroIds = $cajeroNombre === '' || $negocio === null
-            ? []
-            : User::query()
-                ->where('negocio_id', $negocio->id)
-                ->where('rol', Rol::Cajero->value)
-                ->where(fn (Builder $query) => $query
-                    ->where('name', 'like', $cajeroNombre.'%')
-                    ->orWhere('username', 'like', $cajeroNombre.'%'))
-                ->pluck('id')
-                ->all();
-
-        $aplicarCajero = fn (Builder|QueryBuilder $query): Builder|QueryBuilder => $query
-            ->whereIn('ventas.user_id', $cajeroIds);
-
         $consulta = $negocio === null
             ? Venta::query()->whereRaw('1 = 0')
             : $negocio->ventas()
                 ->whereBetween('ventas.created_at', [$desde, $hasta])
                 ->when($cajeroId !== null, fn (Builder $query) => $query->where('ventas.user_id', $cajeroId))
-                ->when($cajeroNombre !== '', $aplicarCajero)
                 ->when($busqueda !== '', fn (Builder $query) => $this->aplicarBusqueda($query, $busqueda, $negocio->id));
 
         $ventas = (clone $consulta)
@@ -230,7 +212,6 @@ class ReporteController extends Controller
                 ->whereBetween('ventas.created_at', [$desde, $hasta])
                 ->where('venta_detalles.es_promocion', false)
                 ->when($cajeroId !== null, fn ($query) => $query->where('ventas.user_id', $cajeroId))
-                ->when($cajeroNombre !== '', $aplicarCajero)
                 ->when($busqueda !== '', fn ($query) => $this->aplicarBusqueda($query, $busqueda, $negocio->id))
                 ->selectRaw('venta_detalles.producto_id as producto_id, MAX(productos.id) as producto_actual_id, MAX(productos.stock) as stock, venta_detalles.nombre as nombre, SUM(venta_detalles.cantidad) as cantidad, SUM(venta_detalles.subtotal) as total')
                 ->groupBy('venta_detalles.producto_id', 'venta_detalles.nombre')
@@ -245,7 +226,6 @@ class ReporteController extends Controller
                 ->whereBetween('ventas.created_at', [$desde, $hasta])
                 ->where('venta_detalles.es_promocion', true)
                 ->when($cajeroId !== null, fn ($query) => $query->where('ventas.user_id', $cajeroId))
-                ->when($cajeroNombre !== '', $aplicarCajero)
                 ->when($busqueda !== '', fn ($query) => $this->aplicarBusqueda($query, $busqueda, $negocio->id))
                 ->selectRaw('venta_detalles.nombre as nombre, SUM(venta_detalles.cantidad) as cantidad, SUM(venta_detalles.subtotal) as total')
                 ->groupBy('venta_detalles.nombre')
@@ -260,7 +240,6 @@ class ReporteController extends Controller
                 ->where('ventas.negocio_id', $negocio->id)
                 ->whereBetween('ventas.created_at', [$desde, $hasta])
                 ->when($cajeroId !== null, fn ($query) => $query->where('ventas.user_id', $cajeroId))
-                ->when($cajeroNombre !== '', $aplicarCajero)
                 ->when($busqueda !== '', fn ($query) => $this->aplicarBusqueda($query, $busqueda, $negocio->id))
                 ->selectRaw('venta_detalle_promocion_items.nombre as nombre, SUM(venta_detalle_promocion_items.cantidad) as cantidad')
                 ->groupBy('venta_detalle_promocion_items.nombre')
@@ -281,7 +260,6 @@ class ReporteController extends Controller
             'cajeroSeleccionado' => $cajeroSeleccionado,
             'cajeroId' => $cajeroId,
             'busqueda' => $busqueda,
-            'cajero' => $cajeroNombre,
             'totalVendido' => $totalVendido,
             'totalEfectivo' => (float) ($totales->efectivo ?? 0),
             'totalQr' => (float) ($totales->qr ?? 0),

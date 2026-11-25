@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\CatalogoCache;
 use Carbon\CarbonInterface;
 use Database\Factories\PromocionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -39,6 +40,16 @@ class Promocion extends Model
             'dias_semana' => 'array',
             'activa' => 'boolean',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        $invalidar = static function (self $promocion): void {
+            CatalogoCache::invalidar((int) $promocion->negocio_id);
+        };
+
+        static::saved($invalidar);
+        static::deleted($invalidar);
     }
 
     public function negocio(): BelongsTo

@@ -28,7 +28,7 @@
     "src": "_instrument-sans-600-normal-B9e8oLYv.woff"
   },
   "resources/css/app.css": {
-    "file": "assets/app-BAuGLtqv.css",
+    "file": "assets/app-Cdu1yylb.css",
     "name": "app",
     "names": [
       "app.css"
@@ -37,12 +37,24 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-B3imDTJh.js",
+    "file": "assets/app-DqMFrQCW.js",
     "name": "app",
     "src": "resources/js/app.js",
+    "isEntry": true
+  },
+  "resources/js/charts.js": {
+    "file": "assets/charts-DNrw8Hfm.js",
+    "name": "charts",
+    "src": "resources/js/charts.js",
+    "isEntry": true
+  },
+  "resources/js/cropper.js": {
+    "file": "assets/cropper-Cu8N43PD.js",
+    "name": "cropper",
+    "src": "resources/js/cropper.js",
     "isEntry": true,
     "css": [
-      "assets/app-CcA0DY1H.css"
+      "assets/cropper-CcA0DY1H.css"
     ]
   }
 }

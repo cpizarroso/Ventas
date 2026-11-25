@@ -1,4 +1,6 @@
 <x-layouts.app>
+    @vite('resources/js/cropper.js')
+
     <div class="mb-6">
         <a href="{{ route('ventas.index') }}"
            class="inline-flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white">

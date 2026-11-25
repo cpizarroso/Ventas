@@ -410,12 +410,16 @@ class CajaController extends Controller
             return ['productos' => [], 'ventas' => [], 'granularidad' => 'dia'];
         }
 
-        $cajaIds = fn () => (clone $filtros['consulta'])->select('cajas.id');
+        $cajaIds = (clone $filtros['consulta'])
+            ->pluck('cajas.id')
+            ->unique()
+            ->values()
+            ->all();
 
         $productosNormales = VentaDetalle::query()
             ->join('ventas', 'ventas.id', '=', 'venta_detalles.venta_id')
             ->where('ventas.negocio_id', $negocio->id)
-            ->whereIn('ventas.caja_id', $cajaIds())
+            ->whereIn('ventas.caja_id', $cajaIds)
             ->where('venta_detalles.es_promocion', false)
             ->selectRaw('venta_detalles.nombre as nombre, SUM(venta_detalles.cantidad) as cantidad')
             ->groupBy('venta_detalles.nombre')
@@ -425,7 +429,7 @@ class CajaController extends Controller
             ->join('venta_detalles', 'venta_detalles.id', '=', 'venta_detalle_promocion_items.venta_detalle_id')
             ->join('ventas', 'ventas.id', '=', 'venta_detalles.venta_id')
             ->where('ventas.negocio_id', $negocio->id)
-            ->whereIn('ventas.caja_id', $cajaIds())
+            ->whereIn('ventas.caja_id', $cajaIds)
             ->selectRaw('venta_detalle_promocion_items.nombre as nombre, SUM(venta_detalle_promocion_items.cantidad) as cantidad')
             ->groupBy('venta_detalle_promocion_items.nombre')
             ->get();
@@ -459,7 +463,7 @@ class CajaController extends Controller
 
         $porPeriodo = Venta::query()
             ->where('ventas.negocio_id', $negocio->id)
-            ->whereIn('ventas.caja_id', $cajaIds())
+            ->whereIn('ventas.caja_id', $cajaIds)
             ->selectRaw(
                 'DATE_FORMAT(COALESCE(ventas.fecha_ticket, DATE(ventas.created_at)), ?) as periodo, COUNT(*) as cantidad, COALESCE(SUM(ventas.total), 0) as total',
                 [$formatoSql]

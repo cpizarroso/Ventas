@@ -6,6 +6,7 @@ use App\Http\Controllers\CajaController;
 use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\FaviconController;
 use App\Http\Controllers\ReporteController;
+use App\Http\Controllers\TerminosAceptacionController;
 use App\Http\Controllers\TerminosController;
 use App\Http\Controllers\VentasController;
 use Illuminate\Support\Facades\Route;
@@ -23,6 +24,13 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
+});
+
+// La aceptación queda fuera de "terminos.aceptados" para poder mostrar el modal.
+Route::middleware(['auth', 'usuario.activo'])->group(function () {
+    Route::get('/terminos/aceptar', [TerminosAceptacionController::class, 'show'])->name('terminos.aceptar');
+    Route::post('/terminos/aceptar', [TerminosAceptacionController::class, 'aceptar'])->name('terminos.aceptar.store');
+    Route::post('/terminos/rechazar', [TerminosAceptacionController::class, 'rechazar'])->name('terminos.rechazar');
 });
 
 Route::middleware(['auth', 'usuario.activo', 'terminos.aceptados'])->group(function () {

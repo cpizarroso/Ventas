@@ -64,6 +64,18 @@
                 </svg>
                 Actualizar contraseña
             </button>
+
+            <button type="button"
+                    x-on:click="menuAbierto = false"
+                    data-abrir-terminos="#modal-terminos"
+                    role="menuitem"
+                    class="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-stone-700 hover:bg-stone-100 hover:text-stone-900 focus:outline-none focus-visible:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-700 dark:hover:text-white dark:focus-visible:bg-stone-700">
+                <svg class="size-4 shrink-0 text-stone-500 dark:text-stone-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+                    <path d="M14 3v5h5M9 13h6M9 17h6" />
+                </svg>
+                Términos y condiciones
+            </button>
         </div>
 
         <div class="border-t border-stone-200 p-1.5 dark:border-stone-700">

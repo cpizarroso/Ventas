@@ -26,7 +26,7 @@
             x-on:keydown.escape.window="mobileMenuOpen = false; notificacionesAbiertas = false"
             x-on:click.outside="mobileMenuOpen = false; notificacionesAbiertas = false"
             x-on:resize.window="if (window.innerWidth >= 1024) mobileMenuOpen = false"
-            class="z-50 shrink-0 border-b border-stone-200 bg-white/90 backdrop-blur dark:border-stone-700 dark:bg-stone-800/90"
+            class="z-50 shrink-0 border-b border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-800"
         >
             <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
                 <div class="flex min-w-0 items-center gap-3">
@@ -127,7 +127,7 @@
                                 x-transition.opacity.duration.150ms
                                 role="dialog"
                                 aria-label="Estado de la caja"
-                                class="absolute right-0 z-30 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-stone-200 bg-white p-3 shadow-xl dark:border-stone-700 dark:bg-stone-800"
+                                class="fixed inset-x-4 top-[4.5rem] z-50 max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain rounded-2xl border border-stone-200 bg-white p-3 shadow-xl dark:border-stone-700 dark:bg-stone-800 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[min(22rem,calc(100vw-2rem))]"
                             >
                                 <div class="mb-2 flex items-center justify-between gap-2">
                                     <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
@@ -254,14 +254,17 @@
             <p>
                 &copy; {{ date('Y') }} SofCruz. Todos los derechos reservados.
                 <span aria-hidden="true">·</span>
-                <a href="{{ route('terminos.index') }}" data-cargando="Términos" class="underline decoration-stone-300 underline-offset-4 hover:text-stone-800 dark:decoration-stone-600 dark:hover:text-stone-200">
+                <button type="button"
+                        data-abrir-terminos="#modal-terminos"
+                        class="underline decoration-stone-300 underline-offset-4 hover:text-stone-800 dark:decoration-stone-600 dark:hover:text-stone-200">
                     Términos y privacidad
-                </a>
+                </button>
             </p>
         </footer>
     </div>
 
     <x-toast />
+    <x-terminos-modal />
 
     <script>
         (function () {

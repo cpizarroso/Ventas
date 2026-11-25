@@ -86,17 +86,28 @@
 
                     @if ($puedeFiltrarPorCajero)
                         <div class="w-full sm:w-56">
-                            <label for="cajero" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Cajero</label>
-                            <input type="search" id="cajero" name="cajero" value="{{ old('cajero', $cajero) }}" data-reporte-auto-submit
-                                   placeholder="Nombre del cajero…"
-                                   class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100">
-                            @error('cajero')
+                            <x-select-tema
+                                id="cajero_id"
+                                name="cajero_id"
+                                label="Cajero"
+                                :options="array_merge(
+                                    [['valor' => '', 'etiqueta' => 'Todos los cajeros']],
+                                    $cajeros->map(fn ($cajero) => [
+                                        'valor' => (string) $cajero->id,
+                                        'etiqueta' => $cajero->name,
+                                    ])->all(),
+                                )"
+                                :selected="old('cajero_id', $cajeroId)"
+                                data-reporte-auto-submit
+                                class="w-full sm:w-56"
+                            />
+                            @error('cajero_id')
                                 <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
                             @enderror
                         </div>
                     @endif
 
-                    @if ($cajero !== '' || $busqueda !== '' || request('desde') || request('hasta') || request('cajero_id'))
+                    @if ((request('cajero_id') !== null && request('cajero_id') !== '') || $busqueda !== '' || request('desde') || request('hasta'))
                         <a href="{{ route('reportes.index') }}"
                            class="w-full rounded-xl border border-stone-300 px-4 py-2 text-center text-sm font-semibold text-stone-600 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700 sm:w-auto">
                             Limpiar
@@ -108,7 +119,6 @@
                     'desde' => request('desde'),
                     'hasta' => request('hasta'),
                     'cajero_id' => $puedeFiltrarPorCajero ? request('cajero_id') : null,
-                    'cajero' => $puedeFiltrarPorCajero ? request('cajero') : null,
                     'busqueda' => request('busqueda'),
                 ]))
 

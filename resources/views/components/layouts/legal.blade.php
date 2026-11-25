@@ -77,11 +77,15 @@
             <p>
                 &copy; {{ date('Y') }} SofCruz. Todos los derechos reservados.
                 <span aria-hidden="true">·</span>
-                <a href="{{ route('terminos.index') }}" class="underline decoration-stone-300 underline-offset-4 hover:text-stone-800 dark:decoration-stone-600 dark:hover:text-stone-200">
+                <button type="button"
+                        data-abrir-terminos="#modal-terminos"
+                        class="underline decoration-stone-300 underline-offset-4 hover:text-stone-800 dark:decoration-stone-600 dark:hover:text-stone-200">
                     Términos y privacidad
-                </a>
+                </button>
             </p>
         </footer>
     </div>
+
+    <x-terminos-modal />
 </body>
 </html>

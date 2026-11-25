@@ -1,5 +1,13 @@
 <?php
 
+use App\Models\Categoria;
+use App\Models\Producto;
+use App\Models\Promocion;
+use Carbon\Carbon;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 return [
@@ -131,6 +139,15 @@ return [
     |
     */
 
-    'serializable_classes' => false,
+    'serializable_classes' => [
+        Collection::class,
+        EloquentCollection::class,
+        Pivot::class,
+        Categoria::class,
+        Producto::class,
+        Promocion::class,
+        Carbon::class,
+        CarbonImmutable::class,
+    ],
 
 ];

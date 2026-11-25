@@ -5,11 +5,12 @@ namespace App\Livewire\Ventas;
 use App\Enums\EstadoCaja;
 use App\Enums\MetodoPago;
 use App\Models\Caja;
-use App\Models\Categoria;
 use App\Models\Negocio;
 use App\Models\Producto;
 use App\Models\Promocion;
 use App\Models\Venta;
+use App\Support\CatalogoCache;
+use App\Support\DisponibilidadPromocion;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class PantallaPrincipal extends Component
@@ -24,12 +26,6 @@ class PantallaPrincipal extends Component
     private const STOCK_BAJO = 5;
 
     private const MAX_CANTIDAD = 999;
-
-    public string $busqueda = '';
-
-    public ?int $categoriaFiltroId = null;
-
-    public string $vista = 'grid';
 
     /**
      * Ítems del detalle de la venta, indexados por id de producto.
@@ -66,6 +62,7 @@ class PantallaPrincipal extends Component
     /**
      * Add a product to the sale detail.
      */
+    #[On('agregarProducto')]
     public function agregarProducto(int $productoId): void
     {
         $producto = $this->productoDisponible($productoId);
@@ -128,6 +125,7 @@ class PantallaPrincipal extends Component
     /**
      * Add an available promotion to the sale detail.
      */
+    #[On('agregarPromocion')]
     public function agregarPromocion(int $promocionId): void
     {
         $promocion = $this->promocionDisponible($promocionId);
@@ -229,34 +227,6 @@ class PantallaPrincipal extends Component
     {
         $this->vaciarCarrito();
         $this->dispatch('toast', message: 'Venta cancelada');
-    }
-
-    /**
-     * Filter the product grid by category; null means all categories.
-     */
-    public function seleccionarCategoriaFiltro(?int $categoriaId): void
-    {
-        if ($categoriaId === null) {
-            $this->categoriaFiltroId = null;
-
-            return;
-        }
-
-        $categoria = $this->categorias()->whereKey($categoriaId)->first();
-
-        abort_if($categoria === null, 404);
-
-        $this->categoriaFiltroId = $categoria->id;
-    }
-
-    /**
-     * Switch the product list between grid and list layouts.
-     */
-    public function cambiarVista(string $vista): void
-    {
-        abort_unless(in_array($vista, ['grid', 'lista'], true), 404);
-
-        $this->vista = $vista;
     }
 
     /**
@@ -426,7 +396,7 @@ class PantallaPrincipal extends Component
             $fechaTicket = now()->toDateString();
             $ultimoNumero = Venta::query()
                 ->where('negocio_id', $negocio->id)
-                ->whereDate('fecha_ticket', $fechaTicket)
+                ->where('fecha_ticket', $fechaTicket)
                 ->max('numero_ticket');
 
             $venta = $negocio->ventas()->create([
@@ -506,6 +476,9 @@ class PantallaPrincipal extends Component
             return $venta;
         });
 
+        // Los decrementos de stock usan query builder y no disparan eventos de modelo.
+        CatalogoCache::invalidar($negocio->id);
+
         $this->carrito = [];
         $this->carritoPromociones = [];
         $this->mostrarModalPago = false;
@@ -545,25 +518,24 @@ class PantallaPrincipal extends Component
 
     public function render(): View
     {
-        $user = Auth::user();
-        $negocio = $user?->negocio;
+        $negocio = Auth::user()?->negocio;
         $cajaAbierta = $this->cajaAbierta();
 
-        $categorias = $this->categorias()->get();
-        $productos = $this->productos($negocio)->get();
-
-        $cantidadesPorProducto = $productos->mapWithKeys(
-            fn (Producto $producto) => [$producto->id => $this->cantidadEnCarrito($producto->id)]
-        );
+        // Only the cart is needed here; the catalog component loads and filters
+        // its own data from the shared cache.
+        $cantidadesPorProducto = collect($this->carrito)
+            ->map(fn ($cantidad): int => is_numeric($cantidad)
+                ? max(0, min((int) $cantidad, self::MAX_CANTIDAD))
+                : 0)
+            ->all();
 
         $cantidadesPromocion = collect($this->carritoPromociones)
             ->filter(fn ($cantidad) => is_numeric($cantidad) && (int) $cantidad > 0)
-            ->map(fn ($cantidad) => min((int) $cantidad, self::MAX_CANTIDAD))
+            ->map(fn ($cantidad): int => min((int) $cantidad, self::MAX_CANTIDAD))
             ->all();
 
         $lineasCarrito = $this->lineasDesde($this->carrito);
         $lineasPromociones = $this->lineasPromocionDesde($this->carritoPromociones);
-        $promociones = $this->promocionesDisponibles();
         $totalCarritoEnCentavos = $lineasCarrito->sum('subtotal_centavos')
             + $lineasPromociones->sum('subtotal_centavos');
         $hayAdvertenciasStock = $this->hayAdvertenciasStock($lineasCarrito, $lineasPromociones);
@@ -587,113 +559,17 @@ class PantallaPrincipal extends Component
         return view('livewire.ventas.pantalla-principal', [
             'negocio' => $negocio,
             'cajaAbierta' => $cajaAbierta,
-            'categorias' => $categorias,
-            'productos' => $productos,
             'cantidadesPorProducto' => $cantidadesPorProducto,
+            'cantidadesPromocion' => $cantidadesPromocion,
             'lineasCarrito' => $lineasCarrito,
             'lineasPromociones' => $lineasPromociones,
-            'promociones' => $promociones,
-            'cantidadesPromocion' => $cantidadesPromocion,
             'totalCarrito' => number_format($totalCarritoEnCentavos / 100, 2),
             'cantidadItems' => $lineasCarrito->sum('cantidad') + $lineasPromociones->sum('cantidad'),
-            'puedeConfigurar' => $user?->puedeGestionarConfiguracion() ?? false,
             'cambio' => number_format($cambioEnCentavos / 100, 2),
             'efectivoSuficiente' => $efectivoSuficiente,
             'puedeCobrar' => $puedeCobrar,
             'hayAdvertenciasStock' => $hayAdvertenciasStock,
-            'umbralStockBajo' => self::STOCK_BAJO,
         ]);
-    }
-
-    /**
-     * Active categories of the authenticated user's business, ordered for display.
-     *
-     * @return Builder<Categoria>
-     */
-    private function categorias()
-    {
-        $negocio = Auth::user()?->negocio;
-
-        if ($negocio === null) {
-            return Categoria::query()->whereRaw('1 = 0');
-        }
-
-        return $negocio->categorias()
-            ->activas()
-            ->orderBy('orden')
-            ->orderBy('nombre');
-    }
-
-    /**
-     * Products of the authenticated business, filtered by category and search term.
-     *
-     * @return Builder<Producto>
-     */
-    private function productos(?Negocio $negocio): Builder
-    {
-        if ($negocio === null) {
-            return Producto::query()->whereRaw('1 = 0');
-        }
-
-        $busqueda = trim($this->busqueda);
-
-        return Producto::query()
-            ->with('categoria')
-            ->whereHas('categoria', fn (Builder $query) => $query
-                ->where('negocio_id', $negocio->id)
-                ->where('activa', true))
-            ->when(
-                $this->categoriaFiltroId !== null,
-                fn (Builder $query) => $query->where('categoria_id', $this->categoriaFiltroId)
-            )
-            ->when($busqueda !== '', function (Builder $query) use ($busqueda) {
-                $like = '%'.$busqueda.'%';
-
-                $query->where(function (Builder $subquery) use ($like) {
-                    $subquery->where('nombre', 'like', $like)
-                        ->orWhereHas('categoria', fn (Builder $categoria) => $categoria->where('nombre', 'like', $like));
-                });
-            })
-            ->orderBy(
-                Categoria::query()
-                    ->select('orden')
-                    ->whereColumn('categorias.id', 'productos.categoria_id')
-            )
-            ->orderBy(
-                Categoria::query()
-                    ->select('nombre')
-                    ->whereColumn('categorias.id', 'productos.categoria_id')
-            )
-            ->orderBy('productos.nombre');
-    }
-
-    /**
-     * Promotions available today for the authenticated business.
-     *
-     * @return Collection<int, Promocion>
-     */
-    private function promocionesDisponibles(): Collection
-    {
-        $busqueda = trim($this->busqueda);
-
-        return $this->promocionesVigentesQuery()
-            ->when(
-                $this->categoriaFiltroId !== null,
-                fn (Builder $query) => $query->whereHas(
-                    'productos',
-                    fn (Builder $subquery) => $subquery->where('categoria_id', $this->categoriaFiltroId)
-                )
-            )
-            ->when($busqueda !== '', function (Builder $query) use ($busqueda) {
-                $like = '%'.$busqueda.'%';
-
-                $query->where(function (Builder $subquery) use ($like) {
-                    $subquery->where('nombre', 'like', $like)
-                        ->orWhereHas('productos', fn (Builder $productos) => $productos->where('nombre', 'like', $like));
-                });
-            })
-            ->orderBy('nombre')
-            ->get();
     }
 
     /**
@@ -718,6 +594,21 @@ class PantallaPrincipal extends Component
                 'productos.categoria',
                 fn (Builder $query) => $query->where('activa', false)
             );
+    }
+
+    /**
+     * Load, in a single query, every promotion the POS needs: the ones available
+     * today and the ones currently in the cart (even if they are no longer valid).
+     *
+     * @return Collection<int, Promocion>
+     */
+    private function promocionesCargadas(): Collection
+    {
+        $negocio = Auth::user()?->negocio;
+
+        // La vigencia se resuelve en memoria para que las promociones vencidas
+        // sigan visibles y se puedan quitar del carrito.
+        return $negocio === null ? collect() : CatalogoCache::promociones($negocio);
     }
 
     /**
@@ -816,12 +707,6 @@ class PantallaPrincipal extends Component
      */
     private function promocionesDelCarrito(): Collection
     {
-        $negocio = Auth::user()?->negocio;
-
-        if ($negocio === null) {
-            return collect();
-        }
-
         $ids = collect($this->carritoPromociones)
             ->filter(fn ($cantidad) => is_numeric($cantidad) && (int) $cantidad > 0)
             ->keys()
@@ -832,37 +717,14 @@ class PantallaPrincipal extends Component
             return collect();
         }
 
-        return Promocion::query()
-            ->with('productos.categoria')
-            ->where('negocio_id', $negocio->id)
+        return $this->promocionesCargadas()
             ->whereIn('id', $ids)
-            ->get()
             ->keyBy('id');
     }
 
     private function promocionEstaDisponible(Promocion $promocion): bool
     {
-        if (! $promocion->activa) {
-            return false;
-        }
-
-        $hoy = now()->startOfDay();
-
-        if ($promocion->fecha_inicio->gt($hoy) || $promocion->fecha_fin->lt($hoy)) {
-            return false;
-        }
-
-        if (! in_array($hoy->isoWeekday(), array_map('intval', $promocion->dias_semana ?? []), true)) {
-            return false;
-        }
-
-        if ($promocion->productos->isEmpty()) {
-            return false;
-        }
-
-        return $promocion->productos->every(
-            fn (Producto $producto) => $producto->categoria?->activa !== false
-        );
+        return DisponibilidadPromocion::estaDisponible($promocion);
     }
 
     /**
@@ -985,13 +847,6 @@ class PantallaPrincipal extends Component
             });
     }
 
-    private function cantidadEnCarrito(int $productoId): int
-    {
-        $cantidad = $this->carrito[$productoId] ?? 0;
-
-        return is_numeric($cantidad) ? max(0, min((int) $cantidad, self::MAX_CANTIDAD)) : 0;
-    }
-
     private function hayCajaParaVenta(): bool
     {
         if ($this->cajaAbierta() !== null) {
@@ -1009,18 +864,20 @@ class PantallaPrincipal extends Component
 
     private function cajaAbierta(): ?Caja
     {
-        $user = Auth::user();
+        return once(function (): ?Caja {
+            $user = Auth::user();
 
-        if ($user === null || $user->negocio_id === null) {
-            return null;
-        }
+            if ($user === null || $user->negocio_id === null) {
+                return null;
+            }
 
-        return Caja::query()
-            ->where('negocio_id', $user->negocio_id)
-            ->where('user_id', $user->id)
-            ->abiertas()
-            ->latest('fecha_apertura')
-            ->first();
+            return Caja::query()
+                ->where('negocio_id', $user->negocio_id)
+                ->where('user_id', $user->id)
+                ->abiertas()
+                ->latest('fecha_apertura')
+                ->first();
+        });
     }
 
     private function precioEnCentavos(Producto $producto): int

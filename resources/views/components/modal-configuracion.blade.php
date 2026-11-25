@@ -19,7 +19,7 @@
      @if (! $abierto) aria-hidden="true" @endif>
     <div class="absolute inset-0" wire:click="{{ $cerrar }}" aria-hidden="true"></div>
 
-    <div class="relative flex max-h-[88vh] w-full {{ $ancho }} flex-col overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-stone-800">
+    <div class="relative flex max-h-[92dvh] w-full {{ $ancho }} flex-col overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-stone-800">
         <header class="flex items-start justify-between gap-4 border-b border-stone-200 px-5 py-4 dark:border-stone-700 sm:px-6">
             <div>
                 <h3 id="{{ $id }}-titulo" class="text-base font-semibold text-stone-900 dark:text-stone-100">

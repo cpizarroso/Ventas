@@ -46,6 +46,12 @@
                     </div>
                 @endif
 
+                @if (session('aviso_terminos'))
+                    <div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-900/20 dark:text-amber-200" role="alert">
+                        {{ session('aviso_terminos') }}
+                    </div>
+                @endif
+
                 <form method="POST" action="{{ route('login') }}" class="space-y-4">
                     @csrf
 
@@ -79,36 +85,16 @@
                         Recordarme
                     </label>
 
-                    @php($requiereAceptarTerminos = session('requiere_aceptar_terminos') || old('aceptar_terminos') || $errors->has('aceptar_terminos'))
-
-                    @if ($requiereAceptarTerminos)
-                        <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-900/30">
-                            <div class="flex items-start gap-2">
-                                <input id="aceptar_terminos"
-                                       name="aceptar_terminos"
-                                       type="checkbox"
-                                       value="1"
-                                       @checked(old('aceptar_terminos'))
-                                       required
-                                       class="mt-0.5 size-4 shrink-0 rounded border-stone-300 text-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-900">
-                                <label for="aceptar_terminos" class="text-sm text-stone-700 dark:text-stone-300">
-                                    He leído y acepto los Términos y Condiciones y la Política de Privacidad,
-                                    versión {{ config('jibas.terminos.version') }}, vigente desde el
-                                    {{ \Illuminate\Support\Carbon::parse(config('jibas.terminos.vigente_desde'))->format('d/m/Y') }}.
-                                </label>
-                            </div>
-                            @error('aceptar_terminos')
-                                <p class="mt-2 pl-6 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
-                            @enderror
-                        </div>
-                    @endif
-
                     <p class="text-center text-xs text-stone-500 dark:text-stone-400">
                         <button type="button"
                                 data-abrir-terminos="#modal-terminos"
                                 class="font-semibold text-amber-700 underline decoration-amber-300 underline-offset-4 hover:text-amber-800 dark:text-amber-400 dark:decoration-amber-700 dark:hover:text-amber-300">
                             Ver términos y condiciones
                         </button>
+                    </p>
+
+                    <p class="text-center text-[11px] text-stone-400 dark:text-stone-500">
+                        Si es tu primer ingreso o hay una versión nueva, te pediremos aceptarlos al continuar.
                     </p>
 
                     <button type="submit"
@@ -123,9 +109,11 @@
     <footer class="px-4 pb-6 text-center text-xs text-stone-500 dark:text-stone-400">
         <p>&copy; {{ date('Y') }} SofCruz. Todos los derechos reservados.</p>
         <p class="mt-1">
-            <a href="{{ route('terminos.index') }}" class="underline decoration-stone-300 underline-offset-4 hover:text-stone-800 dark:decoration-stone-600 dark:hover:text-stone-200">
+            <button type="button"
+                    data-abrir-terminos="#modal-terminos"
+                    class="underline decoration-stone-300 underline-offset-4 hover:text-stone-800 dark:decoration-stone-600 dark:hover:text-stone-200">
                 Términos y privacidad
-            </a>
+            </button>
         </p>
     </footer>
 

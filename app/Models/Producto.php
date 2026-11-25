@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\CatalogoCache;
 use Database\Factories\ProductoFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -23,6 +24,20 @@ class Producto extends Model
             'precio' => 'decimal:2',
             'stock' => 'integer',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        $invalidar = static function (self $producto): void {
+            $negocioId = $producto->categoria?->negocio_id;
+
+            if ($negocioId !== null) {
+                CatalogoCache::invalidar((int) $negocioId);
+            }
+        };
+
+        static::saved($invalidar);
+        static::deleted($invalidar);
     }
 
     public function categoria(): BelongsTo

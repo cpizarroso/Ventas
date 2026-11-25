@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\CatalogoCache;
 use Database\Factories\CategoriaFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -23,6 +24,16 @@ class Categoria extends Model
             'activa' => 'boolean',
             'orden' => 'integer',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        $invalidar = static function (self $categoria): void {
+            CatalogoCache::invalidar((int) $categoria->negocio_id);
+        };
+
+        static::saved($invalidar);
+        static::deleted($invalidar);
     }
 
     public function negocio(): BelongsTo
