@@ -11,6 +11,7 @@ use App\Models\VentaDetalle;
 use App\Models\VentaDetallePromocionItem;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -78,10 +79,7 @@ class ReporteController extends Controller
     public function exportarPdf(Request $request): Response
     {
         $reporte = $this->reporte($request);
-        $ventas = (clone $reporte['consulta'])
-            ->with(['user', 'detalles.promocionItems'])
-            ->ordenadasPorFechaYNumeroTicket()
-            ->get();
+        [$filasHtml, $cantidadFilas] = $this->filasHtmlPdf($reporte['consulta']);
         $sufijo = $reporte['cajeroSeleccionado'] !== null
             ? '-cajero-'.$reporte['cajeroSeleccionado']->id
             : '';
@@ -90,7 +88,8 @@ class ReporteController extends Controller
         return $this->generarPdf('reportes.pdf', [
             'negocio' => $reporte['negocio'],
             'usuario' => Auth::user(),
-            'ventas' => $ventas,
+            'hayVentas' => $cantidadFilas > 0,
+            'filasHtml' => $filasHtml,
             'desde' => $reporte['desde'],
             'hasta' => $reporte['hasta'],
             'cajeroSeleccionado' => $reporte['cajeroSeleccionado'],
@@ -101,12 +100,57 @@ class ReporteController extends Controller
     }
 
     /**
+     * Render the PDF table body in fixed-size batches.
+     *
+     * DomPDF still needs the complete HTML to paginate, but this avoids keeping
+     * every sale (and all of its relations) in memory at the same time. The
+     * cursor uses the same three columns as the report ordering, so batches do
+     * not skip or duplicate rows when a ticket number or date is missing.
+     *
+     * @param  Builder<Venta>|HasMany<Negocio, Venta>  $consulta
+     * @return array{0: string, 1: int}
+     */
+    private function filasHtmlPdf(Builder|HasMany $consulta): array
+    {
+        $consulta = (clone $consulta)
+            ->select('ventas.*')
+            ->selectRaw('COALESCE(ventas.fecha_ticket, DATE(ventas.created_at)) as pdf_fecha_orden')
+            ->selectRaw('COALESCE(ventas.numero_ticket, ventas.id) as pdf_numero_orden')
+            ->with(['user', 'detalles.promocionItems'])
+            ->ordenadasPorFechaYNumeroTicket();
+
+        $limite = 500;
+        $filasHtml = '';
+        $cantidadFilas = 0;
+
+        do {
+            $ventas = (clone $consulta)->limit($limite)->get();
+
+            if ($ventas->isEmpty()) {
+                break;
+            }
+
+            $filasHtml .= view('reportes._filas-pdf', ['ventas' => $ventas])->render();
+            $cantidadFilas += $ventas->count();
+
+            $ultima = $ventas->last();
+            $consulta->whereRaw(
+                '(COALESCE(ventas.fecha_ticket, DATE(ventas.created_at)), '
+                    .'COALESCE(ventas.numero_ticket, ventas.id), ventas.id) > (?, ?, ?)',
+                [$ultima->pdf_fecha_orden, (int) $ultima->pdf_numero_orden, (int) $ultima->id]
+            );
+        } while ($ventas->count() === $limite);
+
+        return [$filasHtml, $cantidadFilas];
+    }
+
+    /**
      * Build the report data for the selected dates, cashier and search term.
      *
      * @return array{
      *     negocio: Negocio|null,
      *     ventas: LengthAwarePaginator<int, Venta>,
-     *     consulta: Builder<Venta>,
+     *     consulta: Builder<Venta>|HasMany<Negocio, Venta>,
      *     resumenProductos: Collection<int, object>,
      *     resumenPromociones: Collection<int, object>,
      *     itemsPromocion: Collection<int, object>,
