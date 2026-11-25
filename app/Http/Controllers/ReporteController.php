@@ -252,12 +252,6 @@ class ReporteController extends Controller
             )
             ->first();
 
-        $itemsVendidos = $negocio === null
-            ? 0
-            : (int) (clone $consulta)
-                ->join('venta_detalles', 'venta_detalles.venta_id', '=', 'ventas.id')
-                ->sum('venta_detalles.cantidad');
-
         $resumenProductos = $negocio === null
             ? collect()
             : VentaDetalle::query()
@@ -286,6 +280,10 @@ class ReporteController extends Controller
                 ->groupBy('venta_detalles.nombre')
                 ->orderByDesc('total')
                 ->get();
+
+        // Los dos resúmenes ya recorren todos los detalles con los mismos
+        // filtros; sumarlos evita una tercera agregación sobre venta_detalles.
+        $itemsVendidos = (int) ($resumenProductos->sum('cantidad') + $resumenPromociones->sum('cantidad'));
 
         $itemsPromocion = $negocio === null
             ? collect()
