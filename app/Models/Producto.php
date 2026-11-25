@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Support\CatalogoCache;
+use App\Support\ImagenPublica;
 use Database\Factories\ProductoFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -65,6 +66,6 @@ class Producto extends Model
             return null;
         }
 
-        return Storage::disk('public')->url($this->imagen);
+        return ImagenPublica::url($this->imagen);
     }
 }

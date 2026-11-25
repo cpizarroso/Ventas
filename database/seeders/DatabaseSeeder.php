@@ -17,7 +17,8 @@ class DatabaseSeeder extends Seeder
      * Prepara el escenario base de forma idempotente.
      *
      * Vacía todas las tablas (excepto migrations) y reinicia su numeración
-     * antes de crear el negocio principal y delegar el resto de seeders.
+     * antes de crear el negocio principal y los usuarios base. El catálogo se
+     * carga por separado con el seeder que corresponda a cada escenario.
      */
     public function run(): void
     {
@@ -30,7 +31,6 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             SuperadminSeeder::class,
-            ProduccionSeeder::class,
         ]);
     }
 

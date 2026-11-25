@@ -5,6 +5,7 @@ namespace App\Livewire\Configuracion;
 use App\Livewire\Concerns\FlashesSavedStatus;
 use App\Livewire\Concerns\OptimizaImagenes;
 use App\Support\ImagenesPredeterminadas as Catalogo;
+use App\Support\ImagenPublica;
 use App\Models\Categoria;
 use App\Models\Producto;
 use Illuminate\Contracts\View\View;
@@ -991,9 +992,11 @@ class CategoriasAdmin extends Component
 
     private function eliminarImagenProducto(?string $ruta): void
     {
-        if ($ruta !== null && $ruta !== '') {
-            Storage::disk('public')->delete($ruta);
+        if ($ruta === null || $ruta === '' || ImagenPublica::esPublica($ruta)) {
+            return;
         }
+
+        Storage::disk('public')->delete($ruta);
     }
 
     private function reglaUnicaNombre(?int $ignorarId = null): Unique
