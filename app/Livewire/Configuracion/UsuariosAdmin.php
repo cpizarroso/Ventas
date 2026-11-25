@@ -38,13 +38,19 @@ class UsuariosAdmin extends Component
 
     public ?int $editandoId = null;
 
-    public ?int $eliminandoId = null;
-
     public bool $modalAbierto = false;
 
     public bool $modalReporteAbierto = false;
 
     public bool $modalResetAbierto = false;
+
+    public bool $modalBajaAbierto = false;
+
+    public bool $reactivando = false;
+
+    public ?int $bajaUsuarioId = null;
+
+    public ?string $bajaNombre = null;
 
     public ?int $resetUsuarioId = null;
 
@@ -215,7 +221,7 @@ class UsuariosAdmin extends Component
         $this->rol = $usuario->rol->value;
         $this->password = '';
         $this->password_confirmation = '';
-        $this->eliminandoId = null;
+        $this->cancelarBaja();
         $this->modalAbierto = true;
 
         $this->resetValidation();
@@ -227,21 +233,94 @@ class UsuariosAdmin extends Component
     }
 
     /**
-     * Ask for confirmation before deleting a user.
+     * Ask for confirmation before deactivating a user.
      */
-    public function confirmarEliminacion(int $usuarioId): void
+    public function confirmarBaja(int $usuarioId): void
     {
         $usuario = $this->usuarioDelNegocio($usuarioId);
 
-        $this->authorize('delete', $usuario);
+        $this->authorize('update', $usuario);
+
+        abort_if($usuario->id === Auth::id(), 403, 'No puedes darte de baja a ti mismo.');
 
         $this->resetFormulario();
-        $this->eliminandoId = $usuario->id;
+        $this->bajaUsuarioId = $usuario->id;
+        $this->bajaNombre = $usuario->name;
+        $this->reactivando = false;
+        $this->modalBajaAbierto = true;
+
+        $this->resetValidation();
     }
 
-    public function cancelarEliminacion(): void
+    /**
+     * Ask for confirmation before reactivating a deactivated user.
+     */
+    public function confirmarReactivacion(int $usuarioId): void
     {
-        $this->eliminandoId = null;
+        $usuario = $this->usuarioDelNegocio($usuarioId);
+
+        $this->authorize('update', $usuario);
+
+        abort_if($usuario->id === Auth::id(), 403, 'No puedes reactivarte a ti mismo.');
+        abort_if($usuario->activo, 422, 'Este usuario ya está activo.');
+
+        $this->resetFormulario();
+        $this->bajaUsuarioId = $usuario->id;
+        $this->bajaNombre = $usuario->name;
+        $this->reactivando = true;
+        $this->modalBajaAbierto = true;
+
+        $this->resetValidation();
+    }
+
+    public function cancelarBaja(): void
+    {
+        $this->modalBajaAbierto = false;
+        $this->reactivando = false;
+        $this->bajaUsuarioId = null;
+        $this->bajaNombre = null;
+    }
+
+    /**
+     * Deactivate the confirmed user without deleting any record.
+     */
+    public function darDeBaja(): void
+    {
+        $usuario = $this->usuarioDelNegocio((int) $this->bajaUsuarioId);
+
+        $this->authorize('update', $usuario);
+
+        abort_if($this->reactivando, 422, 'La acción confirmada no es una baja.');
+        abort_if($usuario->id === Auth::id(), 403, 'No puedes darte de baja a ti mismo.');
+        abort_if(! $usuario->activo, 422, 'Este usuario ya está dado de baja.');
+
+        $usuario->update(['activo' => false]);
+
+        $this->cancelarBaja();
+
+        session()->flash('status', 'El usuario se dio de baja correctamente.');
+        $this->dispatch('toast', message: 'El usuario se dio de baja correctamente.');
+    }
+
+    /**
+     * Reactivate the confirmed user without deleting any record.
+     */
+    public function reactivar(): void
+    {
+        $usuario = $this->usuarioDelNegocio((int) $this->bajaUsuarioId);
+
+        $this->authorize('update', $usuario);
+
+        abort_unless($this->reactivando, 422, 'La acción confirmada no es una reactivación.');
+        abort_if($usuario->id === Auth::id(), 403, 'No puedes reactivarte a ti mismo.');
+        abort_if($usuario->activo, 422, 'Este usuario ya está activo.');
+
+        $usuario->update(['activo' => true]);
+
+        $this->cancelarBaja();
+
+        session()->flash('status', 'El usuario se reactivó correctamente.');
+        $this->dispatch('toast', message: 'El usuario se reactivó correctamente.');
     }
 
     /**
@@ -253,7 +332,7 @@ class UsuariosAdmin extends Component
 
         $this->authorize('update', $usuario);
 
-        $this->eliminandoId = null;
+        $this->cancelarBaja();
         $this->modalAbierto = false;
         $this->modalReporteAbierto = false;
         $this->resetUsuarioId = $usuario->id;
@@ -330,23 +409,6 @@ class UsuariosAdmin extends Component
         $this->cancelarResetPassword();
     }
 
-    /**
-     * Delete the confirmed user. Historical sales keep their record.
-     */
-    public function eliminar(): void
-    {
-        $usuario = $this->usuarioDelNegocio((int) $this->eliminandoId);
-
-        $this->authorize('delete', $usuario);
-
-        $usuario->delete();
-
-        $this->resetFormulario();
-        $this->eliminandoId = null;
-
-        session()->flash('status', 'El usuario se eliminó correctamente.');
-    }
-
     public function render(): View
     {
         $negocio = Auth::user()?->negocio;
@@ -400,6 +462,10 @@ class UsuariosAdmin extends Component
             'password_confirmation',
             'editandoId',
             'modalAbierto',
+            'modalBajaAbierto',
+            'reactivando',
+            'bajaUsuarioId',
+            'bajaNombre',
             'modalResetAbierto',
             'resetUsuarioId',
             'resetNombre',

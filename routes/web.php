@@ -25,7 +25,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 });
 
-Route::middleware(['auth', 'terminos.aceptados'])->group(function () {
+Route::middleware(['auth', 'usuario.activo', 'terminos.aceptados'])->group(function () {
     Route::get('/ventas', [VentasController::class, 'index'])->name('ventas.index');
 
     Route::get('/ventas/{venta}/ticket', [VentasController::class, 'ticket'])->name('ventas.ticket');

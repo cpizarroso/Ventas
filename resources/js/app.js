@@ -175,6 +175,34 @@ document.addEventListener('click', (event) => {
     }
 });
 
+document.addEventListener('click', (event) => {
+    const toggle = event.target.closest('[data-toggle-password]');
+
+    if (! toggle) {
+        return;
+    }
+
+    const input = document.getElementById(toggle.getAttribute('data-toggle-password'));
+
+    if (! input) {
+        return;
+    }
+
+    const mostrar = input.type === 'password';
+
+    input.type = mostrar ? 'text' : 'password';
+    toggle.setAttribute('aria-pressed', mostrar ? 'true' : 'false');
+    toggle.setAttribute('aria-label', mostrar ? 'Ocultar contraseña' : 'Mostrar contraseña');
+
+    const iconoMostrar = toggle.querySelector('[data-password-icon-show]');
+    const iconoOcultar = toggle.querySelector('[data-password-icon-hide]');
+
+    if (iconoMostrar && iconoOcultar) {
+        iconoMostrar.classList.toggle('hidden', mostrar);
+        iconoOcultar.classList.toggle('hidden', ! mostrar);
+    }
+});
+
 let cropperImagen = null;
 
 const avisarRecortePequeno = (lado) => {
@@ -326,16 +354,33 @@ const contenedorConScroll = (elemento) => {
     return exterior || contenedorPrincipal();
 };
 
-const enfocarAreaImagenes = (destino) => {
-    const area = document.getElementById('area-imagenes-predeterminadas');
-
-    if (! area || ! destino) {
+const scrollHaciaElemento = (destinoContenedor, elemento, offset = 24) => {
+    if (! elemento || ! destinoContenedor) {
         return false;
     }
 
-    destino.scrollTop += Math.round(
-        area.getBoundingClientRect().top - destino.getBoundingClientRect().top,
-    ) - 24;
+    destinoContenedor.scrollTop += Math.round(
+        elemento.getBoundingClientRect().top - destinoContenedor.getBoundingClientRect().top,
+    ) - offset;
+
+    return true;
+};
+
+const enfocarAreaImagenes = (destino) => {
+    const area = document.getElementById('area-imagenes-predeterminadas');
+
+    return scrollHaciaElemento(destino, area, 24);
+};
+
+window.irASeccionConfiguracion = (idSeccion) => {
+    const contenedor = contenedorPrincipal();
+    const seccion = document.getElementById(idSeccion);
+
+    if (! seccion || ! contenedor) {
+        return false;
+    }
+
+    scrollHaciaElemento(contenedor, seccion, 16);
 
     return true;
 };

@@ -143,13 +143,16 @@
                 <label for="password-actual" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
                     Contraseña actual <span class="text-red-500" aria-hidden="true">*</span>
                 </label>
-                <input id="password-actual"
-                       type="password"
-                       wire:model="passwordActual"
-                       required
-                       autocomplete="current-password"
-                       placeholder="Tu contraseña actual"
-                       class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
+                <div class="relative">
+                    <input id="password-actual"
+                           type="password"
+                           wire:model="passwordActual"
+                           required
+                           autocomplete="current-password"
+                           placeholder="Tu contraseña actual"
+                           class="w-full rounded-xl border border-stone-300 bg-white pl-3 py-2 pr-11 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
+                    <x-password-toggle target="password-actual" />
+                </div>
                 @error('passwordActual')
                     <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
                 @enderror
@@ -159,13 +162,16 @@
                 <label for="password-nueva" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
                     Nueva contraseña <span class="text-red-500" aria-hidden="true">*</span>
                 </label>
-                <input id="password-nueva"
-                       type="password"
-                       wire:model="passwordNueva"
-                       required
-                       autocomplete="new-password"
-                       placeholder="Mínimo 8 caracteres"
-                       class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
+                <div class="relative">
+                    <input id="password-nueva"
+                           type="password"
+                           wire:model="passwordNueva"
+                           required
+                           autocomplete="new-password"
+                           placeholder="Mínimo 8 caracteres"
+                           class="w-full rounded-xl border border-stone-300 bg-white pl-3 py-2 pr-11 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
+                    <x-password-toggle target="password-nueva" />
+                </div>
                 @error('passwordNueva')
                     <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
                 @enderror
@@ -175,13 +181,16 @@
                 <label for="password-nueva-confirmacion" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
                     Confirmar nueva contraseña <span class="text-red-500" aria-hidden="true">*</span>
                 </label>
-                <input id="password-nueva-confirmacion"
-                       type="password"
-                       wire:model="passwordNueva_confirmation"
-                       required
-                       autocomplete="new-password"
-                       placeholder="Repite la nueva contraseña"
-                       class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
+                <div class="relative">
+                    <input id="password-nueva-confirmacion"
+                           type="password"
+                           wire:model="passwordNueva_confirmation"
+                           required
+                           autocomplete="new-password"
+                           placeholder="Repite la nueva contraseña"
+                           class="w-full rounded-xl border border-stone-300 bg-white pl-3 py-2 pr-11 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
+                    <x-password-toggle target="password-nueva-confirmacion" />
+                </div>
             </div>
 
             <p class="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">

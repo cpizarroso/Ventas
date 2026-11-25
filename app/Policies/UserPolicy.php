@@ -30,15 +30,6 @@ class UserPolicy
         return $this->perteneceAlNegocioDelUsuario($user, $model);
     }
 
-    /**
-     * Determine whether the user can delete a user of their business.
-     */
-    public function delete(User $user, User $model): bool
-    {
-        return $user->id !== $model->id
-            && $this->perteneceAlNegocioDelUsuario($user, $model);
-    }
-
     private function perteneceAlNegocioDelUsuario(User $user, User $model): bool
     {
         return $user->puedeGestionarConfiguracion()

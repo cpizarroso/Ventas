@@ -175,13 +175,16 @@
                     <label for="usuario-password" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
                         Contraseña @if ($editandoId === null)<span class="text-red-500" aria-hidden="true">*</span>@endif
                     </label>
-                    <input id="usuario-password"
-                           type="password"
-                           wire:model="password"
-                           @if ($editandoId === null) required @endif
-                           autocomplete="new-password"
-                           placeholder="{{ $editandoId === null ? 'Mínimo 8 caracteres' : 'Dejar en blanco para conservar' }}"
-                           class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
+                    <div class="relative">
+                        <input id="usuario-password"
+                               type="password"
+                               wire:model="password"
+                               @if ($editandoId === null) required @endif
+                               autocomplete="new-password"
+                               placeholder="{{ $editandoId === null ? 'Mínimo 8 caracteres' : 'Dejar en blanco para conservar' }}"
+                               class="w-full rounded-xl border border-stone-300 bg-white pl-3 py-2 pr-11 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
+                        <x-password-toggle target="usuario-password" />
+                    </div>
                     @error('password')
                         <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
                     @enderror
@@ -191,13 +194,16 @@
                     <label for="usuario-password-confirmation" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
                         Confirmar contraseña @if ($editandoId === null)<span class="text-red-500" aria-hidden="true">*</span>@endif
                     </label>
-                    <input id="usuario-password-confirmation"
-                           type="password"
-                           wire:model="password_confirmation"
-                           @if ($editandoId === null) required @endif
-                           autocomplete="new-password"
-                           placeholder="Repite la contraseña"
-                           class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
+                    <div class="relative">
+                        <input id="usuario-password-confirmation"
+                               type="password"
+                               wire:model="password_confirmation"
+                               @if ($editandoId === null) required @endif
+                               autocomplete="new-password"
+                               placeholder="Repite la contraseña"
+                               class="w-full rounded-xl border border-stone-300 bg-white pl-3 py-2 pr-11 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
+                        <x-password-toggle target="usuario-password-confirmation" />
+                    </div>
                 </div>
             </div>
 
@@ -320,6 +326,67 @@
             </div>
         </x-modal-configuracion>
 
+        <x-modal-configuracion id="modal-baja-usuario"
+                               :titulo="$reactivando ? 'Reactivar usuario' : 'Dar de baja usuario'"
+                               :descripcion="$reactivando ? 'El usuario podrá volver a iniciar sesión.' : 'El usuario no podrá iniciar sesión.'"
+                               cerrar="cancelarBaja"
+                               :abierto="$modalBajaAbierto"
+                               ancho="max-w-md">
+            <div class="space-y-4">
+                <div @class([
+                    'rounded-xl border px-4 py-3',
+                    'border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-900/20' => $reactivando,
+                    'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-900/20' => ! $reactivando,
+                ])>
+                    <p @class([
+                        'text-sm font-semibold',
+                        'text-emerald-800 dark:text-emerald-300' => $reactivando,
+                        'text-red-800 dark:text-red-300' => ! $reactivando,
+                    ])>
+                        @if ($reactivando)
+                            ¿Reactivar a «{{ $bajaNombre }}»?
+                        @else
+                            ¿Dar de baja a «{{ $bajaNombre }}»?
+                        @endif
+                    </p>
+                    <p @class([
+                        'mt-1 text-sm',
+                        'text-emerald-700 dark:text-emerald-300' => $reactivando,
+                        'text-red-700 dark:text-red-300' => ! $reactivando,
+                    ])>
+                        @if ($reactivando)
+                            El usuario podrá iniciar sesión de nuevo con su contraseña actual. Sus datos se conservan sin cambios.
+                        @else
+                            El usuario no podrá iniciar sesión y su sesión activa se cerrará automáticamente. Sus datos y ventas históricas se conservan.
+                        @endif
+                    </p>
+                </div>
+                <div class="flex flex-wrap justify-end gap-2">
+                    <button type="button"
+                            wire:click="cancelarBaja"
+                            data-preservar-scroll
+                            class="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
+                        Cancelar
+                    </button>
+                    @if ($reactivando)
+                        <button type="button"
+                                wire:click="reactivar"
+                                data-preservar-scroll
+                                class="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-stone-800">
+                            Sí, reactivar
+                        </button>
+                    @else
+                        <button type="button"
+                                wire:click="darDeBaja"
+                                data-preservar-scroll
+                                class="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-stone-800">
+                            Sí, dar de baja
+                        </button>
+                    @endif
+                </div>
+            </div>
+        </x-modal-configuracion>
+
         <div class="mt-6">
             @if ($usuarios->isEmpty())
                 <div class="rounded-xl border border-dashed border-stone-300 px-4 py-10 text-center dark:border-stone-600">
@@ -346,6 +413,9 @@
                                             <span class="font-medium text-stone-800 dark:text-stone-100">{{ $usuario->name }}</span>
                                             @if ($usuario->id === $usuarioActualId)
                                                 <span class="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-500 dark:bg-stone-700 dark:text-stone-300">Tú</span>
+                                            @endif
+                                            @if (! $usuario->activo)
+                                                <span class="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">Inactivo</span>
                                             @endif
                                         </div>
                                         <p class="mt-0.5 text-xs text-stone-500 dark:text-stone-400">@ {{ $usuario->username }}</p>
@@ -393,45 +463,33 @@
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
                                                 </svg>
                                             </button>
-                                            @if ($usuario->id !== $usuarioActualId)
+                                            @if ($usuario->activo && $usuario->id !== $usuarioActualId)
                                                 <button type="button"
-                                                        wire:click="confirmarEliminacion({{ $usuario->id }})"
+                                                        wire:click="confirmarBaja({{ $usuario->id }})"
                                                         data-preservar-scroll
-                                                        title="Eliminar {{ $usuario->name }}"
-                                                        aria-label="Eliminar {{ $usuario->name }}"
+                                                        title="Dar de baja a {{ $usuario->name }}"
+                                                        aria-label="Dar de baja a {{ $usuario->name }}"
                                                         class="rounded-lg p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/40">
                                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4" aria-hidden="true">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 3h6m-9 3h12M10 3v3m4-3v3m-7 0 1 15h8l1-15" />
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636 5.636 18.364M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z" />
+                                                    </svg>
+                                                </button>
+                                            @endif
+                                            @if (! $usuario->activo && $usuario->id !== $usuarioActualId)
+                                                <button type="button"
+                                                        wire:click="confirmarReactivacion({{ $usuario->id }})"
+                                                        data-preservar-scroll
+                                                        title="Reactivar a {{ $usuario->name }}"
+                                                        aria-label="Reactivar a {{ $usuario->name }}"
+                                                        class="rounded-lg p-2 text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4" aria-hidden="true">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                                                     </svg>
                                                 </button>
                                             @endif
                                         </div>
                                     </td>
                                 </tr>
-
-                                @if ($eliminandoId === $usuario->id)
-                                    <tr wire:key="eliminar-usuario-{{ $usuario->id }}">
-                                        <td colspan="5" class="px-4 py-4">
-                                            <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900 dark:bg-red-900/30">
-                                                <p class="text-sm font-medium text-red-800 dark:text-red-300">
-                                                    ¿Eliminar a «{{ $usuario->name }}»? Sus ventas históricas se conservarán, pero el vendedor aparecerá como «—».
-                                                </p>
-                                                <div class="flex shrink-0 gap-2">
-                                                    <button type="button"
-                                                            wire:click="eliminar"
-                                                            class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500">
-                                                        Sí, eliminar
-                                                    </button>
-                                                    <button type="button"
-                                                            wire:click="cancelarEliminacion"
-                                                            class="rounded-lg bg-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-300 dark:bg-stone-600 dark:text-stone-200 dark:hover:bg-stone-500">
-                                                        Cancelar
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endif
                             @endforeach
                         </tbody>
                     </table>

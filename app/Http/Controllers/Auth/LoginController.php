@@ -64,6 +64,12 @@ class LoginController extends Controller
             ]);
         }
 
+        if (! $user->activo) {
+            throw ValidationException::withMessages([
+                'login' => 'Este usuario está dado de baja. Contacta al administrador.',
+            ]);
+        }
+
         if (! $user->haAceptadoTerminosActuales()) {
             if (! $request->boolean('aceptar_terminos')) {
                 return redirect()

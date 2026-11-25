@@ -26,7 +26,7 @@
             x-on:keydown.escape.window="mobileMenuOpen = false; notificacionesAbiertas = false"
             x-on:click.outside="mobileMenuOpen = false; notificacionesAbiertas = false"
             x-on:resize.window="if (window.innerWidth >= 1024) mobileMenuOpen = false"
-            class="z-20 shrink-0 border-b border-stone-200 bg-white/90 backdrop-blur dark:border-stone-700 dark:bg-stone-800/90"
+            class="z-50 shrink-0 border-b border-stone-200 bg-white/90 backdrop-blur dark:border-stone-700 dark:bg-stone-800/90"
         >
             <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
                 <div class="flex min-w-0 items-center gap-3">
@@ -100,8 +100,6 @@
                                 </x-nav-link>
                             @endif
                         </div>
-
-                        <livewire:cuenta.menu-usuario />
 
                         <div class="relative">
                             <button
@@ -182,6 +180,8 @@
                                 <path d="M18 6 6 18M6 6l12 12" />
                             </svg>
                         </button>
+
+                        <livewire:cuenta.menu-usuario />
                     @endauth
                 </div>
             </div>
