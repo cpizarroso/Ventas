@@ -646,7 +646,7 @@ class PantallaPrincipal extends Component
 
         // La vigencia se resuelve en memoria para que las promociones vencidas
         // sigan visibles y se puedan quitar del carrito.
-        return $negocio === null ? collect() : CatalogoCache::promociones($negocio);
+        return $negocio === null ? collect() : CatalogoCache::todo($negocio)[CatalogoCache::PROMOCIONES];
     }
 
     /**

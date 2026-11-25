@@ -50,7 +50,7 @@ class Catalogo extends Component
         $negocio = Auth::user()?->negocio;
         abort_if($negocio === null, 404);
 
-        $categoria = CatalogoCache::categorias($negocio)->firstWhere('id', $categoriaId);
+        $categoria = CatalogoCache::todo($negocio)[CatalogoCache::CATEGORIAS]->firstWhere('id', $categoriaId);
         abort_if($categoria === null, 404);
 
         $this->categoriaFiltroId = $categoria->id;
@@ -71,7 +71,7 @@ class Catalogo extends Component
         $negocio = Auth::user()?->negocio;
         abort_if($negocio === null, 404);
 
-        $disponible = CatalogoCache::productos($negocio)->contains(
+        $disponible = CatalogoCache::todo($negocio)[CatalogoCache::PRODUCTOS]->contains(
             fn (Producto $producto): bool => $producto->id === $productoId
         );
         abort_unless($disponible, 404);
@@ -84,7 +84,7 @@ class Catalogo extends Component
         $negocio = Auth::user()?->negocio;
         abort_if($negocio === null, 404);
 
-        $promocion = CatalogoCache::promociones($negocio)->firstWhere('id', $promocionId);
+        $promocion = CatalogoCache::todo($negocio)[CatalogoCache::PROMOCIONES]->firstWhere('id', $promocionId);
         abort_if($promocion === null || ! DisponibilidadPromocion::estaDisponible($promocion), 404);
 
         $this->dispatch('agregarPromocion', promocionId: $promocionId)->to(PantallaPrincipal::class);
@@ -99,14 +99,15 @@ class Catalogo extends Component
             $productos = collect();
             $promociones = collect();
         } else {
-            $categorias = CatalogoCache::categorias($negocio);
+            $catalogo = CatalogoCache::todo($negocio);
+            $categorias = $catalogo[CatalogoCache::CATEGORIAS];
             $productos = CatalogoCache::filtrarProductos(
-                CatalogoCache::productos($negocio),
+                $catalogo[CatalogoCache::PRODUCTOS],
                 $this->categoriaFiltroId,
                 $this->busqueda,
             );
             $promociones = CatalogoCache::filtrarPromociones(
-                CatalogoCache::promociones($negocio),
+                $catalogo[CatalogoCache::PROMOCIONES],
                 $this->categoriaFiltroId,
                 $this->busqueda,
             )->filter(fn (Promocion $promocion): bool => DisponibilidadPromocion::estaDisponible($promocion))

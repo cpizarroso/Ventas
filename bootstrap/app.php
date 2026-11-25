@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureTermsAccepted;
 use App\Http\Middleware\EnsureUsuarioActivo;
+use App\Http\Middleware\RegistrarPresupuestoQueries;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -21,6 +22,9 @@ $app = Application::configure(basePath: dirname(__DIR__))
 
         // El aviso de caja se escribe desde JS, por lo que no debe cifrarse.
         $middleware->encryptCookies(except: ['aviso_caja_cerrado']);
+
+        // Desactivado por defecto; mide presupuesto de queries en desarrollo.
+        $middleware->append(RegistrarPresupuestoQueries::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -28,6 +28,19 @@ final class CatalogoCache
     private const TTL_SEGUNDOS = 3600;
 
     /**
+     * In-request memoization: with the database cache driver every Cache::get
+     * is a SQL query, so the same key must not be read twice per request.
+     *
+     * @var array<string, mixed>
+     */
+    private static array $memoria = [];
+
+    /**
+     * @var array<int, array<string, mixed>>
+     */
+    private static array $memoriaCatalogo = [];
+
+    /**
      * @template T
      *
      * @param  callable(): T  $callback
@@ -35,11 +48,64 @@ final class CatalogoCache
      */
     public static function recordar(int $negocioId, string $catalogo, callable $callback): mixed
     {
-        return Cache::remember(
-            self::clave($negocioId, $catalogo),
+        $clave = self::clave($negocioId, $catalogo);
+
+        if (array_key_exists($clave, self::$memoria)) {
+            return self::$memoria[$clave];
+        }
+
+        return self::$memoria[$clave] = Cache::remember(
+            $clave,
             self::TTL_SEGUNDOS,
             $callback,
         );
+    }
+
+    /**
+     * Load the three catalog entries together. One Cache::many() call is one
+     * SQL query with the database driver instead of three independent reads.
+     *
+     * @return array{
+     *     categorias: Collection<int, Categoria>,
+     *     productos: Collection<int, Producto>,
+     *     promociones: Collection<int, Promocion>
+     * }
+     */
+    public static function todo(Negocio $negocio): array
+    {
+        if (isset(self::$memoriaCatalogo[$negocio->id])) {
+            return self::$memoriaCatalogo[$negocio->id];
+        }
+
+        $catalogos = [self::CATEGORIAS, self::PRODUCTOS, self::PROMOCIONES];
+        $claves = [];
+
+        foreach ($catalogos as $catalogo) {
+            $claves[$catalogo] = self::clave($negocio->id, $catalogo);
+        }
+
+        $valores = Cache::many(array_values($claves));
+        $resultado = [];
+
+        foreach ($catalogos as $catalogo) {
+            $clave = $claves[$catalogo];
+            $valor = $valores[$clave] ?? null;
+
+            if ($valor === null) {
+                $valor = match ($catalogo) {
+                    self::CATEGORIAS => self::cargarCategorias($negocio),
+                    self::PRODUCTOS => self::cargarProductos($negocio),
+                    self::PROMOCIONES => self::cargarPromociones($negocio),
+                };
+
+                Cache::put($clave, $valor, self::TTL_SEGUNDOS);
+            }
+
+            self::$memoria[$clave] = $valor;
+            $resultado[$catalogo] = $valor;
+        }
+
+        return self::$memoriaCatalogo[$negocio->id] = $resultado;
     }
 
     /**
@@ -48,8 +114,12 @@ final class CatalogoCache
     public static function invalidar(int $negocioId): void
     {
         foreach ([self::CATEGORIAS, self::PRODUCTOS, self::PROMOCIONES] as $catalogo) {
-            Cache::forget(self::clave($negocioId, $catalogo));
+            $clave = self::clave($negocioId, $catalogo);
+            Cache::forget($clave);
+            unset(self::$memoria[$clave]);
         }
+
+        unset(self::$memoriaCatalogo[$negocioId]);
     }
 
     /**
@@ -60,11 +130,7 @@ final class CatalogoCache
         return self::recordar(
             $negocio->id,
             self::CATEGORIAS,
-            fn () => $negocio->categorias()
-                ->activas()
-                ->orderBy('orden')
-                ->orderBy('nombre')
-                ->get(),
+            fn () => self::cargarCategorias($negocio),
         );
     }
 
@@ -78,23 +144,7 @@ final class CatalogoCache
         return self::recordar(
             $negocio->id,
             self::PRODUCTOS,
-            fn () => Producto::query()
-                ->with('categoria')
-                ->whereHas('categoria', fn (Builder $query) => $query
-                    ->where('negocio_id', $negocio->id)
-                    ->where('activa', true))
-                ->orderBy(
-                    Categoria::query()
-                        ->select('orden')
-                        ->whereColumn('categorias.id', 'productos.categoria_id')
-                )
-                ->orderBy(
-                    Categoria::query()
-                        ->select('nombre')
-                        ->whereColumn('categorias.id', 'productos.categoria_id')
-                )
-                ->orderBy('productos.nombre')
-                ->get(),
+            fn () => self::cargarProductos($negocio),
         );
     }
 
@@ -109,11 +159,7 @@ final class CatalogoCache
         return self::recordar(
             $negocio->id,
             self::PROMOCIONES,
-            fn () => Promocion::query()
-                ->with('productos.categoria')
-                ->where('negocio_id', $negocio->id)
-                ->orderBy('nombre')
-                ->get(),
+            fn () => self::cargarPromociones($negocio),
         );
     }
 
@@ -175,6 +221,54 @@ final class CatalogoCache
                 });
             })
             ->values();
+    }
+
+    /**
+     * @return Collection<int, Categoria>
+     */
+    private static function cargarCategorias(Negocio $negocio): Collection
+    {
+        return $negocio->categorias()
+            ->activas()
+            ->orderBy('orden')
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, Producto>
+     */
+    private static function cargarProductos(Negocio $negocio): Collection
+    {
+        return Producto::query()
+            ->with('categoria')
+            ->whereHas('categoria', fn (Builder $query) => $query
+                ->where('negocio_id', $negocio->id)
+                ->where('activa', true))
+            ->orderBy(
+                Categoria::query()
+                    ->select('orden')
+                    ->whereColumn('categorias.id', 'productos.categoria_id')
+            )
+            ->orderBy(
+                Categoria::query()
+                    ->select('nombre')
+                    ->whereColumn('categorias.id', 'productos.categoria_id')
+            )
+            ->orderBy('productos.nombre')
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, Promocion>
+     */
+    private static function cargarPromociones(Negocio $negocio): Collection
+    {
+        return Promocion::query()
+            ->with('productos.categoria')
+            ->where('negocio_id', $negocio->id)
+            ->orderBy('nombre')
+            ->get();
     }
 
     private static function clave(int $negocioId, string $catalogo): string
