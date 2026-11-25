@@ -38,7 +38,11 @@ class AppServiceProvider extends ServiceProvider
             ['components.layouts.app', 'components.layouts.legal', 'components.error-page', 'auth.login', 'errors.*'],
             function (ViewContract $view): void {
                 $usuario = auth()->user();
-                $negocio = $usuario?->negocio ?? Negocio::query()->oldest('id')->first();
+                $negocio = $usuario?->negocio ?? Cache::remember(
+                    Negocio::CACHE_FALLBACK,
+                    now()->addDay(),
+                    fn () => Negocio::query()->oldest('id')->first(),
+                );
 
                 $clave = 'favicon-url:'.($negocio?->id ?? 'sin-negocio')
                     .':'.($negocio?->logo ?? 'sin-logo')

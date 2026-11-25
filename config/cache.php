@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Categoria;
+use App\Models\Negocio;
 use App\Models\Producto;
 use App\Models\Promocion;
 use Carbon\Carbon;
@@ -144,6 +145,7 @@ return [
         EloquentCollection::class,
         Pivot::class,
         Categoria::class,
+        Negocio::class,
         Producto::class,
         Promocion::class,
         Carbon::class,

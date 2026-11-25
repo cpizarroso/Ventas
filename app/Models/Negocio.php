@@ -9,13 +9,26 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 #[Fillable(['nombre_comercial', 'eslogan', 'logo', 'qr_pago', 'metodo_pago_predeterminado'])]
 class Negocio extends Model
 {
+    public const CACHE_FALLBACK = 'negocio:fallback';
+
     /** @use HasFactory<NegocioFactory> */
     use HasFactory;
+
+    protected static function booted(): void
+    {
+        $invalidar = static function (): void {
+            Cache::forget(self::CACHE_FALLBACK);
+        };
+
+        static::saved($invalidar);
+        static::deleted($invalidar);
+    }
 
     public function categorias(): HasMany
     {

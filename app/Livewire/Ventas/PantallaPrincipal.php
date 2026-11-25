@@ -413,12 +413,18 @@ class PantallaPrincipal extends Component
                 'para_llevar' => $paraLlevar,
             ]);
 
-            $caja->increment('cantidad_ventas');
-            $caja->increment('total_ventas', $totalEnCentavos / 100);
-            $caja->increment(
-                $metodoPago === MetodoPago::Efectivo ? 'total_efectivo' : 'total_qr',
-                $totalEnCentavos / 100
-            );
+            // Un solo UPDATE para los tres acumulados de la caja.
+            $importe = number_format($totalEnCentavos / 100, 2, '.', '');
+            $campoMetodo = $metodoPago === MetodoPago::Efectivo ? 'total_efectivo' : 'total_qr';
+
+            Caja::query()
+                ->whereKey($caja->id)
+                ->update([
+                    'cantidad_ventas' => DB::raw('cantidad_ventas + 1'),
+                    'total_ventas' => DB::raw('total_ventas + '.$importe),
+                    $campoMetodo => DB::raw($campoMetodo.' + '.$importe),
+                    'updated_at' => now(),
+                ]);
 
             if ($lineas->isNotEmpty()) {
                 $venta->detalles()->createMany(
@@ -454,23 +460,55 @@ class PantallaPrincipal extends Component
                 );
             }
 
-            foreach ($requerimientosStock as $requerimiento) {
-                $producto = Producto::query()
-                    ->whereKey($requerimiento['producto']->id)
+            // Un bloqueo y un UPDATE para todo el carrito, sin importar cuántos
+            // productos (ni componentes de promoción) lleven.
+            $idsProductos = $requerimientosStock
+                ->keys()
+                ->map(fn ($id): int => (int) $id)
+                ->all();
+
+            $bloqueados = $idsProductos === []
+                ? collect()
+                : Producto::query()
+                    ->whereIn('id', $idsProductos)
                     ->lockForUpdate()
-                    ->first();
+                    ->get(['id', 'nombre', 'stock'])
+                    ->keyBy('id');
+
+            $decrementos = collect();
+
+            foreach ($requerimientosStock as $id => $requerimiento) {
+                $producto = $bloqueados->get((int) $id);
 
                 if ($producto === null || $producto->stock === null) {
                     continue;
                 }
 
-                $nuevoStock = $producto->stock - $requerimiento['cantidad'];
+                $cantidad = max(0, (int) $requerimiento['cantidad']);
 
-                $producto->decrement('stock', $requerimiento['cantidad']);
+                if ($cantidad === 0) {
+                    continue;
+                }
+
+                $nuevoStock = (int) $producto->stock - $cantidad;
+                $decrementos->put((int) $id, $cantidad);
 
                 if ($nuevoStock < 0) {
                     $advertenciasStock[] = $producto->nombre.' ('.$nuevoStock.')';
                 }
+            }
+
+            if ($decrementos->isNotEmpty()) {
+                $casos = $decrementos
+                    ->map(fn (int $cantidad, int $id): string => "WHEN {$id} THEN stock - {$cantidad}")
+                    ->implode(' ');
+
+                DB::table('productos')
+                    ->whereIn('id', $decrementos->keys()->all())
+                    ->update([
+                        'stock' => DB::raw("CASE id {$casos} ELSE stock END"),
+                        'updated_at' => now(),
+                    ]);
             }
 
             return $venta;
