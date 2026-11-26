@@ -63,6 +63,12 @@ class SuperadminSeeder extends Seeder
     {
         return [
             [
+                'email' => 'superadmin@jibas.test',
+                'name' => 'Administrador',
+                'username' => 'superadmin',
+                'rol' => Rol::Superadmin,
+            ],
+            [
                 'email' => 'admin@jibas.test',
                 'name' => 'Administrador',
                 'username' => 'admin',

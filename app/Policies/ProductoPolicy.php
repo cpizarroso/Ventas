@@ -33,9 +33,9 @@ class ProductoPolicy
     }
 
     /**
-     * Determine whether the user can delete the product.
+     * Determine whether the user can deactivate or reactivate the product.
      */
-    public function delete(User $user, Producto $producto): bool
+    public function cambiarActiva(User $user, Producto $producto): bool
     {
         return $this->puedeGestionarCategoria($user, $producto->categoria);
     }

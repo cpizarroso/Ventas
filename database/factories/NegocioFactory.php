@@ -23,6 +23,7 @@ class NegocioFactory extends Factory
             'logo' => null,
             'qr_pago' => null,
             'metodo_pago_predeterminado' => 'efectivo',
+            'imprimir_ticket_predeterminado' => false,
         ];
     }
 }

@@ -6,6 +6,8 @@ use App\Support\CatalogoCache;
 use App\Support\ImagenPublica;
 use Database\Factories\ProductoFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 
-#[Fillable(['categoria_id', 'nombre', 'imagen', 'precio', 'stock'])]
+#[Fillable(['categoria_id', 'nombre', 'imagen', 'precio', 'stock', 'activa'])]
 class Producto extends Model
 {
     /** @use HasFactory<ProductoFactory> */
@@ -24,6 +26,7 @@ class Producto extends Model
         return [
             'precio' => 'decimal:2',
             'stock' => 'integer',
+            'activa' => 'boolean',
         ];
     }
 
@@ -44,6 +47,15 @@ class Producto extends Model
     public function categoria(): BelongsTo
     {
         return $this->belongsTo(Categoria::class);
+    }
+
+    /**
+     * Scope the query to products that can be shown on the sales screen.
+     */
+    #[Scope]
+    public function activas(Builder $query): Builder
+    {
+        return $query->where('productos.activa', true);
     }
 
     public function ventaDetalles(): HasMany

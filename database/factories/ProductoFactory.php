@@ -24,6 +24,7 @@ class ProductoFactory extends Factory
             'imagen' => null,
             'precio' => fake()->randomFloat(2, 1, 500),
             'stock' => null,
+            'activa' => true,
         ];
     }
 }

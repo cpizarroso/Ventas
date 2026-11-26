@@ -241,6 +241,7 @@ final class CatalogoCache
     private static function cargarProductos(Negocio $negocio): Collection
     {
         return Producto::query()
+            ->activas()
             ->with('categoria')
             ->whereHas('categoria', fn (Builder $query) => $query
                 ->where('negocio_id', $negocio->id)

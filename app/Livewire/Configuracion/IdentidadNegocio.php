@@ -25,6 +25,8 @@ class IdentidadNegocio extends Component
 
     public string $metodo_pago_predeterminado = MetodoPago::Efectivo->value;
 
+    public bool $imprimir_ticket_predeterminado = false;
+
     /** @var TemporaryUploadedFile|null */
     public $logo_nuevo = null;
 
@@ -39,6 +41,9 @@ class IdentidadNegocio extends Component
 
     public bool $confirmarEliminacionQr = false;
 
+    /** 'logo' o 'qr'; controla el modal de imagen ampliada. */
+    public ?string $imagenAmpliada = null;
+
     public function mount(): void
     {
         $negocio = $this->negocioDelUsuario();
@@ -46,6 +51,7 @@ class IdentidadNegocio extends Component
         $this->nombre_comercial = $negocio->nombre_comercial;
         $this->eslogan = $negocio->eslogan;
         $this->metodo_pago_predeterminado = $negocio->metodoPagoPredeterminado()->value;
+        $this->imprimir_ticket_predeterminado = $negocio->imprimirTicketPorDefecto();
         $this->logo_actual = $negocio->logo;
         $this->qr_actual = $negocio->qr_pago;
     }
@@ -63,12 +69,14 @@ class IdentidadNegocio extends Component
             'nombre_comercial' => ['required', 'string', 'min:2', 'max:120'],
             'eslogan' => ['nullable', 'string', 'max:160'],
             'metodo_pago_predeterminado' => ['required', Rule::enum(MetodoPago::class)],
+            'imprimir_ticket_predeterminado' => ['boolean'],
             'logo_nuevo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'qr_nuevo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ], [], [
             'nombre_comercial' => 'nombre comercial',
             'eslogan' => 'eslogan',
             'metodo_pago_predeterminado' => 'método de pago por defecto',
+            'imprimir_ticket_predeterminado' => 'imprimir ticket por defecto',
             'logo_nuevo' => 'logo',
             'qr_nuevo' => 'QR de pago',
         ]);
@@ -97,6 +105,7 @@ class IdentidadNegocio extends Component
             ? trim($this->eslogan)
             : null;
         $negocio->metodo_pago_predeterminado = $this->metodo_pago_predeterminado;
+        $negocio->imprimir_ticket_predeterminado = $this->imprimir_ticket_predeterminado;
         $negocio->save();
 
         LogoDerivado::sincronizar($negocio);
@@ -107,6 +116,7 @@ class IdentidadNegocio extends Component
         $this->qr_actual = $negocio->qr_pago;
         $this->qr_nuevo = null;
         $this->confirmarEliminacionQr = false;
+        $this->imagenAmpliada = null;
 
         $this->flashSaved();
 
@@ -149,6 +159,7 @@ class IdentidadNegocio extends Component
         $this->logo_actual = null;
         $this->logo_nuevo = null;
         $this->confirmarEliminacionLogo = false;
+        $this->imagenAmpliada = null;
 
         session()->flash('status', 'El logo se eliminó correctamente.');
 
@@ -173,6 +184,7 @@ class IdentidadNegocio extends Component
         $this->qr_actual = null;
         $this->qr_nuevo = null;
         $this->confirmarEliminacionQr = false;
+        $this->imagenAmpliada = null;
 
         session()->flash('status', 'El QR de pago se eliminó correctamente.');
 
@@ -189,9 +201,74 @@ class IdentidadNegocio extends Component
         return $this->versionedStorageUrl($this->qr_actual);
     }
 
+    public function abrirImagenLogo(): void
+    {
+        if (! $this->logo_nuevo?->isPreviewable() && $this->logoActualUrl() === null) {
+            return;
+        }
+
+        $this->imagenAmpliada = 'logo';
+    }
+
+    public function abrirImagenQr(): void
+    {
+        if (! $this->qr_nuevo?->isPreviewable() && $this->qrActualUrl() === null) {
+            return;
+        }
+
+        $this->imagenAmpliada = 'qr';
+    }
+
+    public function cerrarImagenAmpliada(): void
+    {
+        $this->reset('imagenAmpliada');
+    }
+
+    public function urlImagenAmpliada(): ?string
+    {
+        if ($this->imagenAmpliada === 'logo') {
+            return $this->logo_nuevo?->isPreviewable()
+                ? $this->logo_nuevo->temporaryUrl()
+                : $this->logoActualUrl();
+        }
+
+        if ($this->imagenAmpliada === 'qr') {
+            return $this->qr_nuevo?->isPreviewable()
+                ? $this->qr_nuevo->temporaryUrl()
+                : $this->qrActualUrl();
+        }
+
+        return null;
+    }
+
+    public function tituloImagenAmpliada(): string
+    {
+        return match ($this->imagenAmpliada) {
+            'logo' => 'Logo de '.$this->nombre_comercial,
+            'qr' => 'QR de pago de '.$this->nombre_comercial,
+            default => '',
+        };
+    }
+
     public function render(): View
     {
-        return view('livewire.configuracion.identidad-negocio');
+        return view('livewire.configuracion.identidad-negocio', [
+            'nombre_comercial' => $this->nombre_comercial,
+            'eslogan' => $this->eslogan,
+            'metodo_pago_predeterminado' => $this->metodo_pago_predeterminado,
+            'imprimir_ticket_predeterminado' => $this->imprimir_ticket_predeterminado,
+            'logo_nuevo' => $this->logo_nuevo,
+            'logo_actual' => $this->logo_actual,
+            'confirmarEliminacionLogo' => $this->confirmarEliminacionLogo,
+            'qr_nuevo' => $this->qr_nuevo,
+            'qr_actual' => $this->qr_actual,
+            'confirmarEliminacionQr' => $this->confirmarEliminacionQr,
+            'imagenAmpliada' => $this->imagenAmpliada,
+            'urlLogoActual' => $this->logoActualUrl(),
+            'urlQrActual' => $this->qrActualUrl(),
+            'urlImagenAmpliada' => $this->urlImagenAmpliada(),
+            'tituloImagenAmpliada' => $this->tituloImagenAmpliada(),
+        ]);
     }
 
     private function versionedStorageUrl(?string $path): ?string
@@ -262,6 +339,8 @@ class IdentidadNegocio extends Component
             $this->qr_nuevo = null;
             $this->confirmarEliminacionQr = false;
         }
+
+        $this->imagenAmpliada = null;
 
         session()->flash('status', $mensaje);
 

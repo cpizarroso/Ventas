@@ -17,13 +17,39 @@
                     <div class="flex flex-col items-center gap-2">
                         <div class="relative">
                             @if ($logo_nuevo && $logo_nuevo->isPreviewable())
-                                <img src="{{ $logo_nuevo->temporaryUrl() }}"
-                                     alt="Vista previa del logo seleccionado"
-                                     class="size-16 rounded-xl object-cover ring-2 ring-amber-400 dark:ring-amber-500/60">
+                                <button type="button"
+                                        wire:click="abrirImagenLogo"
+                                        data-preservar-scroll
+                                        title="Ampliar logo"
+                                        aria-label="Ampliar logo"
+                                        class="group relative flex size-16 items-center justify-center overflow-hidden rounded-lg ring-2 ring-amber-400 transition-all hover:scale-105 focus-visible:ring-2 focus-visible:ring-amber-500">
+                                    <img src="{{ $logo_nuevo->temporaryUrl() }}"
+                                         alt="Vista previa del logo seleccionado"
+                                         class="size-full rounded-xl object-cover">
+                                    <span class="absolute inset-0 flex items-center justify-center bg-stone-900/40 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                                            <path d="M10.5 7.5v6m-3-3h6" />
+                                        </svg>
+                                    </span>
+                                </button>
                             @elseif ($logo_actual)
-                                <img src="{{ $this->logoActualUrl() }}"
-                                     alt="Logo de {{ $nombre_comercial }}"
-                                     class="size-16 rounded-xl object-cover ring-1 ring-stone-200 dark:ring-stone-600">
+                                <button type="button"
+                                        wire:click="abrirImagenLogo"
+                                        data-preservar-scroll
+                                        title="Ampliar logo"
+                                        aria-label="Ampliar logo"
+                                        class="group relative flex size-16 items-center justify-center overflow-hidden rounded-lg ring-1 ring-stone-200 transition-all hover:scale-105 hover:ring-amber-400 focus-visible:ring-2 focus-visible:ring-amber-500 dark:ring-stone-600">
+                                    <img src="{{ $urlLogoActual }}"
+                                         alt="Logo de {{ $nombre_comercial }}"
+                                         class="size-full rounded-xl object-cover">
+                                    <span class="absolute inset-0 flex items-center justify-center bg-stone-900/40 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                                            <path d="M10.5 7.5v6m-3-3h6" />
+                                        </svg>
+                                    </span>
+                                </button>
                             @else
                                 <div class="flex size-16 items-center justify-center rounded-xl bg-stone-100 text-stone-400 ring-1 ring-stone-200 dark:bg-stone-700 dark:text-stone-500 dark:ring-stone-600" aria-hidden="true">
                                     <svg class="size-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -130,6 +156,21 @@
                                 <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
                             @enderror
                         </div>
+
+                        <div>
+                            <p class="mb-1 text-sm font-medium text-stone-700 dark:text-stone-300">
+                                Imprimir ticket por defecto
+                            </p>
+                            <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800">
+                                <input type="checkbox"
+                                       wire:model="imprimir_ticket_predeterminado"
+                                       class="size-4 rounded border-stone-300 text-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-900">
+                                Resaltar «Imprimir ticket» al registrar la venta
+                            </label>
+                            <p class="mt-1 text-[11px] text-stone-400 dark:text-stone-500">
+                                Si no está activo, la opción «Ahora no» quedará seleccionada por defecto. El modal siempre se mostrará.
+                            </p>
+                        </div>
                     </div>
                 </div>
 
@@ -151,13 +192,39 @@
                     <div class="flex flex-col items-center gap-2">
                         <div class="relative">
                             @if ($qr_nuevo && $qr_nuevo->isPreviewable())
-                                <img src="{{ $qr_nuevo->temporaryUrl() }}"
-                                     alt="Vista previa del QR de pago seleccionado"
-                                     class="size-24 rounded-xl bg-white object-contain p-2 ring-2 ring-amber-400 dark:ring-amber-500/60">
+                                <button type="button"
+                                        wire:click="abrirImagenQr"
+                                        data-preservar-scroll
+                                        title="Ampliar QR de pago"
+                                        aria-label="Ampliar QR de pago"
+                                        class="group relative flex size-24 items-center justify-center overflow-hidden rounded-lg bg-white p-2 ring-2 ring-amber-400 transition-all hover:scale-105 focus-visible:ring-2 focus-visible:ring-amber-500">
+                                    <img src="{{ $qr_nuevo->temporaryUrl() }}"
+                                         alt="Vista previa del QR de pago seleccionado"
+                                         class="size-full rounded-xl object-contain">
+                                    <span class="absolute inset-0 flex items-center justify-center rounded-lg bg-stone-900/40 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                                            <path d="M10.5 7.5v6m-3-3h6" />
+                                        </svg>
+                                    </span>
+                                </button>
                             @elseif ($qr_actual)
-                                <img src="{{ $this->qrActualUrl() }}"
-                                     alt="QR de pago de {{ $nombre_comercial }}"
-                                     class="size-24 rounded-xl bg-white object-contain p-2 ring-1 ring-stone-200 dark:ring-stone-600">
+                                <button type="button"
+                                        wire:click="abrirImagenQr"
+                                        data-preservar-scroll
+                                        title="Ampliar QR de pago"
+                                        aria-label="Ampliar QR de pago"
+                                        class="group relative flex size-24 items-center justify-center overflow-hidden rounded-lg bg-white p-2 ring-1 ring-stone-200 transition-all hover:scale-105 hover:ring-amber-400 focus-visible:ring-2 focus-visible:ring-amber-500 dark:ring-stone-600">
+                                    <img src="{{ $urlQrActual }}"
+                                         alt="QR de pago de {{ $nombre_comercial }}"
+                                         class="size-full rounded-xl object-contain">
+                                    <span class="absolute inset-0 flex items-center justify-center rounded-lg bg-stone-900/40 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                                            <path d="M10.5 7.5v6m-3-3h6" />
+                                        </svg>
+                                    </span>
+                                </button>
                             @else
                                 <div class="flex size-24 items-center justify-center rounded-xl bg-stone-100 text-stone-400 ring-1 ring-stone-200 dark:bg-stone-700 dark:text-stone-500 dark:ring-stone-600" aria-hidden="true">
                                     <svg class="size-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -221,4 +288,19 @@
             </section>
         </div>
     </form>
+
+    <x-modal-configuracion id="modal-imagen-identidad"
+                           :titulo="$tituloImagenAmpliada"
+                           descripcion="Vista ampliada de la imagen configurada."
+                           cerrar="cerrarImagenAmpliada"
+                           ancho="max-w-3xl"
+                           :abierto="$urlImagenAmpliada !== null">
+        @if ($urlImagenAmpliada)
+            <img src="{{ $urlImagenAmpliada }}"
+                 alt="Imagen ampliada: {{ $tituloImagenAmpliada }}"
+                 class="{{ $imagenAmpliada === 'qr'
+                     ? 'mx-auto aspect-square w-4/5 max-h-[70vh] max-w-xs rounded-xl bg-white object-contain p-2 sm:max-w-sm sm:p-3 md:max-w-md lg:max-w-lg xl:max-w-xl'
+                     : 'mx-auto max-h-[70vh] w-auto max-w-full rounded-xl object-contain' }}">
+        @endif
+    </x-modal-configuracion>
 </div>

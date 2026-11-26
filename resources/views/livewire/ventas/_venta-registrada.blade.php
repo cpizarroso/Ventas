@@ -4,6 +4,8 @@
             role="dialog"
             aria-modal="true"
             aria-labelledby="titulo-venta-registrada"
+            x-data
+            x-init="$refs.accionPorDefecto?.focus()"
             wire:keydown.escape.window="omitirImpresion"
         >
             <div class="w-full max-w-sm rounded-2xl border border-stone-200 bg-white p-5 shadow-xl dark:border-stone-700 dark:bg-stone-800 sm:p-6">
@@ -25,23 +27,44 @@
                     La venta ya quedó guardada. Imprimir el ticket es opcional.
                 </p>
 
-                <div class="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                    <button
-                        type="button"
-                        wire:click="omitirImpresion"
-                        class="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-400 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700"
-                    >
-                        Ahora no
-                    </button>
-                    <a
-                        href="{{ route('ventas.ticket', ['venta' => $ventaParaImprimirId, 'imprimir' => 1]) }}"
-                        target="_blank"
-                        rel="noopener"
-                        wire:click="omitirImpresion"
-                        class="rounded-xl bg-emerald-600 px-4 py-2.5 text-center text-sm font-bold text-white hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-stone-800"
-                    >
-                        Imprimir ticket
-                    </a>
+                <div class="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                    @if ($imprimirTicketPorDefecto)
+                        <a
+                            href="{{ route('ventas.ticket', ['venta' => $ventaParaImprimirId, 'imprimir' => 1]) }}"
+                            target="_blank"
+                            rel="noopener"
+                            wire:click="omitirImpresion"
+                            x-ref="accionPorDefecto"
+                            class="rounded-xl bg-emerald-600 px-4 py-2.5 text-center text-sm font-bold text-white hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-stone-800"
+                        >
+                            Imprimir ticket
+                        </a>
+                        <button
+                            type="button"
+                            wire:click="omitirImpresion"
+                            class="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-400 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700"
+                        >
+                            Ahora no
+                        </button>
+                    @else
+                        <button
+                            type="button"
+                            wire:click="omitirImpresion"
+                            x-ref="accionPorDefecto"
+                            class="rounded-xl bg-stone-800 px-4 py-2.5 text-sm font-bold text-white hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2 dark:bg-stone-200 dark:text-stone-900 dark:hover:bg-white dark:focus:ring-offset-stone-800"
+                        >
+                            Ahora no
+                        </button>
+                        <a
+                            href="{{ route('ventas.ticket', ['venta' => $ventaParaImprimirId, 'imprimir' => 1]) }}"
+                            target="_blank"
+                            rel="noopener"
+                            wire:click="omitirImpresion"
+                            class="rounded-xl border border-emerald-600 px-4 py-2.5 text-center text-sm font-bold text-emerald-700 hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:border-emerald-500 dark:text-emerald-300 dark:hover:bg-emerald-900/30 dark:focus:ring-offset-stone-800"
+                        >
+                            Imprimir ticket
+                        </a>
+                    @endif
                 </div>
             </div>
         </div>

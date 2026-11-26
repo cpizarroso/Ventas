@@ -443,49 +443,21 @@
                                     </td>
                                     <td class="whitespace-nowrap px-4 py-3 text-right">
                                         <div class="flex items-center justify-end gap-1">
-                                            <button type="button"
-                                                    wire:click="iniciarEdicion({{ $usuario->id }})"
-                                                    data-preservar-scroll
-                                                    title="Editar {{ $usuario->name }}"
-                                                    aria-label="Editar {{ $usuario->name }}"
-                                                    class="rounded-lg p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white">
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4" aria-hidden="true">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 0 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
-                                                </svg>
-                                            </button>
-                                            <button type="button"
-                                                    wire:click="abrirResetPassword({{ $usuario->id }})"
-                                                    data-preservar-scroll
-                                                    title="Restablecer contraseña de {{ $usuario->name }}"
-                                                    aria-label="Restablecer contraseña de {{ $usuario->name }}"
-                                                    class="rounded-lg p-2 text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/30">
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4" aria-hidden="true">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-                                                </svg>
-                                            </button>
+                                            <x-icono-accion accion="editar"
+                                                            titulo="Editar {{ $usuario->name }}"
+                                                            click="iniciarEdicion({{ $usuario->id }})" />
+                                            <x-icono-accion accion="restablecer"
+                                                            titulo="Actualizar contraseña de {{ $usuario->name }}"
+                                                            click="abrirResetPassword({{ $usuario->id }})" />
                                             @if ($usuario->activo && $usuario->id !== $usuarioActualId)
-                                                <button type="button"
-                                                        wire:click="confirmarBaja({{ $usuario->id }})"
-                                                        data-preservar-scroll
-                                                        title="Dar de baja a {{ $usuario->name }}"
-                                                        aria-label="Dar de baja a {{ $usuario->name }}"
-                                                        class="rounded-lg p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/40">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4" aria-hidden="true">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636 5.636 18.364M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z" />
-                                                    </svg>
-                                                </button>
+                                                <x-icono-accion accion="baja"
+                                                                titulo="Dar de baja a {{ $usuario->name }}"
+                                                                click="confirmarBaja({{ $usuario->id }})" />
                                             @endif
                                             @if (! $usuario->activo && $usuario->id !== $usuarioActualId)
-                                                <button type="button"
-                                                        wire:click="confirmarReactivacion({{ $usuario->id }})"
-                                                        data-preservar-scroll
-                                                        title="Reactivar a {{ $usuario->name }}"
-                                                        aria-label="Reactivar a {{ $usuario->name }}"
-                                                        class="rounded-lg p-2 text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4" aria-hidden="true">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                                    </svg>
-                                                </button>
+                                                <x-icono-accion accion="reactivar"
+                                                                titulo="Reactivar a {{ $usuario->name }}"
+                                                                click="confirmarReactivacion({{ $usuario->id }})" />
                                             @endif
                                         </div>
                                     </td>

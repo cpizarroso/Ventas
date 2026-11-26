@@ -30,8 +30,6 @@ class CategoriasAdmin extends Component
 
     public string $nombreEdicion = '';
 
-    public ?int $eliminandoId = null;
-
     public ?int $productosAbiertosId = null;
 
     public string $productoNombre = '';
@@ -67,8 +65,6 @@ class CategoriasAdmin extends Component
     public bool $mostrarGaleriaPredeterminadaEdicion = false;
 
     public bool $quitarImagenEdicion = false;
-
-    public ?int $productoEliminandoId = null;
 
     public bool $modalAbierto = false;
 
@@ -196,7 +192,6 @@ class CategoriasAdmin extends Component
 
         $this->editandoId = $categoria->id;
         $this->nombreEdicion = $categoria->nombre;
-        $this->eliminandoId = null;
         $this->modalAbierto = true;
         $this->original = [
             'tipo' => 'categoria',
@@ -244,47 +239,27 @@ class CategoriasAdmin extends Component
     }
 
     /**
-     * Ask for confirmation before deleting a category.
+     * Deactivate (or reactivate) a category without deleting it or its products.
      */
-    public function confirmarEliminacion(int $categoriaId): void
+    public function cambiarActiva(int $categoriaId): void
     {
         $categoria = $this->categoriaDelUsuario($categoriaId);
 
-        $this->authorize('delete', $categoria);
+        $this->authorize('update', $categoria);
 
-        $this->eliminandoId = $categoria->id;
-        $this->reset('editandoId', 'nombreEdicion', 'modalAbierto');
-        $this->original = [];
-    }
+        $activa = ! $categoria->activa;
+        $categoria->update(['activa' => $activa]);
 
-    public function cancelarEliminacion(): void
-    {
-        $this->reset('eliminandoId');
-    }
-
-    /**
-     * Delete the confirmed category and its products.
-     */
-    public function eliminar(): void
-    {
-        $categoria = $this->categoriaDelUsuario((int) $this->eliminandoId);
-
-        $this->authorize('delete', $categoria);
-
-        $categoria->productos()
-            ->whereNotNull('imagen')
-            ->pluck('imagen')
-            ->each(fn (string $imagen) => $this->eliminarImagenProducto($imagen));
-
-        $categoria->delete();
-
-        $this->reset('eliminandoId');
-
-        if ($this->productosAbiertosId === $categoria->id) {
+        if (! $activa && $this->productosAbiertosId === $categoria->id) {
             $this->resetProductos();
         }
 
-        session()->flash('status', 'La categoría se eliminó correctamente.');
+        $mensaje = $activa
+            ? 'La categoría se activó y ya aparecerá en ventas.'
+            : 'La categoría se dio de baja y no aparecerá en ventas.';
+
+        session()->flash('status', $mensaje);
+        $this->dispatch('toast', message: $mensaje);
     }
 
     /**
@@ -305,7 +280,7 @@ class CategoriasAdmin extends Component
         $this->resetProductos();
 
         $this->productosAbiertosId = $categoria->id;
-        $this->reset('editandoId', 'nombreEdicion', 'eliminandoId', 'modalAbierto', 'modalProductoAbierto');
+        $this->reset('editandoId', 'nombreEdicion', 'modalAbierto', 'modalProductoAbierto');
         $this->original = [];
     }
 
@@ -327,7 +302,6 @@ class CategoriasAdmin extends Component
             'guardarEnPredeterminadas',
             'mostrarGaleriaPredeterminada',
             'productoEditandoId',
-            'productoEliminandoId',
         );
         $this->resetValidation();
 
@@ -556,7 +530,6 @@ class CategoriasAdmin extends Component
         $this->guardarEnPredeterminadasEdicion = false;
         $this->mostrarGaleriaPredeterminadaEdicion = false;
         $this->quitarImagenEdicion = false;
-        $this->productoEliminandoId = null;
         $this->resetValidation();
         $this->original = [
             'tipo' => 'item',
@@ -756,50 +729,23 @@ class CategoriasAdmin extends Component
     }
 
     /**
-     * Ask for confirmation before deleting a product.
+     * Deactivate (or reactivate) a product without deleting it or its history.
      */
-    public function confirmarEliminacionProducto(int $productoId): void
+    public function cambiarActivaProducto(int $productoId): void
     {
         $producto = $this->productoDelUsuario($productoId);
 
-        $this->authorize('delete', $producto);
+        $this->authorize('cambiarActiva', $producto);
 
-        $this->productoEliminandoId = $producto->id;
-        $this->reset(
-            'productoEditandoId',
-            'productoNombreEdicion',
-            'productoPrecioEdicion',
-            'productoStockEdicion',
-            'productoImagenEdicion',
-            'productoImagenPredeterminadaEdicion',
-            'guardarEnPredeterminadasEdicion',
-            'mostrarGaleriaPredeterminadaEdicion',
-            'quitarImagenEdicion',
-        );
-        $this->original = [];
-    }
+        $activa = ! $producto->activa;
+        $producto->update(['activa' => $activa]);
 
-    public function cancelarEliminacionProducto(): void
-    {
-        $this->reset('productoEliminandoId');
-    }
+        $mensaje = $activa
+            ? 'El ítem se reactivó y ya aparecerá en ventas.'
+            : 'El ítem se dio de baja y no aparecerá en ventas.';
 
-    /**
-     * Delete the confirmed product.
-     */
-    public function eliminarProducto(): void
-    {
-        $producto = $this->productoDelUsuario((int) $this->productoEliminandoId);
-
-        $this->authorize('delete', $producto);
-
-        $this->eliminarImagenProducto($producto->imagen);
-
-        $producto->delete();
-
-        $this->reset('productoEliminandoId');
-
-        session()->flash('status', 'El ítem se eliminó correctamente.');
+        session()->flash('status', $mensaje);
+        $this->dispatch('toast', message: $mensaje);
     }
 
     /**
@@ -909,7 +855,6 @@ class CategoriasAdmin extends Component
             'guardarEnPredeterminadasEdicion',
             'mostrarGaleriaPredeterminadaEdicion',
             'quitarImagenEdicion',
-            'productoEliminandoId',
         );
         $this->original = [];
         $this->confirmandoDescartar = null;

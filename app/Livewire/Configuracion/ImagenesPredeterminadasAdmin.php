@@ -30,9 +30,18 @@ class ImagenesPredeterminadasAdmin extends Component
 
     public ?string $eliminandoId = null;
 
+    /**
+     * Las imágenes predeterminadas son exclusivas del superadministrador.
+     * Se comprueba en cada petición Livewire, no solo al montar el componente.
+     */
+    public function boot(): void
+    {
+        abort_unless(Auth::user()?->esSuperadmin(), 403);
+    }
+
     public function mount(): void
     {
-        abort_unless(Auth::user()?->puedeGestionarConfiguracion(), 403);
+        abort_unless(Auth::user()?->esSuperadmin(), 403);
 
         $this->tamanoVista = (int) config('productos.tamano_predeterminada_defecto', 512);
     }

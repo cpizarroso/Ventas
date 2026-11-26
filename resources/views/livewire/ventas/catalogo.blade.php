@@ -118,10 +118,21 @@
                                         </span>
                                     @endif
 
+                                    @if ($promocion->imagenUrl())
+                                        <div class="mb-2 h-24 w-full overflow-hidden rounded-lg bg-amber-100/80 ring-1 ring-amber-200 dark:bg-amber-900/30 dark:ring-amber-700/60">
+                                            <img src="{{ $promocion->imagenUrl() }}" alt="" class="size-full object-cover" loading="lazy">
+                                        </div>
+                                    @endif
+
                                     <div class="flex items-start justify-between gap-3 pr-6">
                                         <div class="min-w-0">
                                             <p class="truncate text-sm font-bold text-stone-900 dark:text-stone-50" title="{{ $promocion->nombre }}">
                                                 {{ $promocion->nombre }}
+                                                @if ($promocion->sinStock())
+                                                    <span class="ml-1 inline-block rounded-full bg-red-100 px-1.5 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide text-red-700 dark:bg-red-900/50 dark:text-red-300">Sin stock</span>
+                                                @elseif ($promocion->stock !== null)
+                                                    <span class="ml-1 inline-block rounded-full bg-amber-100 px-1.5 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">Stock: {{ $promocion->stock }}</span>
+                                                @endif
                                             </p>
                                             @if (filled($promocion->descripcion))
                                                 <p class="mt-0.5 line-clamp-2 text-xs text-stone-500 dark:text-stone-400">

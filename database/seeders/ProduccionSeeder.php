@@ -92,7 +92,7 @@ class ProduccionSeeder extends Seeder
                     ],
                     [
                         'precio' => $precio,
-                        'stock' => null,
+                        'stock' => 100,
                     ]
                 );
             }

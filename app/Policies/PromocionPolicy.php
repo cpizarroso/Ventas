@@ -32,9 +32,9 @@ class PromocionPolicy
     }
 
     /**
-     * Determine whether the user can delete the promotion.
+     * Determine whether the user can deactivate or reactivate the promotion.
      */
-    public function delete(User $user, Promocion $promocion): bool
+    public function cambiarActiva(User $user, Promocion $promocion): bool
     {
         return $this->perteneceAlNegocioDelUsuario($user, $promocion);
     }

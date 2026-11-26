@@ -142,13 +142,17 @@
                             fn (array $componente) => $componente['producto']->stock !== null
                                 && $componente['cantidad'] * $linea['cantidad'] > $componente['producto']->stock
                         );
+                        $sinStockPromocion = $promocion->stock !== null
+                            && ($promocion->stock <= 0 || $linea['cantidad'] > $promocion->stock);
                     @endphp
 
                     <li wire:key="{{ $prefijo }}-promocion-{{ $promocion->id }}" class="py-3">
                         <div class="flex flex-wrap items-start justify-between gap-2">
                             <div class="flex min-w-[10rem] flex-1 items-center gap-2">
                                 <div class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-amber-100 text-amber-500 dark:bg-amber-900/40 dark:text-amber-300">
-                                    @if ($primerProducto?->imagenUrl())
+                                    @if ($promocion->imagenUrl())
+                                        <img src="{{ $promocion->imagenUrl() }}" alt="{{ $promocion->nombre }}" class="size-full object-cover" loading="lazy">
+                                    @elseif ($primerProducto?->imagenUrl())
                                         <img src="{{ $primerProducto->imagenUrl() }}" alt="{{ $promocion->nombre }}" class="size-full object-cover" loading="lazy">
                                     @else
                                         <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -207,7 +211,11 @@
                             </div>
                         </div>
 
-                        @if ($stockInsuficiente)
+                        @if ($sinStockPromocion)
+                            <p class="mt-1 text-xs font-medium text-red-700 dark:text-red-400" role="status">
+                                La promoción no tiene stock disponible; igual se puede cobrar y el stock quedará negativo.
+                            </p>
+                        @elseif ($stockInsuficiente)
                             <p class="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400" role="status">
                                 Algún ítem de la promoción supera el stock disponible; el stock quedará negativo.
                             </p>

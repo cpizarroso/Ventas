@@ -7,7 +7,7 @@ use Illuminate\View\View;
 class ConfiguracionController extends Controller
 {
     /**
-     * Settings screen: business identity and sale categories management.
+     * Settings screen: business identity, users, sale preferences and default images.
      */
     public function index(): View
     {

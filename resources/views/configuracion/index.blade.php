@@ -11,7 +11,10 @@
         </a>
         <h1 class="mt-2 text-xl font-semibold text-stone-900 dark:text-stone-100 sm:text-2xl">Configuración</h1>
         <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">
-            Identidad del negocio, usuarios, categorías de venta, promociones e imágenes predeterminadas.
+            Identidad del negocio, usuarios y preferencias de venta.
+            @if (auth()->user()->esSuperadmin())
+                También puedes administrar las imágenes predeterminadas.
+            @endif
         </p>
     </div>
 
@@ -27,10 +30,15 @@
             $seccionesConfiguracion = [
                 ['id' => 'config-seccion-identidad', 'label' => 'Identidad visual del negocio', 'keywords' => 'identidad logo eslogan qr negocio imagen visual'],
                 ['id' => 'config-seccion-usuarios', 'label' => 'Usuarios', 'keywords' => 'usuarios admin cajeros cuentas acceso roles'],
-                ['id' => 'config-seccion-categorias', 'label' => 'Categorías y productos', 'keywords' => 'categorias productos venta catalogo'],
-                ['id' => 'config-seccion-promociones', 'label' => 'Promociones', 'keywords' => 'promociones ofertas descuentos combos'],
-                ['id' => 'config-seccion-imagenes', 'label' => 'Imágenes predeterminadas', 'keywords' => 'imagenes predeterminadas recorte foto imagenes por defecto'],
             ];
+
+            if (auth()->user()->esSuperadmin()) {
+                $seccionesConfiguracion[] = [
+                    'id' => 'config-seccion-imagenes',
+                    'label' => 'Imágenes predeterminadas',
+                    'keywords' => 'imagenes predeterminadas recorte foto imagenes por defecto',
+                ];
+            }
         @endphp
 
         <div x-data="{
@@ -208,21 +216,13 @@
                          x-cloak>
                     <livewire:configuracion.usuarios-admin lazy />
                 </section>
-                <section id="config-seccion-categorias"
-                         x-show="! seccionActiva || seccionActiva === 'config-seccion-categorias'"
-                         x-cloak>
-                    <livewire:configuracion.categorias-admin lazy />
-                </section>
-                <section id="config-seccion-promociones"
-                         x-show="! seccionActiva || seccionActiva === 'config-seccion-promociones'"
-                         x-cloak>
-                    <livewire:configuracion.promociones-admin lazy />
-                </section>
-                <section id="config-seccion-imagenes"
-                         x-show="! seccionActiva || seccionActiva === 'config-seccion-imagenes'"
-                         x-cloak>
-                    <livewire:configuracion.imagenes-predeterminadas-admin lazy />
-                </section>
+                @if (auth()->user()->esSuperadmin())
+                    <section id="config-seccion-imagenes"
+                             x-show="! seccionActiva || seccionActiva === 'config-seccion-imagenes'"
+                             x-cloak>
+                        <livewire:configuracion.imagenes-predeterminadas-admin lazy />
+                    </section>
+                @endif
             </div>
         </div>
     @endif

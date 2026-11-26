@@ -384,57 +384,57 @@
                     @foreach ($categorias as $categoria)
                         <li wire:key="categoria-{{ $categoria->id }}" class="py-3">
                             <div class="flex flex-wrap items-center justify-between gap-3">
-                                @if ($eliminandoId === $categoria->id)
-                                    <div class="flex w-full flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900 dark:bg-red-900/30">
-                                        <p class="text-sm font-medium text-red-800 dark:text-red-300">
-                                            ¿Eliminar «{{ $categoria->nombre }}»? También se eliminarán sus ítems. Esta acción no se puede deshacer.
-                                        </p>
-                                        <div class="flex shrink-0 gap-2">
-                                            <button type="button"
-                                                    wire:click="eliminar"
-                                                    class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500">
-                                                Sí, eliminar
-                                            </button>
-                                            <button type="button"
-                                                    wire:click="cancelarEliminacion"
-                                                    class="rounded-lg bg-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-300 dark:bg-stone-600 dark:text-stone-200 dark:hover:bg-stone-500">
-                                                Cancelar
-                                            </button>
-                                        </div>
-                                    </div>
-                                @else
-                                    <span class="min-w-0 truncate text-sm font-medium text-stone-800 dark:text-stone-100">
-                                        {{ $categoria->nombre }}
-                                        @unless ($categoria->activa)
-                                            <span class="ml-2 rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-500 dark:bg-stone-700 dark:text-stone-300">Inactiva</span>
-                                        @endunless
-                                    </span>
-                                    <div class="flex shrink-0 flex-wrap gap-1">
+                                <span class="min-w-0 truncate text-sm font-medium text-stone-800 dark:text-stone-100">
+                                    {{ $categoria->nombre }}
+                                    @unless ($categoria->activa)
+                                        <span class="ml-2 rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-500 dark:bg-stone-700 dark:text-stone-300">Inactiva</span>
+                                    @endunless
+                                </span>
+                                <div class="flex shrink-0 flex-wrap items-center gap-1">
+                                    <button type="button"
+                                            wire:click="abrirProductos({{ $categoria->id }})"
+                                            :aria-expanded="$wire.productosAbiertosId === {{ $categoria->id }} ? 'true' : 'false'"
+                                            class="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/40">
+                                        {{ $productosAbiertosId === $categoria->id ? 'Ocultar ítems' : 'Ítems' }}
+                                        ({{ $categoria->productos_count }})
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+                                             class="size-3.5 transition-transform duration-300"
+                                             :class="$wire.productosAbiertosId === {{ $categoria->id }} ? 'rotate-180' : ''"
+                                             aria-hidden="true">
+                                            <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                    <button type="button"
+                                            wire:click="iniciarEdicion({{ $categoria->id }})"
+                                            title="Editar {{ $categoria->nombre }}"
+                                            aria-label="Editar {{ $categoria->nombre }}"
+                                            class="rounded-lg bg-sky-50 p-1.5 text-sky-700 shadow-sm ring-1 ring-sky-200 transition-all hover:scale-105 hover:bg-sky-100 active:scale-95 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1 dark:bg-sky-900/30 dark:text-sky-300 dark:ring-sky-800 dark:hover:bg-sky-900/50 dark:focus-visible:ring-offset-stone-800">
+                                        <svg class="size-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 0 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+                                        </svg>
+                                    </button>
+                                    @if ($categoria->activa)
                                         <button type="button"
-                                                wire:click="abrirProductos({{ $categoria->id }})"
-                                                :aria-expanded="$wire.productosAbiertosId === {{ $categoria->id }} ? 'true' : 'false'"
-                                                class="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/40">
-                                            {{ $productosAbiertosId === $categoria->id ? 'Ocultar ítems' : 'Ítems' }}
-                                            ({{ $categoria->productos_count }})
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
-                                                 class="size-3.5 transition-transform duration-300"
-                                                 :class="$wire.productosAbiertosId === {{ $categoria->id }} ? 'rotate-180' : ''"
-                                                 aria-hidden="true">
-                                                <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+                                                wire:click="cambiarActiva({{ $categoria->id }})"
+                                                title="Dar de baja a {{ $categoria->nombre }}"
+                                                aria-label="Dar de baja a {{ $categoria->nombre }}"
+                                                class="rounded-lg bg-red-50 p-1.5 text-red-700 shadow-sm ring-1 ring-red-200 transition-all hover:scale-105 hover:bg-red-100 active:scale-95 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-800 dark:hover:bg-red-900/50 dark:focus-visible:ring-offset-stone-800">
+                                            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                                             </svg>
                                         </button>
+                                    @else
                                         <button type="button"
-                                                wire:click="iniciarEdicion({{ $categoria->id }})"
-                                                class="rounded-lg px-3 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-700 dark:hover:text-white">
-                                            Editar
+                                                wire:click="cambiarActiva({{ $categoria->id }})"
+                                                title="Reactivar {{ $categoria->nombre }}"
+                                                aria-label="Reactivar {{ $categoria->nombre }}"
+                                                class="rounded-lg bg-emerald-50 p-1.5 text-emerald-700 shadow-sm ring-1 ring-emerald-200 transition-all hover:scale-105 hover:bg-emerald-100 active:scale-95 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-800 dark:hover:bg-emerald-900/50 dark:focus-visible:ring-offset-stone-800">
+                                            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                <path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                            </svg>
                                         </button>
-                                        <button type="button"
-                                                wire:click="confirmarEliminacion({{ $categoria->id }})"
-                                                class="rounded-lg px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/40">
-                                            Eliminar
-                                        </button>
-                                    </div>
-                                @endif
+                                    @endif
+                                </div>
                             </div>
 
                             <div x-data="{}"
@@ -479,25 +479,6 @@
                                             <ul class="divide-y divide-stone-200 dark:divide-stone-700" role="list">
                                                 @foreach ($categoria->productos as $producto)
                                                     <li wire:key="producto-{{ $producto->id }}" class="py-2">
-                                                        @if ($productoEliminandoId === $producto->id)
-                                                            <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 dark:border-red-900 dark:bg-red-900/30">
-                                                                <p class="text-xs font-medium text-red-800 dark:text-red-300">
-                                                                    ¿Eliminar «{{ $producto->nombre }}»?
-                                                                </p>
-                                                                <div class="flex shrink-0 gap-2">
-                                                                    <button type="button"
-                                                                            wire:click="eliminarProducto"
-                                                                            class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500">
-                                                                        Sí, eliminar
-                                                                    </button>
-                                                                    <button type="button"
-                                                                            wire:click="cancelarEliminacionProducto"
-                                                                            class="rounded-lg bg-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-300 dark:bg-stone-600 dark:text-stone-200 dark:hover:bg-stone-500">
-                                                                        Cancelar
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        @else
                                                             <div class="flex flex-wrap items-center justify-between gap-2">
                                                                 <div class="flex min-w-0 flex-1 items-center gap-3">
                                                                     <div class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-stone-200 text-stone-400 dark:bg-stone-700 dark:text-stone-500">
@@ -510,9 +491,16 @@
                                                                         @endif
                                                                     </div>
                                                                     <div class="min-w-0">
-                                                                        <span class="block truncate text-sm text-stone-700 dark:text-stone-200">
-                                                                            {{ $producto->nombre }}
-                                                                        </span>
+                                                                        <div class="flex flex-wrap items-center gap-2">
+                                                                            <span class="block truncate text-sm text-stone-700 dark:text-stone-200">
+                                                                                {{ $producto->nombre }}
+                                                                            </span>
+                                                                            @if ($producto->activa)
+                                                                                <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Activa</span>
+                                                                            @else
+                                                                                <span class="rounded-full bg-stone-200 px-2 py-0.5 text-[11px] font-semibold text-stone-600 dark:bg-stone-700 dark:text-stone-300">Baja</span>
+                                                                            @endif
+                                                                        </div>
                                                                         <span @class([
                                                                             'text-xs font-medium',
                                                                             'text-red-600 dark:text-red-400' => $producto->stock !== null && $producto->stock <= 0,
@@ -532,14 +520,29 @@
                                                                             class="rounded-lg px-2 py-1 text-xs font-semibold text-stone-600 hover:bg-stone-200 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-700 dark:hover:text-white">
                                                                         Editar
                                                                     </button>
-                                                                    <button type="button"
-                                                                            wire:click="confirmarEliminacionProducto({{ $producto->id }})"
-                                                                            class="rounded-lg px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/40">
-                                                                        Eliminar
-                                                                    </button>
+                                                                    @if ($producto->activa)
+                                                                        <button type="button"
+                                                                                wire:click="cambiarActivaProducto({{ $producto->id }})"
+                                                                                title="Dar de baja a {{ $producto->nombre }}"
+                                                                                aria-label="Dar de baja a {{ $producto->nombre }}"
+                                                                                class="rounded-lg bg-red-50 p-1.5 text-red-700 shadow-sm ring-1 ring-red-200 transition-all hover:scale-105 hover:bg-red-100 active:scale-95 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-800 dark:hover:bg-red-900/50">
+                                                                            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                                                <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                                                            </svg>
+                                                                        </button>
+                                                                    @else
+                                                                        <button type="button"
+                                                                                wire:click="cambiarActivaProducto({{ $producto->id }})"
+                                                                                title="Reactivar {{ $producto->nombre }}"
+                                                                                aria-label="Reactivar {{ $producto->nombre }}"
+                                                                                class="rounded-lg bg-emerald-50 p-1.5 text-emerald-700 shadow-sm ring-1 ring-emerald-200 transition-all hover:scale-105 hover:bg-emerald-100 active:scale-95 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-800 dark:hover:bg-emerald-900/50">
+                                                                            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                                                <path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                                            </svg>
+                                                                        </button>
+                                                                    @endif
                                                                 </div>
                                                             </div>
-                                                        @endif
                                                     </li>
                                                 @endforeach
                                             </ul>

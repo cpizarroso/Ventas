@@ -19,24 +19,28 @@
         ? ['titulo' => 'No pudimos atender tu solicitud', 'mensaje' => 'Hay un problema temporal con el servidor. Vuelve a intentarlo en unos minutos.']
         : ['titulo' => 'No pudimos completar la solicitud', 'mensaje' => 'La solicitud no se pudo procesar. Revisa lo intentado o vuelve a la pantalla principal.']);
 
-    $mensajePersonalizado = method_exists($exception, 'getMessage') ? trim($exception->getMessage()) : '';
+    // Los errores 5xx nunca deben filtrar mensajes internos (rutas, SQL, etc.).
+    // En producción tampoco se muestra el mensaje original de errores 4xx.
+    if ($codigo < 500 && config('app.debug')) {
+        $mensajePersonalizado = method_exists($exception, 'getMessage') ? trim($exception->getMessage()) : '';
 
-    $mensajesGenericos = [
-        'This action is unauthorized.',
-        'Unauthenticated.',
-        'Forbidden',
-        'Forbidden.',
-        'Not Found',
-        'Bad Request',
-        'Unauthorized',
-        'Payment Required',
-        'Too Many Requests',
-        'Internal Server Error',
-        'Service Unavailable',
-    ];
+        $mensajesGenericos = [
+            'This action is unauthorized.',
+            'Unauthenticated.',
+            'Forbidden',
+            'Forbidden.',
+            'Not Found',
+            'Bad Request',
+            'Unauthorized',
+            'Payment Required',
+            'Too Many Requests',
+            'Internal Server Error',
+            'Service Unavailable',
+        ];
 
-    if ($mensajePersonalizado !== '' && ! in_array($mensajePersonalizado, $mensajesGenericos, true)) {
-        $detalle['mensaje'] = $mensajePersonalizado;
+        if ($mensajePersonalizado !== '' && ! in_array($mensajePersonalizado, $mensajesGenericos, true)) {
+            $detalle['mensaje'] = $mensajePersonalizado;
+        }
     }
 
     $esRecarga = $codigo === 419;

@@ -511,6 +511,56 @@ class PantallaPrincipal extends Component
                     ]);
             }
 
+            // El stock de la promoción se descuenta por combo vendido y puede quedar negativo.
+            $cantidadesPromociones = $lineasPromociones
+                ->filter(fn (array $linea): bool => $linea['promocion']->stock !== null && $linea['cantidad'] > 0)
+                ->groupBy(fn (array $linea): int => (int) $linea['promocion']->id)
+                ->map(fn (Collection $lineas): int => $lineas->sum('cantidad'));
+
+            if ($cantidadesPromociones->isNotEmpty()) {
+                $promocionesBloqueadas = Promocion::query()
+                    ->whereIn('id', $cantidadesPromociones->keys()->all())
+                    ->lockForUpdate()
+                    ->get(['id', 'nombre', 'stock'])
+                    ->keyBy('id');
+
+                $decrementosPromociones = collect();
+
+                foreach ($cantidadesPromociones as $id => $cantidad) {
+                    $promocion = $promocionesBloqueadas->get((int) $id);
+
+                    if ($promocion === null || $promocion->stock === null) {
+                        continue;
+                    }
+
+                    $cantidad = max(0, (int) $cantidad);
+
+                    if ($cantidad === 0) {
+                        continue;
+                    }
+
+                    $nuevoStock = (int) $promocion->stock - $cantidad;
+                    $decrementosPromociones->put((int) $id, $cantidad);
+
+                    if ($nuevoStock <= 0) {
+                        $advertenciasStock[] = 'Promoción '.$promocion->nombre.' ('.$nuevoStock.')';
+                    }
+                }
+
+                if ($decrementosPromociones->isNotEmpty()) {
+                    $casos = $decrementosPromociones
+                        ->map(fn (int $cantidad, int $id): string => "WHEN {$id} THEN stock - {$cantidad}")
+                        ->implode(' ');
+
+                    DB::table('promociones')
+                        ->whereIn('id', $decrementosPromociones->keys()->all())
+                        ->update([
+                            'stock' => DB::raw("CASE id {$casos} ELSE stock END"),
+                            'updated_at' => now(),
+                        ]);
+                }
+            }
+
             return $venta;
         });
 
@@ -539,7 +589,7 @@ class PantallaPrincipal extends Component
         }
 
         if ($advertenciasStock !== []) {
-            $mensaje .= ' Atención: stock negativo en '.implode(', ', $advertenciasStock).'.';
+            $mensaje .= ' Atención: sin stock en '.implode(', ', $advertenciasStock).'.';
         }
 
         session()->flash('status', $mensaje);
@@ -607,6 +657,7 @@ class PantallaPrincipal extends Component
             'efectivoSuficiente' => $efectivoSuficiente,
             'puedeCobrar' => $puedeCobrar,
             'hayAdvertenciasStock' => $hayAdvertenciasStock,
+            'imprimirTicketPorDefecto' => $negocio?->imprimirTicketPorDefecto() ?? false,
         ]);
     }
 
@@ -627,7 +678,7 @@ class PantallaPrincipal extends Component
             ->with('productos.categoria')
             ->where('negocio_id', $negocio->id)
             ->vigentes()
-            ->whereHas('productos')
+            ->whereHas('productos', fn (Builder $query) => $query->where('productos.activa', true))
             ->whereDoesntHave(
                 'productos.categoria',
                 fn (Builder $query) => $query->where('activa', false)
@@ -797,9 +848,16 @@ class PantallaPrincipal extends Component
 
     private function hayAdvertenciasStock(Collection $lineas, Collection $lineasPromociones): bool
     {
-        return $this->requerimientosStock($lineas, $lineasPromociones)
+        $productosSinStock = $this->requerimientosStock($lineas, $lineasPromociones)
             ->contains(fn (array $requerimiento) => $requerimiento['producto']->stock !== null
                 && $requerimiento['cantidad'] > $requerimiento['producto']->stock);
+
+        if ($productosSinStock) {
+            return true;
+        }
+
+        return $lineasPromociones->contains(fn (array $linea): bool => $linea['promocion']->stock !== null
+            && ($linea['promocion']->stock <= 0 || $linea['cantidad'] > $linea['promocion']->stock));
     }
 
     /**
@@ -812,6 +870,7 @@ class PantallaPrincipal extends Component
         abort_if($negocio === null, 404);
 
         $producto = Producto::query()
+            ->activas()
             ->whereKey($productoId)
             ->whereHas('categoria', fn (Builder $query) => $query
                 ->where('negocio_id', $negocio->id)
@@ -866,6 +925,7 @@ class PantallaPrincipal extends Component
         }
 
         return Producto::query()
+            ->activas()
             ->with('categoria')
             ->whereIn('id', $normalizadas->keys())
             ->whereHas('categoria', fn (Builder $subquery) => $subquery->where('negocio_id', $negocio->id))

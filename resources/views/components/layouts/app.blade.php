@@ -88,6 +88,12 @@
                                 Cajas
                             </x-nav-link>
 
+                            @if (auth()->user()->puedeGestionarConfiguracion())
+                                <x-nav-link :href="route('productos.index')" :active="request()->routeIs('productos.*')" data-cargando="Productos">
+                                    Productos
+                                </x-nav-link>
+                            @endif
+
                             @can('ver-reportes')
                                 <x-nav-link :href="route('reportes.index')" :active="request()->routeIs('reportes.*')" data-cargando="Reportes">
                                     Reportes
@@ -111,8 +117,8 @@
                                 class="relative rounded-lg p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-white"
                             >
                                 <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
-                                    <path d="M10 21h4" />
+                                    <rect x="3" y="6" width="18" height="13" rx="2" />
+                                    <path d="M8 6V4h8v2M3 12h18M9 12v3" />
                                 </svg>
                                 <span @class([
                                     'absolute right-1.5 top-1.5 size-2 rounded-full ring-2 ring-white dark:ring-stone-800',
@@ -207,6 +213,12 @@
                         <x-nav-link :href="route('cajas.index')" :active="request()->routeIs('cajas.*')" class="block w-full" x-on:click="mobileMenuOpen = false">
                             Cajas
                         </x-nav-link>
+
+                        @if (auth()->user()->puedeGestionarConfiguracion())
+                            <x-nav-link :href="route('productos.index')" :active="request()->routeIs('productos.*')" class="block w-full" x-on:click="mobileMenuOpen = false">
+                                Productos
+                            </x-nav-link>
+                        @endif
 
                         @can('ver-reportes')
                             <x-nav-link :href="route('reportes.index')" :active="request()->routeIs('reportes.*')" class="block w-full" x-on:click="mobileMenuOpen = false">

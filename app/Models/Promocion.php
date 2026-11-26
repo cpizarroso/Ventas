@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Support\CatalogoCache;
+use App\Support\ImagenPublica;
 use Carbon\CarbonInterface;
 use Database\Factories\PromocionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -18,7 +19,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'negocio_id',
     'nombre',
     'descripcion',
+    'imagen',
     'precio',
+    'stock',
     'fecha_inicio',
     'fecha_fin',
     'dias_semana',
@@ -35,6 +38,7 @@ class Promocion extends Model
     {
         return [
             'precio' => 'decimal:2',
+            'stock' => 'integer',
             'fecha_inicio' => 'date',
             'fecha_fin' => 'date',
             'dias_semana' => 'array',
@@ -66,6 +70,26 @@ class Promocion extends Model
     public function ventaDetalles(): HasMany
     {
         return $this->hasMany(VentaDetalle::class);
+    }
+
+    /**
+     * Get the public URL of the promotion image.
+     */
+    public function imagenUrl(): ?string
+    {
+        if ($this->imagen === null || $this->imagen === '') {
+            return null;
+        }
+
+        return ImagenPublica::url($this->imagen);
+    }
+
+    /**
+     * A promotion without stock can still be sold, but the UI warns about it.
+     */
+    public function sinStock(): bool
+    {
+        return $this->stock !== null && $this->stock <= 0;
     }
 
     /**

@@ -13,13 +13,30 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
-#[Fillable(['nombre_comercial', 'eslogan', 'logo', 'qr_pago', 'metodo_pago_predeterminado'])]
+#[Fillable([
+    'nombre_comercial',
+    'eslogan',
+    'logo',
+    'qr_pago',
+    'metodo_pago_predeterminado',
+    'imprimir_ticket_predeterminado',
+])]
 class Negocio extends Model
 {
     public const CACHE_FALLBACK = 'negocio:fallback';
 
     /** @use HasFactory<NegocioFactory> */
     use HasFactory;
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'imprimir_ticket_predeterminado' => 'boolean',
+        ];
+    }
 
     protected static function booted(): void
     {
@@ -62,6 +79,14 @@ class Negocio extends Model
     public function metodoPagoPredeterminado(): MetodoPago
     {
         return MetodoPago::tryFrom($this->metodo_pago_predeterminado ?? '') ?? MetodoPago::Efectivo;
+    }
+
+    /**
+     * Action highlighted in the receipt prompt shown after a sale.
+     */
+    public function imprimirTicketPorDefecto(): bool
+    {
+        return (bool) $this->imprimir_ticket_predeterminado;
     }
 
     /**

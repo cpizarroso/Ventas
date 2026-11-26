@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Livewire\Configuracion;
+namespace App\Livewire\Productos;
 
 use App\Livewire\Concerns\FlashesSavedStatus;
+use App\Livewire\Concerns\OptimizaImagenes;
 use App\Models\Producto;
 use App\Models\Promocion;
 use Illuminate\Contracts\View\View;
@@ -12,17 +13,23 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 class PromocionesAdmin extends Component
 {
-    use FlashesSavedStatus, WithPagination;
+    use FlashesSavedStatus, OptimizaImagenes, WithFileUploads, WithPagination;
 
     public string $nombre = '';
 
     public string $descripcion = '';
 
     public string $precio = '';
+
+    public string $promocionStock = '';
+
+    public bool $promocionStockIlimitado = true;
 
     public string $fechaInicio = '';
 
@@ -34,13 +41,20 @@ class PromocionesAdmin extends Component
     /** @var array<int, array{producto_id: int|string, cantidad: int|string}> */
     public array $items = [['producto_id' => '', 'cantidad' => 1]];
 
+    /** @var TemporaryUploadedFile|null */
+    public $promocionImagen = null;
+
+    public bool $quitarImagen = false;
+
     public bool $activa = true;
 
     public ?int $editandoId = null;
 
-    public ?int $eliminandoId = null;
-
     public bool $modalAbierto = false;
+
+    public ?string $imagenAmpliadaUrl = null;
+
+    public string $imagenAmpliadaNombre = '';
 
     #[Url(as: 'buscar-promociones')]
     public string $buscar = '';
@@ -56,14 +70,14 @@ class PromocionesAdmin extends Component
     }
 
     /**
-     * Alias the paginator so this component does not clash with the other configuration lists.
+     * Keep this paginator out of the other product page query strings.
      *
      * @return array<string, array<string, mixed>>
      */
     public function queryString(): array
     {
         return [
-            'paginators.page' => ['as' => 'pagina-promociones', 'history' => false],
+            'paginators.page' => ['as' => 'pagina-promociones-productos', 'history' => false],
         ];
     }
 
@@ -120,6 +134,8 @@ class PromocionesAdmin extends Component
         $this->nombre = $promocion->nombre;
         $this->descripcion = $promocion->descripcion ?? '';
         $this->precio = (string) $promocion->precio;
+        $this->promocionStock = $promocion->stock === null ? '' : (string) $promocion->stock;
+        $this->promocionStockIlimitado = $promocion->stock === null;
         $this->fechaInicio = $promocion->fecha_inicio->format('Y-m-d');
         $this->fechaFin = $promocion->fecha_fin->format('Y-m-d');
         $this->diasSemana = collect($promocion->dias_semana ?? [])
@@ -140,8 +156,9 @@ class PromocionesAdmin extends Component
             $this->items = [['producto_id' => '', 'cantidad' => 1]];
         }
 
+        $this->promocionImagen = null;
+        $this->quitarImagen = false;
         $this->activa = $promocion->activa;
-        $this->eliminandoId = null;
         $this->modalAbierto = true;
         $this->resetValidation();
     }
@@ -170,6 +187,10 @@ class PromocionesAdmin extends Component
         $this->descripcion = trim($this->descripcion);
         $this->precio = str_replace(',', '.', trim($this->precio));
 
+        if ($this->promocionStockIlimitado) {
+            $this->promocionStock = '';
+        }
+
         $this->validate([
             'nombre' => [
                 'required',
@@ -182,6 +203,7 @@ class PromocionesAdmin extends Component
             ],
             'descripcion' => ['nullable', 'string', 'max:255'],
             'precio' => ['required', 'numeric', 'min:0.01', 'max:99999999.99', 'decimal:0,2'],
+            'promocionStock' => ['nullable', 'integer', 'min:0', 'max:999999'],
             'fechaInicio' => ['required', 'date_format:Y-m-d'],
             'fechaFin' => ['required', 'date_format:Y-m-d', 'after_or_equal:fechaInicio'],
             'diasSemana' => ['required', 'array', 'min:1'],
@@ -194,10 +216,13 @@ class PromocionesAdmin extends Component
                 Rule::in($this->productosDelNegocio()->pluck('id')->all()),
             ],
             'items.*.cantidad' => ['required', 'integer', 'min:1', 'max:999'],
+            'promocionImagen' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'activa' => ['boolean'],
         ], [
             'nombre.unique' => 'Ya existe una promoción con ese nombre en este negocio.',
             'precio.decimal' => 'El precio admite como máximo dos decimales.',
+            'promocionStock.integer' => 'El stock debe ser un número entero.',
+            'promocionStock.min' => 'El stock no puede ser negativo.',
             'fechaFin.after_or_equal' => 'La fecha de fin debe ser igual o posterior a la fecha de inicio.',
             'diasSemana.required' => 'Selecciona al menos un día para la promoción.',
             'items.required' => 'Agrega al menos un ítem a la promoción.',
@@ -205,14 +230,19 @@ class PromocionesAdmin extends Component
             'items.*.producto_id.in' => 'Uno de los ítems seleccionados no pertenece a este negocio.',
             'items.*.cantidad.integer' => 'La cantidad de cada ítem debe ser un número entero.',
             'items.*.cantidad.min' => 'La cantidad de cada ítem debe ser al menos 1.',
+            'promocionImagen.image' => 'La imagen debe ser un archivo de imagen válido.',
+            'promocionImagen.mimes' => 'La imagen debe ser JPG, PNG o WebP.',
+            'promocionImagen.max' => 'La imagen no puede superar los 2 MB.',
         ], [
             'nombre' => 'nombre',
             'descripcion' => 'descripción',
             'precio' => 'precio',
+            'promocionStock' => 'stock',
             'fechaInicio' => 'fecha de inicio',
             'fechaFin' => 'fecha de fin',
             'diasSemana' => 'días',
             'items' => 'ítems',
+            'promocionImagen' => 'imagen',
         ]);
 
         $productos = $this->productosDelNegocio()->keyBy('id');
@@ -233,10 +263,24 @@ class PromocionesAdmin extends Component
             return;
         }
 
+        $imagen = $promocion?->imagen;
+
+        if ($this->promocionImagen !== null) {
+            $this->eliminarImagen($imagen);
+            $imagen = $this->guardarImagenOptimizada($this->promocionImagen, 'promociones', 'producto');
+        } elseif ($this->quitarImagen && $promocion !== null) {
+            $this->eliminarImagen($imagen);
+            $imagen = null;
+        }
+
         $datos = [
             'nombre' => $this->nombre,
             'descripcion' => $this->descripcion === '' ? null : $this->descripcion,
+            'imagen' => $imagen,
             'precio' => $this->precio,
+            'stock' => $this->promocionStockIlimitado || $this->promocionStock === ''
+                ? null
+                : (int) $this->promocionStock,
             'fecha_inicio' => $this->fechaInicio,
             'fecha_fin' => $this->fechaFin,
             'dias_semana' => collect($this->diasSemana)
@@ -268,41 +312,27 @@ class PromocionesAdmin extends Component
     }
 
     /**
-     * Ask for confirmation before deleting a promotion.
+     * Deactivate (or reactivate) a promotion without deleting it or its history.
      */
-    public function confirmarEliminacion(int $promocionId): void
+    public function cambiarActiva(int $promocionId): void
     {
+        if ($this->modalAbierto) {
+            return;
+        }
+
         $promocion = $this->promocionDelUsuario($promocionId);
 
-        $this->authorize('delete', $promocion);
+        $this->authorize('cambiarActiva', $promocion);
 
-        $this->eliminandoId = $promocion->id;
+        $activa = ! $promocion->activa;
+        $promocion->update(['activa' => $activa]);
 
-        if ($this->editandoId === $promocion->id) {
-            $this->resetForm();
-        }
-    }
+        $mensaje = $activa
+            ? 'La promoción se activó y ya aparecerá en ventas.'
+            : 'La promoción se dio de baja y no aparecerá en ventas.';
 
-    public function cancelarEliminacion(): void
-    {
-        $this->eliminandoId = null;
-    }
-
-    /**
-     * Delete the confirmed promotion. Historical sales keep their snapshot.
-     */
-    public function eliminar(): void
-    {
-        $promocion = $this->promocionDelUsuario((int) $this->eliminandoId);
-
-        $this->authorize('delete', $promocion);
-
-        $promocion->delete();
-
-        $this->eliminandoId = null;
-        $this->resetForm();
-
-        session()->flash('status', 'La promoción se eliminó correctamente.');
+        session()->flash('status', $mensaje);
+        $this->dispatch('toast', message: $mensaje);
     }
 
     /**
@@ -348,6 +378,63 @@ class PromocionesAdmin extends Component
         ];
     }
 
+    public function abrirImagenPromocion(int $promocionId): void
+    {
+        $promocion = $this->promocionDelUsuario($promocionId);
+        $url = $promocion->imagenUrl();
+
+        if ($url === null) {
+            return;
+        }
+
+        $this->imagenAmpliadaUrl = $url;
+        $this->imagenAmpliadaNombre = $promocion->nombre;
+    }
+
+    public function cerrarImagenAmpliada(): void
+    {
+        $this->reset('imagenAmpliadaUrl', 'imagenAmpliadaNombre');
+    }
+
+    /**
+     * Switch between limited and unlimited promotion stock.
+     */
+    public function alternarStockIlimitado(): void
+    {
+        if (! $this->modalAbierto) {
+            return;
+        }
+
+        $this->promocionStockIlimitado = ! $this->promocionStockIlimitado;
+
+        if ($this->promocionStockIlimitado) {
+            $this->promocionStock = '';
+        }
+    }
+
+    public function updatedPromocionImagen(): void
+    {
+        if ($this->promocionImagen !== null) {
+            $this->quitarImagen = false;
+        }
+    }
+
+    /**
+     * Mark the current image for removal when editing.
+     */
+    public function alternarQuitarImagen(): void
+    {
+        if ($this->editandoId === null) {
+            return;
+        }
+
+        $this->quitarImagen = ! $this->quitarImagen;
+
+        if ($this->quitarImagen) {
+            $this->promocionImagen = null;
+        }
+    }
+
     public function render(): View
     {
         $negocio = Auth::user()?->negocio;
@@ -369,9 +456,10 @@ class PromocionesAdmin extends Component
             ->orderBy('nombre')
             ->paginate(10);
 
-        return view('livewire.configuracion.promociones-admin', [
+        return view('livewire.productos.promociones-admin', [
             'promociones' => $promociones,
             'productos' => $this->productosDelNegocio(),
+            'promocionEditando' => $this->promocionEditando(),
         ]);
     }
 
@@ -389,6 +477,7 @@ class PromocionesAdmin extends Component
         }
 
         return Producto::query()
+            ->activas()
             ->with('categoria')
             ->whereHas('categoria', fn ($query) => $query->where('negocio_id', $negocio->id))
             ->orderBy('nombre')
@@ -414,26 +503,37 @@ class PromocionesAdmin extends Component
         return $promocion;
     }
 
+    private function promocionEditando(): ?Promocion
+    {
+        return $this->editandoId === null ? null : $this->promocionDelUsuario($this->editandoId);
+    }
+
     private function resetForm(): void
     {
         $this->reset(
             'nombre',
             'descripcion',
             'precio',
+            'promocionStock',
+            'promocionStockIlimitado',
             'fechaInicio',
             'fechaFin',
             'diasSemana',
             'items',
+            'promocionImagen',
+            'quitarImagen',
             'activa',
             'editandoId',
-            'eliminandoId',
             'modalAbierto',
+            'imagenAmpliadaUrl',
+            'imagenAmpliadaNombre',
         );
 
         $this->fechaInicio = now()->toDateString();
         $this->fechaFin = now()->addWeek()->toDateString();
         $this->diasSemana = [1, 2, 3, 4, 5, 6, 7];
         $this->items = [['producto_id' => '', 'cantidad' => 1]];
+        $this->promocionStockIlimitado = true;
         $this->activa = true;
 
         $this->resetValidation();

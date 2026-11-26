@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Concerns;
 
+use App\Support\ImagenPublica;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -28,6 +29,18 @@ trait OptimizaImagenes
     private const CALIDAD_WEBP_PRODUCTO = 82;
 
     private const NIVEL_PNG = 9;
+
+    /**
+     * Delete a previously uploaded image, leaving seeder/default images alone.
+     */
+    protected function eliminarImagen(?string $ruta): void
+    {
+        if ($ruta === null || $ruta === '' || ImagenPublica::esPublica($ruta)) {
+            return;
+        }
+
+        Storage::disk('public')->delete($ruta);
+    }
 
     protected function guardarImagenOptimizada(
         TemporaryUploadedFile|string $origen,

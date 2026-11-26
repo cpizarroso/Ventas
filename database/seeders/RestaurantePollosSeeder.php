@@ -22,6 +22,8 @@ class RestaurantePollosSeeder extends Seeder
 {
     private const CARPETA_IMAGENES = 'imagenes_iniciales/';
 
+    private const STOCK_INICIAL = 100;
+
     /** @var array<string, array<string, string>> */
     private array $nombresReales = [];
 
@@ -48,7 +50,7 @@ class RestaurantePollosSeeder extends Seeder
             foreach ($config['productos'] as $nombre => $producto) {
                 $valores = [
                     'precio' => $producto['precio'],
-                    'stock' => null,
+                    'stock' => self::STOCK_INICIAL,
                 ];
 
                 $imagen = $this->imagenPara(

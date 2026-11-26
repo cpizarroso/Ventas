@@ -32,7 +32,8 @@ final class DisponibilidadPromocion
         }
 
         return $promocion->productos->every(
-            fn (Producto $producto): bool => $producto->categoria?->activa !== false
+            fn (Producto $producto): bool => $producto->activa
+                && $producto->categoria?->activa !== false
         );
     }
 }

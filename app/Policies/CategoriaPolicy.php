@@ -31,14 +31,6 @@ class CategoriaPolicy
         return $this->perteneceAlNegocioDelUsuario($user, $categoria);
     }
 
-    /**
-     * Determine whether the user can delete the category.
-     */
-    public function delete(User $user, Categoria $categoria): bool
-    {
-        return $this->perteneceAlNegocioDelUsuario($user, $categoria);
-    }
-
     private function perteneceAlNegocioDelUsuario(User $user, Categoria $categoria): bool
     {
         return $user->puedeGestionarConfiguracion()
