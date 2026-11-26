@@ -1,3 +1,8 @@
+@php
+    // Credenciales de prueba precargadas solo en entornos que no sean producción.
+    $usuarioPrueba = app()->environment('production') ? null : config('jibas.login_prueba.usuario');
+    $passwordPrueba = app()->environment('production') ? null : config('jibas.login_prueba.password');
+@endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full">
 <head>
@@ -60,7 +65,7 @@
                         <input id="login"
                                name="login"
                                type="text"
-                               value="{{ old('login') }}"
+                               value="{{ old('login', $usuarioPrueba) }}"
                                required
                                autofocus
                                autocomplete="username"
@@ -72,6 +77,7 @@
                         <div class="relative">
                             <input id="password"
                                    name="password"
+                                   value="{{ old('password', $passwordPrueba) }}"
                                    type="password"
                                    required
                                    autocomplete="current-password"

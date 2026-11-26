@@ -18,4 +18,9 @@ return [
         'username' => env('SUPERADMIN_USERNAME', 'superadmin'),
         'password' => env('SUPERADMIN_PASSWORD', 'password'),
     ],
+
+    'login_prueba' => [
+        'usuario' => env('LOGIN_PRUEBA_USUARIO', 'admin'),
+        'password' => env('LOGIN_PRUEBA_PASSWORD', 'password'),
+    ],
 ];
