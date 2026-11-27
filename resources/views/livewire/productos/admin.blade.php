@@ -132,7 +132,7 @@
                                                         accion="ordenarProductos"
                                                         :deshabilitado="$creandoProducto || $productoEditandoId !== null" />
                                 <x-encabezado-ordenable campo="stock"
-                                                        etiqueta="Stock"
+                                                        etiqueta="Stock / mín."
                                                         alinear="right"
                                                         :orden="$productosOrden"
                                                         :direccion="$productosDireccion"
@@ -236,6 +236,18 @@
                                                        class="w-20 rounded-lg border border-stone-300 bg-white px-2 py-2 text-right text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
                                             @endunless
                                             @error('productoStock')
+                                                <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                                            @enderror
+                                            <label for="producto-stock-min-nuevo" class="sr-only">Stock mínimo</label>
+                                            <input id="producto-stock-min-nuevo"
+                                                   type="number"
+                                                   step="1"
+                                                   min="0"
+                                                   wire:model="productoStockMin"
+                                                   placeholder="Mín: {{ $stockMinimoNegocio }}"
+                                                   title="Stock mínimo. Vacío para heredar el del negocio ({{ $stockMinimoNegocio }})."
+                                                   class="w-20 rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-right text-xs shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
+                                            @error('productoStockMin')
                                                 <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
                                             @enderror
                                         </div>
@@ -376,6 +388,18 @@
                                                 @error('productoStock')
                                                     <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
                                                 @enderror
+                                                <label for="producto-stock-min-editar" class="sr-only">Stock mínimo</label>
+                                                <input id="producto-stock-min-editar"
+                                                       type="number"
+                                                       step="1"
+                                                       min="0"
+                                                       wire:model="productoStockMin"
+                                                       placeholder="Mín: {{ $stockMinimoNegocio }}"
+                                                       title="Stock mínimo. Vacío para heredar el del negocio ({{ $stockMinimoNegocio }})."
+                                                       class="w-20 rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-right text-xs shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-amber-500">
+                                                @error('productoStockMin')
+                                                    <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                                                @enderror
                                             </div>
                                         </td>
                                         <td class="px-3 py-3 text-right">
@@ -449,23 +473,41 @@
                                             Bs {{ number_format((float) $producto->precio, 2) }}
                                         </td>
                                         <td class="px-3 py-3 text-right">
-                                            @if ($producto->stock === null)
-                                                <span class="text-xs text-stone-500 dark:text-stone-400">Ilimitado</span>
-                                            @else
-                                                <div class="flex flex-wrap items-center justify-end gap-1">
+                                            @php
+                                                $stockMinimo = $producto->stockMinimo();
+                                            @endphp
+                                            <div class="flex flex-wrap items-center justify-end gap-1">
+                                                @if ($producto->stock === null)
+                                                    <span class="text-xs text-stone-500 dark:text-stone-400">Ilimitado</span>
+                                                @else
                                                     @if ($producto->stock <= 0)
                                                         <span class="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">Agotado</span>
-                                                    @elseif ($producto->stock <= 5)
+                                                    @elseif ($producto->stock <= $stockMinimo)
                                                         <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">Bajo stock</span>
                                                     @endif
                                                     <span class="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-stone-700 dark:bg-stone-700 dark:text-stone-200">
                                                         Stock: {{ $producto->stock }}
                                                     </span>
-                                                </div>
-                                            @endif
+                                                @endif
+                                                <span class="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium tabular-nums text-stone-600 dark:bg-stone-700 dark:text-stone-300"
+                                                      title="{{ $producto->stock_min === null ? 'Heredado del negocio' : 'Umbral propio' }}">
+                                                    Mín: {{ $stockMinimo }}{{ $producto->stock_min !== null ? ' (propio)' : '' }}
+                                                </span>
+                                            </div>
                                         </td>
                                         <td class="px-3 py-3 text-right">
                                             <div class="flex items-center justify-end gap-1">
+                                                <button type="button"
+                                                        wire:click="abrirAdicionStock({{ $producto->id }})"
+                                                        data-preservar-scroll
+                                                        title="Adicionar stock a {{ $producto->nombre }}"
+                                                        aria-label="Adicionar stock a {{ $producto->nombre }}"
+                                                        @if ($creandoProducto || $productoEditandoId !== null) disabled @endif
+                                                        class="rounded-lg bg-amber-50 p-1.5 text-amber-700 shadow-sm ring-1 ring-amber-200 transition-all hover:scale-105 hover:bg-amber-100 active:scale-95 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-900/30 dark:text-amber-300 dark:ring-amber-800 dark:hover:bg-amber-900/50 dark:focus-visible:ring-offset-stone-800">
+                                                    <svg class="size-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                        <path d="M12 5v14M5 12h14" />
+                                                    </svg>
+                                                </button>
                                                 <button type="button"
                                                         wire:click="editarProducto({{ $producto->id }})"
                                                         data-preservar-scroll
@@ -834,6 +876,84 @@
             <img src="{{ $imagenAmpliadaUrl }}"
                  alt="Imagen ampliada de {{ $imagenAmpliadaNombre }}"
                  class="mx-auto max-h-[70vh] w-auto rounded-xl bg-stone-100 object-contain dark:bg-stone-900">
+        @endif
+    </x-modal-configuracion>
+
+    <x-modal-configuracion id="modal-adicionar-stock"
+                           :titulo="$productoAdicionStock ? 'Adicionar stock — '.$productoAdicionStock->nombre : 'Adicionar stock'"
+                           descripcion="El stock se suma al valor actual del producto."
+                           cerrar="cerrarAdicionStock"
+                           :abierto="$productoAdicionStock !== null"
+                           ancho="max-w-md">
+        @if ($productoAdicionStock)
+            @php
+                $stockActual = $productoAdicionStock->stock;
+                $cantidadAdicion = $adicionStockCantidad === '' ? 0 : (int) $adicionStockCantidad;
+                $stockFinal = $stockActual === null ? $cantidadAdicion : $stockActual + $cantidadAdicion;
+            @endphp
+
+            <div class="space-y-4">
+                <div class="rounded-xl bg-stone-50 p-3 dark:bg-stone-900/50">
+                    <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-stone-400">Stock actual</p>
+                    <p class="mt-0.5 text-lg font-bold text-stone-900 tabular-nums dark:text-stone-100">
+                        {{ $stockActual === null ? 'Ilimitado' : $stockActual }}
+                    </p>
+                    @if ($stockActual === null)
+                        <p class="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                            Este producto pasará de ilimitado a stock finito.
+                        </p>
+                    @endif
+                </div>
+
+                <div>
+                    <label for="adicion-stock-cantidad" class="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
+                        {{ $stockActual === null ? 'Nuevo stock' : 'Unidades a agregar' }}
+                    </label>
+                    <input id="adicion-stock-cantidad"
+                           type="number"
+                           step="1"
+                           min="1"
+                           max="999999"
+                           wire:model.live="adicionStockCantidad"
+                           wire:keydown.enter="adicionarStock"
+                           placeholder="0"
+                           autofocus
+                           class="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:focus:border-amber-500">
+                    @error('adicionStockCantidad')
+                        <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
+                    <p class="text-xs font-medium text-amber-800 dark:text-amber-300">
+                        @if ($adicionStockCantidad === '')
+                            Ingresa una cantidad para ver el resultado.
+                        @else
+                            @if ($stockActual !== null)
+                                {{ $stockActual }} + {{ $cantidadAdicion }} =
+                            @endif
+                            <span class="font-bold tabular-nums">{{ $stockFinal }}</span> unidades.
+                        @endif
+                    </p>
+                </div>
+
+                <p class="text-[11px] text-stone-400 dark:text-stone-500">
+                    Aviso de stock mínimo: {{ $productoAdicionStock->stockMinimo() }} unidades.
+                </p>
+
+                <div class="flex justify-end gap-2 border-t border-stone-100 pt-4 dark:border-stone-700">
+                    <button type="button"
+                            wire:click="cerrarAdicionStock"
+                            class="rounded-xl border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
+                        Cancelar
+                    </button>
+                    <button type="button"
+                            wire:click="adicionarStock"
+                            class="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                        Guardar stock
+                    </button>
+                </div>
+            </div>
         @endif
     </x-modal-configuracion>
 </div>

@@ -6,9 +6,11 @@ use App\Livewire\Concerns\FlashesSavedStatus;
 use App\Livewire\Concerns\OptimizaImagenes;
 use App\Models\Categoria;
 use App\Models\Producto;
+use App\Support\CatalogoCache;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -60,6 +62,14 @@ class Admin extends Component
     public string $productoStock = '';
 
     public bool $productoStockIlimitado = false;
+
+    /** Empty means inherit the business-wide minimum. */
+    public string $productoStockMin = '';
+
+    /** Product currently shown in the "add stock" modal. */
+    public ?int $adicionStockProductoId = null;
+
+    public string $adicionStockCantidad = '';
 
     /** @var TemporaryUploadedFile|null */
     public $productoImagen = null;
@@ -236,6 +246,8 @@ class Admin extends Component
 
         $this->limpiarEdicionProducto();
         $this->creandoProducto = true;
+        $this->productoStockMin = (string) (Auth::user()->negocio?->stockMinimo()
+            ?? config('productos.stock_min_defecto', 5));
 
         $primeraCategoria = Auth::user()->negocio
             ?->categorias()
@@ -267,6 +279,7 @@ class Admin extends Component
         $this->productoPrecio = (string) $producto->precio;
         $this->productoStock = $producto->stock === null ? '' : (string) $producto->stock;
         $this->productoStockIlimitado = $producto->stock === null;
+        $this->productoStockMin = $producto->stock_min === null ? '' : (string) $producto->stock_min;
         $this->productoOriginal = $this->productoValores();
     }
 
@@ -289,6 +302,7 @@ class Admin extends Component
             ],
             'productoPrecio' => ['required', 'numeric', 'min:0', 'max:99999999.99', 'decimal:0,2'],
             'productoStock' => ['nullable', 'integer', 'min:0', 'max:999999'],
+            'productoStockMin' => ['nullable', 'integer', 'min:0', 'max:999999'],
             'productoImagen' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ], [
             'productoNombre.unique' => 'Ya existe un producto con ese nombre en la categoría seleccionada.',
@@ -299,6 +313,8 @@ class Admin extends Component
             'productoPrecio.decimal' => 'El precio admite como máximo dos decimales.',
             'productoStock.integer' => 'El stock debe ser un número entero.',
             'productoStock.min' => 'El stock no puede ser negativo.',
+            'productoStockMin.integer' => 'El stock mínimo debe ser un número entero.',
+            'productoStockMin.min' => 'El stock mínimo no puede ser negativo.',
             'productoImagen.image' => 'La imagen debe ser un archivo de imagen válido.',
             'productoImagen.mimes' => 'La imagen debe ser JPG, PNG o WebP.',
             'productoImagen.max' => 'La imagen no puede superar los 2 MB.',
@@ -307,6 +323,7 @@ class Admin extends Component
             'productoCategoriaId' => 'categoría',
             'productoPrecio' => 'precio',
             'productoStock' => 'stock',
+            'productoStockMin' => 'stock mínimo',
             'productoImagen' => 'imagen',
         ]);
 
@@ -339,6 +356,7 @@ class Admin extends Component
             'stock' => $this->productoStockIlimitado || $this->productoStock === ''
                 ? null
                 : (int) $this->productoStock,
+            'stock_min' => $this->productoStockMin === '' ? null : (int) $this->productoStockMin,
         ];
 
         if ($producto === null) {
@@ -600,6 +618,73 @@ class Admin extends Component
         $this->dispatch('toast', message: $mensaje);
     }
 
+    /**
+     * Open the modal used to add units to an existing product.
+     */
+    public function abrirAdicionStock(int $productoId): void
+    {
+        if ($this->editandoProducto()) {
+            return;
+        }
+
+        $producto = $this->productoDelUsuario($productoId);
+        $this->authorize('update', $producto);
+
+        $this->adicionStockProductoId = $producto->id;
+        $this->adicionStockCantidad = '';
+        $this->resetValidation(['adicionStockCantidad']);
+    }
+
+    public function cerrarAdicionStock(): void
+    {
+        $this->reset('adicionStockProductoId', 'adicionStockCantidad');
+        $this->resetValidation(['adicionStockCantidad']);
+    }
+
+    /**
+     * Add units atomically. Unlimited (null) stock becomes finite with the given amount.
+     */
+    public function adicionarStock(): void
+    {
+        if ($this->adicionStockProductoId === null) {
+            return;
+        }
+
+        $this->validate([
+            'adicionStockCantidad' => ['required', 'integer', 'min:1', 'max:999999'],
+        ], [
+            'adicionStockCantidad.required' => 'Indica la cantidad.',
+            'adicionStockCantidad.integer' => 'La cantidad debe ser un número entero.',
+            'adicionStockCantidad.min' => 'La cantidad debe ser al menos 1.',
+            'adicionStockCantidad.max' => 'La cantidad no puede superar 999999.',
+        ], [
+            'adicionStockCantidad' => 'cantidad',
+        ]);
+
+        $producto = $this->productoDelUsuario($this->adicionStockProductoId);
+        $this->authorize('update', $producto);
+
+        $cantidad = (int) $this->adicionStockCantidad;
+
+        if ($producto->stock === null) {
+            DB::table('productos')->where('id', $producto->id)->update([
+                'stock' => $cantidad,
+                'updated_at' => now(),
+            ]);
+        } else {
+            DB::table('productos')->where('id', $producto->id)->increment('stock', $cantidad, [
+                'updated_at' => now(),
+            ]);
+        }
+
+        // increment()/update() bypass the model events that normally clear this cache.
+        CatalogoCache::invalidar((int) Auth::user()->negocio_id);
+
+        $this->cerrarAdicionStock();
+        $this->dispatch('stockActualizado');
+        $this->flashSaved();
+    }
+
     public function render(): View
     {
         $negocio = Auth::user()?->negocio;
@@ -632,7 +717,7 @@ class Admin extends Component
 
             $consultaProductos = Producto::query()
                 ->whereHas('categoria', fn ($query) => $query->where('categorias.negocio_id', $negocio?->id ?? 0))
-                ->with('categoria')
+                ->with('categoria.negocio')
                 ->when(trim($this->buscarProducto) !== '', function ($query): void {
                     $patron = '%'.trim($this->buscarProducto).'%';
                     $query->where(function ($query) use ($patron): void {
@@ -664,12 +749,30 @@ class Admin extends Component
 
         $promocionesCount = $negocio !== null ? $negocio->promociones()->count() : 0;
 
+        $productoAdicionStock = null;
+
+        if ($this->adicionStockProductoId !== null) {
+            $productoAdicionStock = Producto::query()
+                ->whereKey($this->adicionStockProductoId)
+                ->whereHas('categoria', fn ($query) => $query->where('categorias.negocio_id', $negocio?->id ?? 0))
+                ->with('categoria.negocio')
+                ->first();
+
+            if ($productoAdicionStock === null) {
+                $this->cerrarAdicionStock();
+            }
+        }
+
+        $stockMinimoNegocio = $negocio?->stockMinimo() ?? (int) config('productos.stock_min_defecto', 5);
+
         /** @var Collection<int, Categoria> $categoriasParaFormulario */
         return view('livewire.productos.admin', [
             'productos' => $productos,
             'categorias' => $categorias,
             'categoriasParaFormulario' => $categoriasParaFormulario,
             'promocionesCount' => $promocionesCount,
+            'productoAdicionStock' => $productoAdicionStock,
+            'stockMinimoNegocio' => $stockMinimoNegocio,
         ]);
     }
 
@@ -678,6 +781,7 @@ class Admin extends Component
         $this->limpiarEdicionProducto();
         $this->limpiarEdicionCategoria();
         $this->cerrarImagenAmpliada();
+        $this->cerrarAdicionStock();
         $this->resetValidation();
     }
 
@@ -687,7 +791,7 @@ class Admin extends Component
     }
 
     /**
-     * @return array{nombre: string, categoria: int|string, precio: string, stock: string, ilimitado: bool}
+     * @return array{nombre: string, categoria: int|string, precio: string, stock: string, ilimitado: bool, stock_min: string}
      */
     private function productoValores(): array
     {
@@ -697,6 +801,7 @@ class Admin extends Component
             'precio' => $this->productoPrecio,
             'stock' => $this->productoStock,
             'ilimitado' => $this->productoStockIlimitado,
+            'stock_min' => $this->productoStockMin,
         ];
     }
 
@@ -707,6 +812,7 @@ class Admin extends Component
             || ($this->productoOriginal['precio'] ?? '') !== $this->productoPrecio
             || ($this->productoOriginal['stock'] ?? '') !== $this->productoStock
             || (bool) ($this->productoOriginal['ilimitado'] ?? false) !== $this->productoStockIlimitado
+            || ($this->productoOriginal['stock_min'] ?? '') !== $this->productoStockMin
             || $this->productoImagen !== null
             || $this->quitarImagen;
     }
@@ -721,6 +827,7 @@ class Admin extends Component
             'productoPrecio',
             'productoStock',
             'productoStockIlimitado',
+            'productoStockMin',
             'productoImagen',
             'quitarImagen',
             'productoOriginal',

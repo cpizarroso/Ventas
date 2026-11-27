@@ -155,6 +155,8 @@
                             </div>
                         </div>
 
+                        <livewire:notificaciones.stock />
+
                         <button
                             type="button"
                             data-theme-toggle

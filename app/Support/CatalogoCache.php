@@ -242,7 +242,7 @@ final class CatalogoCache
     {
         return Producto::query()
             ->activas()
-            ->with('categoria')
+            ->with('categoria.negocio')
             ->whereHas('categoria', fn (Builder $query) => $query
                 ->where('negocio_id', $negocio->id)
                 ->where('activa', true))

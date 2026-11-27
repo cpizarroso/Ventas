@@ -15,4 +15,7 @@ return [
 
     /** Lado mínimo del área recortada; por debajo se ampliará la maestra. */
     'recorte_lado_minimo' => 64,
+
+    /** Umbral de stock bajo cuando el negocio no define uno. */
+    'stock_min_defecto' => 5,
 ];

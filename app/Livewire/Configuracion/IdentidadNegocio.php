@@ -6,6 +6,7 @@ use App\Enums\MetodoPago;
 use App\Livewire\Concerns\FlashesSavedStatus;
 use App\Livewire\Concerns\OptimizaImagenes;
 use App\Models\Negocio;
+use App\Support\CatalogoCache;
 use App\Support\LogoDerivado;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
@@ -26,6 +27,10 @@ class IdentidadNegocio extends Component
     public string $metodo_pago_predeterminado = MetodoPago::Efectivo->value;
 
     public bool $imprimir_ticket_predeterminado = false;
+
+    public int $stock_min = 5;
+
+    public bool $permitir_stock_negativo = false;
 
     /** @var TemporaryUploadedFile|null */
     public $logo_nuevo = null;
@@ -52,6 +57,8 @@ class IdentidadNegocio extends Component
         $this->eslogan = $negocio->eslogan;
         $this->metodo_pago_predeterminado = $negocio->metodoPagoPredeterminado()->value;
         $this->imprimir_ticket_predeterminado = $negocio->imprimirTicketPorDefecto();
+        $this->stock_min = $negocio->stockMinimo();
+        $this->permitir_stock_negativo = $negocio->permitirStockNegativo();
         $this->logo_actual = $negocio->logo;
         $this->qr_actual = $negocio->qr_pago;
     }
@@ -70,6 +77,8 @@ class IdentidadNegocio extends Component
             'eslogan' => ['nullable', 'string', 'max:160'],
             'metodo_pago_predeterminado' => ['required', Rule::enum(MetodoPago::class)],
             'imprimir_ticket_predeterminado' => ['boolean'],
+            'stock_min' => ['required', 'integer', 'min:0', 'max:999999'],
+            'permitir_stock_negativo' => ['boolean'],
             'logo_nuevo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'qr_nuevo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ], [], [
@@ -77,6 +86,8 @@ class IdentidadNegocio extends Component
             'eslogan' => 'eslogan',
             'metodo_pago_predeterminado' => 'método de pago por defecto',
             'imprimir_ticket_predeterminado' => 'imprimir ticket por defecto',
+            'stock_min' => 'stock mínimo',
+            'permitir_stock_negativo' => 'permitir venta con stock negativo',
             'logo_nuevo' => 'logo',
             'qr_nuevo' => 'QR de pago',
         ]);
@@ -106,7 +117,13 @@ class IdentidadNegocio extends Component
             : null;
         $negocio->metodo_pago_predeterminado = $this->metodo_pago_predeterminado;
         $negocio->imprimir_ticket_predeterminado = $this->imprimir_ticket_predeterminado;
+        $negocio->stock_min = $this->stock_min;
+        $negocio->permitir_stock_negativo = $this->permitir_stock_negativo;
         $negocio->save();
+
+        // Cached products carry the business relation, so the effective minimum
+        // would otherwise stay stale until the cache expires.
+        CatalogoCache::invalidar($negocio->id);
 
         LogoDerivado::sincronizar($negocio);
 
@@ -118,6 +135,7 @@ class IdentidadNegocio extends Component
         $this->confirmarEliminacionQr = false;
         $this->imagenAmpliada = null;
 
+        $this->dispatch('stockActualizado');
         $this->flashSaved();
 
         $this->js('window.location.reload()');
@@ -257,6 +275,8 @@ class IdentidadNegocio extends Component
             'eslogan' => $this->eslogan,
             'metodo_pago_predeterminado' => $this->metodo_pago_predeterminado,
             'imprimir_ticket_predeterminado' => $this->imprimir_ticket_predeterminado,
+            'stock_min' => $this->stock_min,
+            'permitir_stock_negativo' => $this->permitir_stock_negativo,
             'logo_nuevo' => $this->logo_nuevo,
             'logo_actual' => $this->logo_actual,
             'confirmarEliminacionLogo' => $this->confirmarEliminacionLogo,

@@ -56,12 +56,21 @@
             @endif
 
             @if ($hayAdvertenciasStock)
-                <div class="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 dark:border-amber-700/60 dark:bg-amber-900/20">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">Stock insuficiente</p>
-                    <p class="mt-1 text-xs text-amber-700 dark:text-amber-400">
-                        Algunos ítems superan el stock disponible. La venta se puede cobrar igual y el stock quedará negativo.
-                    </p>
-                </div>
+                @if ($permitirStockNegativo)
+                    <div class="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 dark:border-amber-700/60 dark:bg-amber-900/20">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">Stock insuficiente</p>
+                        <p class="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                            Algunos ítems superan el stock disponible. La venta se puede cobrar igual y el stock quedará negativo.
+                        </p>
+                    </div>
+                @else
+                    <div class="mb-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2 dark:border-red-700/60 dark:bg-red-900/20">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-red-800 dark:text-red-300">Stock insuficiente</p>
+                        <p class="mt-1 text-xs text-red-700 dark:text-red-400">
+                            Ajusta las cantidades o activa «Permitir vender con stock negativo» en Configuración para poder cobrar.
+                        </p>
+                    </div>
+                @endif
             @endif
 
             <ul class="divide-y divide-stone-100 dark:divide-stone-700/60" role="list">
@@ -97,9 +106,18 @@
                                 >
                                     &minus;
                                 </button>
-                                <span class="w-7 text-center text-sm font-semibold text-stone-900 tabular-nums dark:text-stone-100" aria-live="polite">
-                                    {{ $linea['cantidad'] }}
-                                </span>
+                                <label for="{{ $prefijo }}-cantidad-{{ $linea['producto']->id }}" class="sr-only">
+                                    Cantidad de {{ $linea['producto']->nombre }}
+                                </label>
+                                <input id="{{ $prefijo }}-cantidad-{{ $linea['producto']->id }}"
+                                       type="number"
+                                       min="0"
+                                       max="999"
+                                       step="1"
+                                       inputmode="numeric"
+                                       value="{{ $linea['cantidad'] }}"
+                                       wire:change="fijarCantidad({{ $linea['producto']->id }}, $event.target.value)"
+                                       class="w-12 rounded-lg border border-stone-300 bg-white px-1 py-1.5 text-center text-sm font-semibold text-stone-900 tabular-nums focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:focus:border-amber-500">
                                 <button
                                     type="button"
                                     wire:click="incrementarCarrito({{ $linea['producto']->id }})"
@@ -122,9 +140,26 @@
                             </div>
                         </div>
 
+                        <div class="mt-1.5 flex flex-wrap items-center justify-end gap-1">
+                            <span class="mr-auto text-[10px] uppercase tracking-wide text-stone-400 dark:text-stone-500">Atajos</span>
+                            @foreach ([5, 10, 25] as $paso)
+                                <button
+                                    type="button"
+                                    wire:click="incrementarCarrito({{ $linea['producto']->id }}, {{ $paso }})"
+                                    class="rounded-md bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-600 hover:bg-stone-200 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:bg-stone-700 dark:text-stone-300 dark:hover:bg-stone-600"
+                                >
+                                    +{{ $paso }}
+                                </button>
+                            @endforeach
+                        </div>
+
                         @if ($linea['producto']->stock !== null && $linea['cantidad'] > $linea['producto']->stock)
                             <p class="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400" role="status">
-                                Supera el stock; quedarán {{ $linea['producto']->stock - $linea['cantidad'] }} unidades.
+                                @if ($permitirStockNegativo)
+                                    Supera el stock; quedarán {{ $linea['producto']->stock - $linea['cantidad'] }} unidades.
+                                @else
+                                    Supera el stock disponible ({{ $linea['producto']->stock }}). Ajusta la cantidad antes de cobrar.
+                                @endif
                             </p>
                         @endif
 
@@ -186,9 +221,18 @@
                                 >
                                     &minus;
                                 </button>
-                                <span class="w-7 text-center text-sm font-semibold text-stone-900 tabular-nums dark:text-stone-100" aria-live="polite">
-                                    {{ $linea['cantidad'] }}
-                                </span>
+                                <label for="{{ $prefijo }}-cantidad-promo-{{ $promocion->id }}" class="sr-only">
+                                    Cantidad de la promoción {{ $promocion->nombre }}
+                                </label>
+                                <input id="{{ $prefijo }}-cantidad-promo-{{ $promocion->id }}"
+                                       type="number"
+                                       min="0"
+                                       max="999"
+                                       step="1"
+                                       inputmode="numeric"
+                                       value="{{ $linea['cantidad'] }}"
+                                       wire:change="fijarCantidadPromocion({{ $promocion->id }}, $event.target.value)"
+                                       class="w-12 rounded-lg border border-stone-300 bg-white px-1 py-1.5 text-center text-sm font-semibold text-stone-900 tabular-nums focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:focus:border-amber-500">
                                 <button
                                     type="button"
                                     wire:click="incrementarPromocion({{ $promocion->id }})"
@@ -211,13 +255,34 @@
                             </div>
                         </div>
 
+                        <div class="mt-1.5 flex flex-wrap items-center justify-end gap-1">
+                            <span class="mr-auto text-[10px] uppercase tracking-wide text-stone-400 dark:text-stone-500">Atajos</span>
+                            @foreach ([5, 10, 25] as $paso)
+                                <button
+                                    type="button"
+                                    wire:click="incrementarPromocion({{ $promocion->id }}, {{ $paso }})"
+                                    class="rounded-md bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-600 hover:bg-stone-200 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:bg-stone-700 dark:text-stone-300 dark:hover:bg-stone-600"
+                                >
+                                    +{{ $paso }}
+                                </button>
+                            @endforeach
+                        </div>
+
                         @if ($sinStockPromocion)
                             <p class="mt-1 text-xs font-medium text-red-700 dark:text-red-400" role="status">
-                                La promoción no tiene stock disponible; igual se puede cobrar y el stock quedará negativo.
+                                @if ($permitirStockNegativo)
+                                    La promoción no tiene stock disponible; igual se puede cobrar y el stock quedará negativo.
+                                @else
+                                    La promoción no tiene stock disponible. Ajusta la cantidad antes de cobrar.
+                                @endif
                             </p>
                         @elseif ($stockInsuficiente)
                             <p class="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400" role="status">
-                                Algún ítem de la promoción supera el stock disponible; el stock quedará negativo.
+                                @if ($permitirStockNegativo)
+                                    Algún ítem de la promoción supera el stock disponible; el stock quedará negativo.
+                                @else
+                                    Algún ítem de la promoción supera el stock disponible. Ajusta la cantidad antes de cobrar.
+                                @endif
                             </p>
                         @endif
 

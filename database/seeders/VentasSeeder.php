@@ -68,7 +68,7 @@ class VentasSeeder extends Seeder
 
         DB::transaction(function () use ($negocio, $cajeros, $productos, $inicio, $fin, &$decrementosStock): void {
             $this->limpiarRango($negocio, $inicio, $fin);
-            $this->reiniciarStock($productos);
+            // $this->reiniciarStock($productos);
 
             for ($fecha = $inicio->copy(); $fecha->lessThanOrEqualTo($fin); $fecha->addDay()) {
                 $this->crearCajaConVentas($negocio, $cajeros, $productos, $fecha->copy(), $decrementosStock);

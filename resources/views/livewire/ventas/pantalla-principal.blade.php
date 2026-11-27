@@ -68,8 +68,8 @@
 
         <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6">
             <livewire:ventas.catalogo
-                :cantidades-productos="$cantidadesPorProducto"
-                :cantidades-promociones="$cantidadesPromocion"
+                :cantidades-por-producto="$cantidadesPorProducto"
+                :cantidades-promocion="$cantidadesPromocion"
             />
 
             <aside class="mt-6 hidden lg:mt-0 lg:block" aria-label="Detalle de la venta">

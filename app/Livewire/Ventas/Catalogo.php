@@ -9,6 +9,7 @@ use App\Support\CatalogoCache;
 use App\Support\DisponibilidadPromocion;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 /**
@@ -18,8 +19,6 @@ use Livewire\Component;
  */
 class Catalogo extends Component
 {
-    private const STOCK_BAJO = 5;
-
     public string $busqueda = '';
 
     public ?int $categoriaFiltroId = null;
@@ -35,6 +34,30 @@ class Catalogo extends Component
      * @var array<int, int>
      */
     public array $cantidadesPromocion = [];
+
+    /**
+     * Re-render after checkout or a stock change so the "last sale" badges and
+     * stock labels stay in sync without reloading the page.
+     */
+    #[On('stockActualizado')]
+    public function actualizarPorStock(): void
+    {
+        // The badges are read from the session on render.
+    }
+
+    /**
+     * Receive the cart quantities directly: props passed by the parent are not
+     * refreshed when the change originates from a child-dispatched event.
+     *
+     * @param  array<int, int>  $productos
+     * @param  array<int, int>  $promociones
+     */
+    #[On('carritoActualizado')]
+    public function sincronizarCarrito(array $productos, array $promociones): void
+    {
+        $this->cantidadesPorProducto = $productos;
+        $this->cantidadesPromocion = $promociones;
+    }
 
     /**
      * Filter the catalog by category; null means every category.
@@ -114,6 +137,8 @@ class Catalogo extends Component
                 ->values();
         }
 
+        $ultimasUnidades = session('ultima_venta_unidades', []);
+
         return view('livewire.ventas.catalogo', [
             'negocio' => $negocio,
             'categorias' => $categorias,
@@ -121,8 +146,9 @@ class Catalogo extends Component
             'promociones' => $promociones,
             'cantidadesPorProducto' => $this->cantidadesPorProducto,
             'cantidadesPromocion' => $this->cantidadesPromocion,
+            'ultimasUnidadesProductos' => is_array($ultimasUnidades) ? ($ultimasUnidades['productos'] ?? []) : [],
+            'ultimasUnidadesPromociones' => is_array($ultimasUnidades) ? ($ultimasUnidades['promociones'] ?? []) : [],
             'puedeConfigurar' => Auth::user()?->puedeGestionarConfiguracion() ?? false,
-            'umbralStockBajo' => self::STOCK_BAJO,
         ]);
     }
 }

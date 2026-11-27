@@ -23,8 +23,6 @@ use Livewire\Component;
 
 class PantallaPrincipal extends Component
 {
-    private const STOCK_BAJO = 5;
-
     private const MAX_CANTIDAD = 999;
 
     /**
@@ -63,35 +61,43 @@ class PantallaPrincipal extends Component
      * Add a product to the sale detail.
      */
     #[On('agregarProducto')]
-    public function agregarProducto(int $productoId): void
+    public function agregarProducto(int $productoId, int $paso = 1): void
     {
         $producto = $this->productoDisponible($productoId);
+        $paso = max(1, min($paso, self::MAX_CANTIDAD));
 
-        if (! $this->hayCajaParaVenta()) {
-            return;
-        }
-
-        $this->carrito[$producto->id] = min(
-            ($this->carrito[$producto->id] ?? 0) + 1,
-            self::MAX_CANTIDAD
+        $this->aplicarCantidadProducto(
+            $producto->id,
+            (int) ($this->carrito[$producto->id] ?? 0) + $paso,
         );
     }
 
     /**
      * Increase the quantity of a product already in the sale detail.
      */
-    public function incrementarCarrito(int $productoId): void
+    public function incrementarCarrito(int $productoId, int $paso = 1): void
+    {
+        $producto = $this->productoDelCarrito($productoId);
+        $paso = max(1, min($paso, self::MAX_CANTIDAD));
+
+        $this->aplicarCantidadProducto(
+            $producto->id,
+            (int) ($this->carrito[$producto->id] ?? 0) + $paso,
+        );
+    }
+
+    /**
+     * Set an exact quantity from the numeric input (one request on change).
+     */
+    public function fijarCantidad(int $productoId, mixed $cantidad): void
     {
         $producto = $this->productoDelCarrito($productoId);
 
-        if (! $this->hayCajaParaVenta()) {
+        if (! is_numeric($cantidad)) {
             return;
         }
 
-        $this->carrito[$producto->id] = min(
-            ($this->carrito[$producto->id] ?? 0) + 1,
-            self::MAX_CANTIDAD
-        );
+        $this->aplicarCantidadProducto($producto->id, (int) $cantidad);
     }
 
     /**
@@ -101,15 +107,9 @@ class PantallaPrincipal extends Component
     {
         $producto = $this->productoDelCarrito($productoId);
 
-        $cantidad = $this->carrito[$producto->id] ?? 0;
+        $cantidad = (int) ($this->carrito[$producto->id] ?? 0);
 
-        if ($cantidad <= 1) {
-            unset($this->carrito[$producto->id]);
-
-            return;
-        }
-
-        $this->carrito[$producto->id] = $cantidad - 1;
+        $this->aplicarCantidadProducto($producto->id, $cantidad - 1, false);
     }
 
     /**
@@ -120,41 +120,107 @@ class PantallaPrincipal extends Component
         $producto = $this->productoDelCarrito($productoId);
 
         unset($this->carrito[$producto->id]);
+        $this->sincronizarCarritoConCatalogo();
+    }
+
+    /**
+     * Apply a product quantity, keeping the "open cash drawer to increase" rule.
+     * When overselling is disabled, an invalid quantity is reverted with a toast.
+     */
+    private function aplicarCantidadProducto(int $productoId, int $cantidad, bool $validarCaja = true): void
+    {
+        $producto = $this->productoDelCarrito($productoId);
+
+        try {
+            $nueva = max(0, min($cantidad, self::MAX_CANTIDAD));
+            $anterior = (int) ($this->carrito[$producto->id] ?? 0);
+
+            if ($nueva > $anterior && $validarCaja && ! $this->hayCajaParaVenta()) {
+                return;
+            }
+
+            if ($nueva === 0) {
+                unset($this->carrito[$producto->id]);
+
+                return;
+            }
+
+            $controlarStock = ! $this->negocioPermiteStockNegativo();
+            $advertenciaAntes = $controlarStock && $this->hayAdvertenciasStock(
+                $this->lineasDesde($this->carrito),
+                $this->lineasPromocionDesde($this->carritoPromociones),
+            );
+
+            $this->carrito[$producto->id] = $nueva;
+
+            // Only block the transition into an invalid cart, so an already invalid
+            // one can still be corrected by lowering quantities.
+            if ($controlarStock && ! $advertenciaAntes) {
+                $ahora = $this->hayAdvertenciasStock(
+                    $this->lineasDesde($this->carrito),
+                    $this->lineasPromocionDesde($this->carritoPromociones),
+                );
+
+                if ($ahora) {
+                    if ($anterior === 0) {
+                        unset($this->carrito[$producto->id]);
+                    } else {
+                        $this->carrito[$producto->id] = $anterior;
+                    }
+
+                    $this->dispatch(
+                        'toast',
+                        message: 'Stock insuficiente. Ajusta la cantidad o activa la venta con stock negativo en Configuración.',
+                        type: 'warning',
+                    );
+                }
+            }
+        } finally {
+            $this->sincronizarCarritoConCatalogo();
+        }
     }
 
     /**
      * Add an available promotion to the sale detail.
      */
     #[On('agregarPromocion')]
-    public function agregarPromocion(int $promocionId): void
+    public function agregarPromocion(int $promocionId, int $paso = 1): void
     {
         $promocion = $this->promocionDisponible($promocionId);
+        $paso = max(1, min($paso, self::MAX_CANTIDAD));
 
-        if (! $this->hayCajaParaVenta()) {
-            return;
-        }
-
-        $this->carritoPromociones[$promocion->id] = min(
-            ($this->carritoPromociones[$promocion->id] ?? 0) + 1,
-            self::MAX_CANTIDAD
+        $this->aplicarCantidadPromocion(
+            $promocion->id,
+            (int) ($this->carritoPromociones[$promocion->id] ?? 0) + $paso,
         );
     }
 
     /**
      * Increase the quantity of a promotion already in the sale detail.
      */
-    public function incrementarPromocion(int $promocionId): void
+    public function incrementarPromocion(int $promocionId, int $paso = 1): void
+    {
+        $promocion = $this->promocionDelCarrito($promocionId);
+        $paso = max(1, min($paso, self::MAX_CANTIDAD));
+
+        $this->aplicarCantidadPromocion(
+            $promocion->id,
+            (int) ($this->carritoPromociones[$promocion->id] ?? 0) + $paso,
+        );
+    }
+
+    /**
+     * Set an exact promotion quantity from the numeric input.
+     */
+    public function fijarCantidadPromocion(int $promocionId, mixed $cantidad): void
     {
         $promocion = $this->promocionDelCarrito($promocionId);
 
-        if (! $this->hayCajaParaVenta()) {
+        if (! is_numeric($cantidad)) {
             return;
         }
 
-        $this->carritoPromociones[$promocion->id] = min(
-            ($this->carritoPromociones[$promocion->id] ?? 0) + 1,
-            self::MAX_CANTIDAD
-        );
+        $this->aplicarCantidadPromocion($promocion->id, (int) $cantidad);
     }
 
     /**
@@ -164,15 +230,66 @@ class PantallaPrincipal extends Component
     {
         $promocion = $this->promocionDelCarrito($promocionId);
 
-        $cantidad = $this->carritoPromociones[$promocion->id] ?? 0;
+        $cantidad = (int) ($this->carritoPromociones[$promocion->id] ?? 0);
 
-        if ($cantidad <= 1) {
-            unset($this->carritoPromociones[$promocion->id]);
+        $this->aplicarCantidadPromocion($promocion->id, $cantidad - 1, false);
+    }
 
-            return;
+    /**
+     * Apply a promotion quantity, reverting it when it would oversell and the
+     * business has not explicitly allowed negative stock.
+     */
+    private function aplicarCantidadPromocion(int $promocionId, int $cantidad, bool $validarCaja = true): void
+    {
+        $promocion = $this->promocionDelCarrito($promocionId);
+
+        try {
+            $nueva = max(0, min($cantidad, self::MAX_CANTIDAD));
+            $anterior = (int) ($this->carritoPromociones[$promocion->id] ?? 0);
+
+            if ($nueva > $anterior && $validarCaja && ! $this->hayCajaParaVenta()) {
+                return;
+            }
+
+            if ($nueva === 0) {
+                unset($this->carritoPromociones[$promocion->id]);
+
+                return;
+            }
+
+            $controlarStock = ! $this->negocioPermiteStockNegativo();
+            $advertenciaAntes = $controlarStock && $this->hayAdvertenciasStock(
+                $this->lineasDesde($this->carrito),
+                $this->lineasPromocionDesde($this->carritoPromociones),
+            );
+
+            $this->carritoPromociones[$promocion->id] = $nueva;
+
+            // Only block the transition into an invalid cart, so an already invalid
+            // one can still be corrected by lowering quantities.
+            if ($controlarStock && ! $advertenciaAntes) {
+                $ahora = $this->hayAdvertenciasStock(
+                    $this->lineasDesde($this->carrito),
+                    $this->lineasPromocionDesde($this->carritoPromociones),
+                );
+
+                if ($ahora) {
+                    if ($anterior === 0) {
+                        unset($this->carritoPromociones[$promocion->id]);
+                    } else {
+                        $this->carritoPromociones[$promocion->id] = $anterior;
+                    }
+
+                    $this->dispatch(
+                        'toast',
+                        message: 'Stock insuficiente. Ajusta la cantidad o activa la venta con stock negativo en Configuración.',
+                        type: 'warning',
+                    );
+                }
+            }
+        } finally {
+            $this->sincronizarCarritoConCatalogo();
         }
-
-        $this->carritoPromociones[$promocion->id] = $cantidad - 1;
     }
 
     /**
@@ -183,6 +300,7 @@ class PantallaPrincipal extends Component
         $promocion = $this->promocionDelCarrito($promocionId);
 
         unset($this->carritoPromociones[$promocion->id]);
+        $this->sincronizarCarritoConCatalogo();
     }
 
     /**
@@ -201,6 +319,7 @@ class PantallaPrincipal extends Component
         $this->confirmandoCancelarVenta = false;
         $this->resetErrorBag('carrito');
         $this->resetValidation(['metodoPago', 'montoRecibido', 'glosa', 'cliente']);
+        $this->sincronizarCarritoConCatalogo();
     }
 
     /**
@@ -240,11 +359,17 @@ class PantallaPrincipal extends Component
             return;
         }
 
-        if (
-            $this->lineasDesde($this->carrito)->isEmpty()
-            && $this->lineasPromocionDesde($this->carritoPromociones)->isEmpty()
-        ) {
+        $lineas = $this->lineasDesde($this->carrito);
+        $lineasPromociones = $this->lineasPromocionDesde($this->carritoPromociones);
+
+        if ($lineas->isEmpty() && $lineasPromociones->isEmpty()) {
             $this->addError('carrito', 'Agrega al menos un ítem antes de pagar.');
+
+            return;
+        }
+
+        if (! $this->negocioPermiteStockNegativo() && $this->hayAdvertenciasStock($lineas, $lineasPromociones)) {
+            $this->addError('carrito', 'Stock insuficiente. Ajusta las cantidades antes de cobrar.');
 
             return;
         }
@@ -301,6 +426,13 @@ class PantallaPrincipal extends Component
 
         $lineas = $this->lineasDesde($this->carrito);
         $lineasPromociones = $this->lineasPromocionDesde($this->carritoPromociones);
+
+        // Authoritative guard: the cart may be stale or built before a config change.
+        if (! $negocio->permitirStockNegativo() && $this->hayAdvertenciasStock($lineas, $lineasPromociones)) {
+            $this->addError('carrito', 'Stock insuficiente. Ajusta las cantidades o activa «Permitir vender con stock negativo» en Configuración.');
+
+            return;
+        }
 
         $idsEnCarrito = collect($this->carritoPromociones)
             ->filter(fn ($cantidad) => is_numeric($cantidad) && (int) $cantidad > 0)
@@ -495,6 +627,12 @@ class PantallaPrincipal extends Component
 
                 if ($nuevoStock < 0) {
                     $advertenciasStock[] = $producto->nombre.' ('.$nuevoStock.')';
+
+                    if (! $negocio->permitirStockNegativo()) {
+                        throw ValidationException::withMessages([
+                            'carrito' => 'Stock insuficiente para '.$producto->nombre.'. Ajusta la cantidad o activa la venta con stock negativo en Configuración.',
+                        ]);
+                    }
                 }
             }
 
@@ -544,6 +682,12 @@ class PantallaPrincipal extends Component
 
                     if ($nuevoStock <= 0) {
                         $advertenciasStock[] = 'Promoción '.$promocion->nombre.' ('.$nuevoStock.')';
+
+                        if ($nuevoStock < 0 && ! $negocio->permitirStockNegativo()) {
+                            throw ValidationException::withMessages([
+                                'carrito' => 'Stock insuficiente para la promoción '.$promocion->nombre.'. Ajusta la cantidad o activa la venta con stock negativo en Configuración.',
+                            ]);
+                        }
                     }
                 }
 
@@ -566,6 +710,21 @@ class PantallaPrincipal extends Component
 
         // Los decrementos de stock usan query builder y no disparan eventos de modelo.
         CatalogoCache::invalidar($negocio->id);
+
+        // Snapshot the sold units: the cart is cleared below, but the catalog
+        // keeps a floating badge with what was just sold on every product.
+        session([
+            'ultima_venta_unidades' => [
+                'productos' => collect($this->carrito)
+                    ->filter(fn ($cantidad) => is_numeric($cantidad) && (int) $cantidad > 0)
+                    ->map(fn ($cantidad): int => (int) $cantidad)
+                    ->all(),
+                'promociones' => collect($this->carritoPromociones)
+                    ->filter(fn ($cantidad) => is_numeric($cantidad) && (int) $cantidad > 0)
+                    ->map(fn ($cantidad): int => (int) $cantidad)
+                    ->all(),
+            ],
+        ]);
 
         $this->carrito = [];
         $this->carritoPromociones = [];
@@ -592,7 +751,18 @@ class PantallaPrincipal extends Component
             $mensaje .= ' Atención: sin stock en '.implode(', ', $advertenciasStock).'.';
         }
 
+        $this->sincronizarCarritoConCatalogo();
+        $this->dispatch('stockActualizado');
         session()->flash('status', $mensaje);
+    }
+
+    /**
+     * Refresh stock-derived warnings when another component changes the catalog.
+     */
+    #[On('stockActualizado')]
+    public function actualizarPorStock(): void
+    {
+        // The render method resolves the cart from the database again.
     }
 
     /**
@@ -627,6 +797,8 @@ class PantallaPrincipal extends Component
         $totalCarritoEnCentavos = $lineasCarrito->sum('subtotal_centavos')
             + $lineasPromociones->sum('subtotal_centavos');
         $hayAdvertenciasStock = $this->hayAdvertenciasStock($lineasCarrito, $lineasPromociones);
+        $permitirStockNegativo = $negocio?->permitirStockNegativo() ?? false;
+        $hayExcesoStock = ! $permitirStockNegativo && $hayAdvertenciasStock;
 
         $montoRecibidoEnCentavos = $this->montoRecibido !== null && $this->montoRecibido !== ''
             ? $this->centavosDesde($this->montoRecibido)
@@ -642,7 +814,8 @@ class PantallaPrincipal extends Component
         $puedeCobrar = $cajaAbierta !== null
             && $totalCarritoEnCentavos > 0
             && $this->metodoPago !== null
-            && ($this->metodoPago !== MetodoPago::Efectivo->value || $efectivoSuficiente);
+            && ($this->metodoPago !== MetodoPago::Efectivo->value || $efectivoSuficiente)
+            && ! $hayExcesoStock;
 
         return view('livewire.ventas.pantalla-principal', [
             'negocio' => $negocio,
@@ -657,6 +830,8 @@ class PantallaPrincipal extends Component
             'efectivoSuficiente' => $efectivoSuficiente,
             'puedeCobrar' => $puedeCobrar,
             'hayAdvertenciasStock' => $hayAdvertenciasStock,
+            'permitirStockNegativo' => $permitirStockNegativo,
+            'hayExcesoStock' => $hayExcesoStock,
             'imprimirTicketPorDefecto' => $negocio?->imprimirTicketPorDefecto() ?? false,
         ]);
     }
@@ -945,6 +1120,25 @@ class PantallaPrincipal extends Component
             });
     }
 
+    /**
+     * Push the current cart quantities to the catalog child so its floating
+     * badges update even though the change originated from a child event.
+     */
+    private function sincronizarCarritoConCatalogo(): void
+    {
+        $this->dispatch(
+            'carritoActualizado',
+            productos: collect($this->carrito)
+                ->filter(fn ($cantidad) => is_numeric($cantidad) && (int) $cantidad > 0)
+                ->map(fn ($cantidad): int => (int) $cantidad)
+                ->all(),
+            promociones: collect($this->carritoPromociones)
+                ->filter(fn ($cantidad) => is_numeric($cantidad) && (int) $cantidad > 0)
+                ->map(fn ($cantidad): int => (int) $cantidad)
+                ->all(),
+        );
+    }
+
     private function hayCajaParaVenta(): bool
     {
         if ($this->cajaAbierta() !== null) {
@@ -958,6 +1152,11 @@ class PantallaPrincipal extends Component
         );
 
         return false;
+    }
+
+    private function negocioPermiteStockNegativo(): bool
+    {
+        return (bool) Auth::user()?->negocio?->permitirStockNegativo();
     }
 
     private function cajaAbierta(): ?Caja

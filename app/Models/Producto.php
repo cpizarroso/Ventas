@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 
-#[Fillable(['categoria_id', 'nombre', 'imagen', 'precio', 'stock', 'activa'])]
+#[Fillable(['categoria_id', 'nombre', 'imagen', 'precio', 'stock', 'stock_min', 'activa'])]
 class Producto extends Model
 {
     /** @use HasFactory<ProductoFactory> */
@@ -26,6 +26,7 @@ class Producto extends Model
         return [
             'precio' => 'decimal:2',
             'stock' => 'integer',
+            'stock_min' => 'integer',
             'activa' => 'boolean',
         ];
     }
@@ -47,6 +48,17 @@ class Producto extends Model
     public function categoria(): BelongsTo
     {
         return $this->belongsTo(Categoria::class);
+    }
+
+    /**
+     * Effective minimum: the product override, then the business default.
+     */
+    public function stockMinimo(): int
+    {
+        return $this->stock_min !== null
+            ? max(0, (int) $this->stock_min)
+            : $this->categoria?->negocio?->stockMinimo()
+                ?? max(0, (int) config('productos.stock_min_defecto', 5));
     }
 
     /**

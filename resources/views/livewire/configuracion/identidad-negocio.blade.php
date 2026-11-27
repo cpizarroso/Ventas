@@ -171,6 +171,43 @@
                                 Si no está activo, la opción «Ahora no» quedará seleccionada por defecto. El modal siempre se mostrará.
                             </p>
                         </div>
+
+                        <div>
+                            <label for="stock-min" class="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">
+                                Stock mínimo por defecto
+                            </label>
+                            <input id="stock-min"
+                                   type="number"
+                                   step="1"
+                                   min="0"
+                                   max="999999"
+                                   wire:model="stock_min"
+                                   class="w-full rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:focus:border-amber-500">
+                            <p class="mt-1 text-[11px] text-stone-400 dark:text-stone-500">
+                                Se sugerirá al crear un producto. Cada producto puede tener un valor propio.
+                            </p>
+                            @error('stock_min')
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <p class="mb-1 text-sm font-medium text-stone-700 dark:text-stone-300">
+                                Stock negativo
+                            </p>
+                            <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800">
+                                <input type="checkbox"
+                                       wire:model="permitir_stock_negativo"
+                                       class="size-4 rounded border-stone-300 text-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-900">
+                                Permitir vender con stock negativo
+                            </label>
+                            <p class="mt-1 text-[11px] text-stone-400 dark:text-stone-500">
+                                Si está activo, la venta avisará pero podrá cobrarse aunque el stock quede negativo. Si no, se bloqueará el cobro hasta ajustar la cantidad.
+                            </p>
+                            @error('permitir_stock_negativo')
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                            @enderror
+                        </div>
                     </div>
                 </div>
 

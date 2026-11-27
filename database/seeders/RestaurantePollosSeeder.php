@@ -22,7 +22,7 @@ class RestaurantePollosSeeder extends Seeder
 {
     private const CARPETA_IMAGENES = 'imagenes_iniciales/';
 
-    private const STOCK_INICIAL = 100;
+    private const STOCK_INICIAL = 1000;
 
     /** @var array<string, array<string, string>> */
     private array $nombresReales = [];

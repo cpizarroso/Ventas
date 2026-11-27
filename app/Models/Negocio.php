@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\Storage;
     'qr_pago',
     'metodo_pago_predeterminado',
     'imprimir_ticket_predeterminado',
+    'stock_min',
+    'permitir_stock_negativo',
 ])]
 class Negocio extends Model
 {
@@ -35,6 +37,8 @@ class Negocio extends Model
     {
         return [
             'imprimir_ticket_predeterminado' => 'boolean',
+            'stock_min' => 'integer',
+            'permitir_stock_negativo' => 'boolean',
         ];
     }
 
@@ -87,6 +91,22 @@ class Negocio extends Model
     public function imprimirTicketPorDefecto(): bool
     {
         return (bool) $this->imprimir_ticket_predeterminado;
+    }
+
+    /**
+     * Minimum stock used as the default for products of this business.
+     */
+    public function stockMinimo(): int
+    {
+        return max(0, (int) ($this->stock_min ?? config('productos.stock_min_defecto', 5)));
+    }
+
+    /**
+     * Whether the point of sale may sell more units than the available stock.
+     */
+    public function permitirStockNegativo(): bool
+    {
+        return (bool) $this->permitir_stock_negativo;
     }
 
     /**
