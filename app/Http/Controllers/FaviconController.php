@@ -14,6 +14,15 @@ class FaviconController extends Controller
 
     public function index(): BinaryFileResponse
     {
+        $svg = public_path('favicon.svg');
+
+        if (is_file($svg)) {
+            return response()->file($svg, [
+                ...self::CABECERAS,
+                'Content-Type' => 'image/svg+xml',
+            ]);
+        }
+
         $disk = Storage::disk('public');
 
         if ($disk->exists('favicons/favicon.png')) {

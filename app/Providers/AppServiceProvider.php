@@ -47,7 +47,8 @@ class AppServiceProvider extends ServiceProvider
                 $clave = 'favicon-url:'.($negocio?->id ?? 'sin-negocio')
                     .':'.($negocio?->logo ?? 'sin-logo')
                     .':'.($negocio?->updated_at?->timestamp ?? 0)
-                    .':'.(app(FaviconGenerator::class)->version() ?? 'sin-favicon');
+                    .':'.(app(FaviconGenerator::class)->version() ?? 'sin-favicon')
+                    .':'.(is_file(public_path('favicon.svg')) ? filemtime(public_path('favicon.svg')) : 0);
 
                 $datos = [
                     'faviconUrl' => Cache::remember(

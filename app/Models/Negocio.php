@@ -140,6 +140,12 @@ class Negocio extends Model
      */
     public function faviconUrl(): string
     {
+        $svg = public_path('favicon.svg');
+
+        if (is_file($svg)) {
+            return asset('favicon.svg').'?v='.md5((string) filemtime($svg));
+        }
+
         $disk = Storage::disk('public');
         $version = app(FaviconGenerator::class)->version();
 
