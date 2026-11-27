@@ -168,8 +168,26 @@
                                 Resaltar «Imprimir ticket» al registrar la venta
                             </label>
                             <p class="mt-1 text-[11px] text-stone-400 dark:text-stone-500">
-                                Si no está activo, la opción «Ahora no» quedará seleccionada por defecto. El modal siempre se mostrará.
+                                Si no está activo, la opción «Ahora no» quedará seleccionada por defecto dentro del modal.
                             </p>
+                        </div>
+
+                        <div>
+                            <p class="mb-1 text-sm font-medium text-stone-700 dark:text-stone-300">
+                                Mostrar modal de impresión
+                            </p>
+                            <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800">
+                                <input type="checkbox"
+                                       wire:model="mostrar_modal_impresion"
+                                       class="size-4 rounded border-stone-300 text-amber-500 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-900">
+                                Mostrar el modal «Venta registrada» al cobrar
+                            </label>
+                            <p class="mt-1 text-[11px] text-stone-400 dark:text-stone-500">
+                                Si está activo, al registrar la venta aparecerá el modal para imprimir el ticket. Si no, la venta se guardará sin interrumpir.
+                            </p>
+                            @error('mostrar_modal_impresion')
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         <div>

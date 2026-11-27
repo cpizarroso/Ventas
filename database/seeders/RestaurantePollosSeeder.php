@@ -95,25 +95,6 @@ class RestaurantePollosSeeder extends Seeder
             $pollos["Broasted {$corte}"] = $config;
         }
 
-        $gaseosas = [];
-
-        foreach (['Coca Cola' => 'Coca-Cola', 'Fanta' => 'Fanta', 'Sprite' => 'Sprite'] as $marca => $slug) {
-            foreach ([
-                '3Lt' => 18.00,
-                '2Lt' => 15.00,
-                '1Lt' => 10.00,
-                'Popular' => 8.00,
-                'Personal' => 5.00,
-                'mini' => 3.00,
-            ] as $presentacion => $precio) {
-                $gaseosas["{$marca} {$presentacion}"] = [
-                    'precio' => $precio,
-                    'imagen' => "Gaseosa-{$slug}-{$presentacion}.png",
-                    'imagen_marca' => Str::lower($slug).'.png',
-                ];
-            }
-        }
-
         return [
             [
                 'nombre' => 'Pollo',
@@ -121,13 +102,6 @@ class RestaurantePollosSeeder extends Seeder
                 'imagen_categoria' => 'pollo.png',
                 'imagen_generica' => 'img/productos-predeterminados/256/producto_001.png',
                 'productos' => $pollos,
-            ],
-            [
-                'nombre' => 'Gaseosa',
-                'orden' => 2,
-                'imagen_categoria' => 'gaseosa.png',
-                'imagen_generica' => 'img/productos-predeterminados/256/producto_002.png',
-                'productos' => $gaseosas,
             ],
         ];
     }

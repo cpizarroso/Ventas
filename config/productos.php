@@ -17,5 +17,5 @@ return [
     'recorte_lado_minimo' => 64,
 
     /** Umbral de stock bajo cuando el negocio no define uno. */
-    'stock_min_defecto' => 5,
+    'stock_min_defecto' => 10,
 ];

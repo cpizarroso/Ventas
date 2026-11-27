@@ -124,5 +124,15 @@
     </footer>
 
     <x-terminos-modal />
+
+    <script>
+        // Si el navegador restaura esta página desde bfcache, vuelve a pedirla
+        // al servidor: el middleware "guest" redirigirá a /ventas si hay sesión.
+        window.addEventListener('pageshow', function (event) {
+            if (event.persisted) {
+                window.location.reload();
+            }
+        });
+    </script>
 </body>
 </html>

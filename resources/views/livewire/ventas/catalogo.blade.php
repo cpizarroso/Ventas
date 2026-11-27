@@ -112,14 +112,6 @@
                                     aria-label="Agregar la promoción {{ $promocion->nombre }} al detalle"
                                     class="group relative flex flex-col rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-left shadow-sm transition duration-150 hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 active:translate-y-0 dark:border-amber-700/60 dark:bg-amber-900/20 dark:hover:border-amber-500 dark:focus:ring-offset-stone-900"
                                 >
-                                    @if (($ultimasUnidadesPromociones[$promocion->id] ?? 0) > 0)
-                                        <span class="absolute left-2 top-2 flex size-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white shadow-sm ring-2 ring-white tabular-nums dark:ring-stone-800"
-                                              aria-label="{{ $ultimasUnidadesPromociones[$promocion->id] }} vendidas en la última venta"
-                                              title="{{ $ultimasUnidadesPromociones[$promocion->id] }} vendidas en la última venta">
-                                            {{ $ultimasUnidadesPromociones[$promocion->id] }}
-                                        </span>
-                                    @endif
-
                                     @if ($enCarritoPromocion > 0)
                                         <span class="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-stone-900 shadow-sm ring-2 ring-white tabular-nums dark:ring-stone-800" aria-label="{{ $enCarritoPromocion }} en el detalle">
                                             {{ $enCarritoPromocion }}
@@ -227,14 +219,6 @@
                                         </div>
                                     @endif
 
-                                    @if (($ultimasUnidadesProductos[$producto->id] ?? 0) > 0)
-                                        <span class="absolute left-1.5 top-1.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white shadow-sm ring-2 ring-white tabular-nums dark:ring-stone-800"
-                                              aria-label="{{ $ultimasUnidadesProductos[$producto->id] }} vendidas en la última venta"
-                                              title="{{ $ultimasUnidadesProductos[$producto->id] }} vendidas en la última venta">
-                                            {{ $ultimasUnidadesProductos[$producto->id] }}
-                                        </span>
-                                    @endif
-
                                     @if ($enCarrito > 0)
                                         <span class="absolute right-1.5 top-1.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-stone-900 shadow-sm ring-2 ring-white tabular-nums dark:ring-stone-800" aria-label="{{ $enCarrito }} en el detalle">
                                             {{ $enCarrito }}
@@ -298,13 +282,6 @@
                                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5" aria-hidden="true">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
                                                 </svg>
-                                            @endif
-                                            @if (($ultimasUnidadesProductos[$producto->id] ?? 0) > 0)
-                                                <span class="absolute left-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white tabular-nums dark:ring-stone-800"
-                                                      aria-label="{{ $ultimasUnidadesProductos[$producto->id] }} vendidas en la última venta"
-                                                      title="{{ $ultimasUnidadesProductos[$producto->id] }} vendidas en la última venta">
-                                                    {{ $ultimasUnidadesProductos[$producto->id] }}
-                                                </span>
                                             @endif
                                         </div>
                                         <div class="min-w-0">

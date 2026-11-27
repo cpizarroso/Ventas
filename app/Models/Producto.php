@@ -58,7 +58,7 @@ class Producto extends Model
         return $this->stock_min !== null
             ? max(0, (int) $this->stock_min)
             : $this->categoria?->negocio?->stockMinimo()
-                ?? max(0, (int) config('productos.stock_min_defecto', 5));
+                ?? max(0, (int) config('productos.stock_min_defecto', 10));
     }
 
     /**

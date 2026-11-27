@@ -247,7 +247,7 @@ class Admin extends Component
         $this->limpiarEdicionProducto();
         $this->creandoProducto = true;
         $this->productoStockMin = (string) (Auth::user()->negocio?->stockMinimo()
-            ?? config('productos.stock_min_defecto', 5));
+            ?? config('productos.stock_min_defecto', 10));
 
         $primeraCategoria = Auth::user()->negocio
             ?->categorias()
@@ -763,7 +763,7 @@ class Admin extends Component
             }
         }
 
-        $stockMinimoNegocio = $negocio?->stockMinimo() ?? (int) config('productos.stock_min_defecto', 5);
+        $stockMinimoNegocio = $negocio?->stockMinimo() ?? (int) config('productos.stock_min_defecto', 10);
 
         /** @var Collection<int, Categoria> $categoriasParaFormulario */
         return view('livewire.productos.admin', [

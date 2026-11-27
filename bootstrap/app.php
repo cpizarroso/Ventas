@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsureTermsAccepted;
 use App\Http\Middleware\EnsureUsuarioActivo;
 use App\Http\Middleware\RegistrarPresupuestoQueries;
+use App\Http\Middleware\SinCache;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,6 +19,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'terminos.aceptados' => EnsureTermsAccepted::class,
             'usuario.activo' => EnsureUsuarioActivo::class,
+            'sin.cache' => SinCache::class,
         ]);
 
         // El aviso de caja se escribe desde JS, por lo que no debe cifrarse.

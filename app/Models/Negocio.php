@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Storage;
     'qr_pago',
     'metodo_pago_predeterminado',
     'imprimir_ticket_predeterminado',
+    'mostrar_modal_impresion',
     'stock_min',
     'permitir_stock_negativo',
 ])]
@@ -37,6 +38,7 @@ class Negocio extends Model
     {
         return [
             'imprimir_ticket_predeterminado' => 'boolean',
+            'mostrar_modal_impresion' => 'boolean',
             'stock_min' => 'integer',
             'permitir_stock_negativo' => 'boolean',
         ];
@@ -94,11 +96,19 @@ class Negocio extends Model
     }
 
     /**
+     * Whether the receipt prompt is shown after registering a sale.
+     */
+    public function mostrarModalImpresion(): bool
+    {
+        return (bool) ($this->mostrar_modal_impresion ?? true);
+    }
+
+    /**
      * Minimum stock used as the default for products of this business.
      */
     public function stockMinimo(): int
     {
-        return max(0, (int) ($this->stock_min ?? config('productos.stock_min_defecto', 5)));
+        return max(0, (int) ($this->stock_min ?? config('productos.stock_min_defecto', 10)));
     }
 
     /**

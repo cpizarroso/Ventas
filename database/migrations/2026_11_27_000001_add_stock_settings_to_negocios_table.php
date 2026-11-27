@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('negocios', function (Blueprint $table) {
             $table->unsignedInteger('stock_min')
-                ->default(5)
+                ->default(10)
                 ->after('imprimir_ticket_predeterminado');
             $table->boolean('permitir_stock_negativo')
                 ->default(false)

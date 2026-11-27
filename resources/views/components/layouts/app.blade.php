@@ -26,6 +26,7 @@
             x-on:keydown.escape.window="mobileMenuOpen = false; notificacionesAbiertas = false"
             x-on:click.outside="mobileMenuOpen = false; notificacionesAbiertas = false"
             x-on:resize.window="if (window.innerWidth >= 1024) mobileMenuOpen = false"
+            x-on:abrir-notificaciones-caja.window="notificacionesAbiertas = true"
             class="z-50 shrink-0 border-b border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-800"
         >
             <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">

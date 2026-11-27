@@ -122,54 +122,7 @@
                 <h2 class="text-base font-semibold text-stone-900 dark:text-stone-100">Ventas de la caja</h2>
             </div>
 
-            @if ($ventas->isEmpty())
-                <div class="px-4 py-12 text-center sm:px-6">
-                    <p class="text-sm font-medium text-stone-600 dark:text-stone-300">Esta caja todavía no tiene ventas</p>
-                </div>
-            @else
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-stone-100 text-sm dark:divide-stone-700/60">
-                        <thead class="bg-stone-50 text-left text-xs font-semibold uppercase tracking-wide text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
-                            <tr>
-                                <th scope="col" class="px-4 py-3 sm:px-6">Venta</th>
-                                <th scope="col" class="px-4 py-3">Fecha</th>
-                                <th scope="col" class="px-4 py-3">Vendedor</th>
-                                <th scope="col" class="px-4 py-3">Pago</th>
-                                <th scope="col" class="px-4 py-3 text-right">Ítems</th>
-                                <th scope="col" class="px-4 py-3 text-right sm:px-6">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-stone-100 dark:divide-stone-700/60">
-                            @foreach ($ventas as $venta)
-                                <tr>
-                                    <td class="whitespace-nowrap px-4 py-3 font-semibold text-stone-800 dark:text-stone-100 sm:px-6">
-                                        #{{ $venta->numeroTicket() }}
-                                    </td>
-                                    <td class="whitespace-nowrap px-4 py-3 text-stone-600 dark:text-stone-300">
-                                        {{ $venta->created_at->format('d/m/Y H:i') }}
-                                    </td>
-                                    <td class="whitespace-nowrap px-4 py-3 text-stone-600 dark:text-stone-300">
-                                        {{ $venta->user?->name ?? '—' }}
-                                    </td>
-                                    <td class="whitespace-nowrap px-4 py-3 text-stone-600 dark:text-stone-300">
-                                        {{ $venta->metodo_pago?->etiqueta() ?? 'Efectivo' }}
-                                    </td>
-                                    <td class="whitespace-nowrap px-4 py-3 text-right text-stone-600 tabular-nums dark:text-stone-300">
-                                        {{ $venta->detalles->sum('cantidad') }}
-                                    </td>
-                                    <td class="whitespace-nowrap px-4 py-3 text-right font-semibold text-stone-900 tabular-nums dark:text-stone-100 sm:px-6">
-                                        Bs {{ number_format((float) $venta->total, 2) }}
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="border-t border-stone-100 px-4 py-4 dark:border-stone-700/60 sm:px-6">
-                    {{ $ventas->links() }}
-                </div>
-            @endif
+            <livewire:cajas.ventas-caja :caja-id="$caja->id" />
         </section>
     </div>
 </x-layouts.app>

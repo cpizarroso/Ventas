@@ -159,15 +159,8 @@ class CajaController extends Controller
                 'qr' => (float) $caja->total_qr,
             ];
 
-        $ventas = $caja->ventas()
-            ->with('user')
-            ->ordenadasPorFechaYNumeroTicket()
-            ->paginate(10, ['*'], 'ventas_page')
-            ->withQueryString();
-
         return view('cajas.show', [
             'caja' => $caja,
-            'ventas' => $ventas,
             'esAbierta' => $esAbierta,
             'resumen' => $resumen,
             'montoEsperado' => (float) $caja->monto_inicial + (float) ($esAbierta ? $resumen['efectivo'] : $caja->total_efectivo),

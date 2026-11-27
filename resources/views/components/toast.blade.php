@@ -3,28 +3,98 @@
         visible: false,
         message: '',
         type: 'success',
+        destacado: false,
+        secuencia: 0,
         timer: null,
+        audioContext: null,
+        initAudio() {
+            const Contexto = window.AudioContext || window.webkitAudioContext;
+            if (!Contexto) return null;
+
+            if (!this.audioContext) {
+                this.audioContext = new Contexto();
+            }
+
+            return this.audioContext;
+        },
+        playSound() {
+            const contexto = this.initAudio();
+            if (!contexto) return;
+
+            const reproducir = () => {
+                const ahora = contexto.currentTime;
+                const notas = this.type === 'warning'
+                    ? [
+                        { frecuencia: 520, inicio: 0, duracion: 0.09 },
+                        { frecuencia: 390, inicio: 0.11, duracion: 0.13 },
+                    ]
+                    : [
+                        { frecuencia: 880, inicio: 0, duracion: 0.08 },
+                        { frecuencia: 1174.66, inicio: 0.09, duracion: 0.14 },
+                    ];
+
+                notas.forEach(({ frecuencia, inicio, duracion }) => {
+                    const cuando = ahora + inicio;
+                    const oscilador = contexto.createOscillator();
+                    const ganancia = contexto.createGain();
+
+                    oscilador.type = this.type === 'warning' ? 'triangle' : 'sine';
+                    oscilador.frequency.value = frecuencia;
+                    ganancia.gain.setValueAtTime(0.0001, cuando);
+                    ganancia.gain.exponentialRampToValueAtTime(0.14, cuando + 0.015);
+                    ganancia.gain.exponentialRampToValueAtTime(0.0001, cuando + duracion);
+
+                    oscilador.connect(ganancia);
+                    ganancia.connect(contexto.destination);
+                    oscilador.start(cuando);
+                    oscilador.stop(cuando + duracion + 0.03);
+                    oscilador.onended = () => {
+                        oscilador.disconnect();
+                        ganancia.disconnect();
+                    };
+                });
+            };
+
+            if (contexto.state === 'suspended') {
+                contexto.resume().then(reproducir).catch(() => {});
+            } else {
+                reproducir();
+            }
+        },
         showToast(detail) {
             this.message = detail?.message ?? '';
             this.type = detail?.type ?? 'success';
+            this.destacado = detail?.destacado ?? false;
+            this.secuencia++;
             this.visible = true;
             clearTimeout(this.timer);
             this.timer = setTimeout(() => this.visible = false, 4000);
+
+            if (detail?.sonido !== false) {
+                this.playSound();
+            }
         },
     }"
+    x-on:pointerdown.window.once="initAudio()"
+    x-on:keydown.window.once="initAudio()"
     x-on:toast.window="showToast($event.detail)"
     x-cloak
     x-show="visible"
-    x-transition.opacity.duration.200ms
-    class="pointer-events-none fixed inset-x-4 top-20 z-50 flex justify-end sm:left-auto sm:right-6 sm:w-full sm:max-w-sm"
+    x-transition:leave.opacity.duration.200ms
+    class="pointer-events-none fixed inset-x-0 top-20 z-50 mx-auto flex w-full max-w-6xl justify-end px-4 sm:px-6"
     :role="type === 'warning' ? 'alert' : 'status'"
     aria-live="polite"
 >
     <div
-        class="pointer-events-auto flex w-full items-start gap-3 rounded-2xl border bg-white p-4 shadow-lg ring-1 ring-black/5 dark:bg-stone-800"
-        :class="type === 'warning'
-            ? 'border-amber-300 dark:border-amber-700'
-            : 'border-emerald-200 dark:border-emerald-800'"
+        class="pointer-events-auto relative flex w-full items-start gap-3 overflow-hidden rounded-2xl border bg-white p-4 shadow-lg ring-1 ring-black/5 sm:max-w-sm dark:bg-stone-800"
+        :class="[
+            type === 'warning'
+                ? 'border-amber-300 dark:border-amber-700'
+                : 'border-emerald-200 dark:border-emerald-800',
+            destacado
+                ? (secuencia % 2 === 0 ? 'toast-pop-a' : 'toast-pop-b')
+                : '',
+        ]"
     >
         <span
             class="flex size-9 shrink-0 items-center justify-center rounded-xl"
@@ -47,9 +117,19 @@
             :class="type === 'warning' ? 'focus:ring-amber-500' : 'focus:ring-emerald-500'"
             aria-label="Cerrar notificación"
         >
-            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M18 6 6 18M6 6l12 12" />
+            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 6l12 12M18 6 6 18" />
             </svg>
         </button>
+
+        <div
+            x-show="destacado"
+            class="absolute inset-x-0 bottom-0 h-1"
+            :class="[
+                type === 'warning' ? 'bg-amber-500' : 'bg-emerald-500',
+                secuencia % 2 === 0 ? 'toast-barra-a' : 'toast-barra-b',
+            ]"
+            aria-hidden="true"
+        ></div>
     </div>
 </div>

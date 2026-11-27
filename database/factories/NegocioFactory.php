@@ -24,6 +24,9 @@ class NegocioFactory extends Factory
             'qr_pago' => null,
             'metodo_pago_predeterminado' => 'efectivo',
             'imprimir_ticket_predeterminado' => false,
+            'mostrar_modal_impresion' => true,
+            'stock_min' => 10,
+            'permitir_stock_negativo' => false,
         ];
     }
 }

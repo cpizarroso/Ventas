@@ -36,13 +36,13 @@ class Catalogo extends Component
     public array $cantidadesPromocion = [];
 
     /**
-     * Re-render after checkout or a stock change so the "last sale" badges and
-     * stock labels stay in sync without reloading the page.
+     * Re-render after checkout or a stock change so stock labels stay in sync
+     * without reloading the page.
      */
     #[On('stockActualizado')]
     public function actualizarPorStock(): void
     {
-        // The badges are read from the session on render.
+        // Stock-derived labels are recomputed on render.
     }
 
     /**
@@ -137,8 +137,6 @@ class Catalogo extends Component
                 ->values();
         }
 
-        $ultimasUnidades = session('ultima_venta_unidades', []);
-
         return view('livewire.ventas.catalogo', [
             'negocio' => $negocio,
             'categorias' => $categorias,
@@ -146,8 +144,6 @@ class Catalogo extends Component
             'promociones' => $promociones,
             'cantidadesPorProducto' => $this->cantidadesPorProducto,
             'cantidadesPromocion' => $this->cantidadesPromocion,
-            'ultimasUnidadesProductos' => is_array($ultimasUnidades) ? ($ultimasUnidades['productos'] ?? []) : [],
-            'ultimasUnidadesPromociones' => is_array($ultimasUnidades) ? ($ultimasUnidades['promociones'] ?? []) : [],
             'puedeConfigurar' => Auth::user()?->puedeGestionarConfiguracion() ?? false,
         ]);
     }

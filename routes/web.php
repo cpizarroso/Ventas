@@ -18,7 +18,7 @@ Route::get('/terminos', [TerminosController::class, 'index'])->name('terminos.in
 
 Route::get('/favicon.ico', [FaviconController::class, 'index'])->name('favicon');
 
-Route::middleware('guest')->group(function () {
+Route::middleware(['guest', 'sin.cache'])->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
     Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:5,1')->name('login.store');
 });

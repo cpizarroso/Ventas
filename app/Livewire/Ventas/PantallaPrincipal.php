@@ -43,6 +43,8 @@ class PantallaPrincipal extends Component
 
     public bool $confirmandoCancelarVenta = false;
 
+    public bool $mostrarModalSinCaja = false;
+
     public ?int $ventaParaImprimirId = null;
 
     public ?int $ventaParaImprimirNumero = null;
@@ -711,21 +713,6 @@ class PantallaPrincipal extends Component
         // Los decrementos de stock usan query builder y no disparan eventos de modelo.
         CatalogoCache::invalidar($negocio->id);
 
-        // Snapshot the sold units: the cart is cleared below, but the catalog
-        // keeps a floating badge with what was just sold on every product.
-        session([
-            'ultima_venta_unidades' => [
-                'productos' => collect($this->carrito)
-                    ->filter(fn ($cantidad) => is_numeric($cantidad) && (int) $cantidad > 0)
-                    ->map(fn ($cantidad): int => (int) $cantidad)
-                    ->all(),
-                'promociones' => collect($this->carritoPromociones)
-                    ->filter(fn ($cantidad) => is_numeric($cantidad) && (int) $cantidad > 0)
-                    ->map(fn ($cantidad): int => (int) $cantidad)
-                    ->all(),
-            ],
-        ]);
-
         $this->carrito = [];
         $this->carritoPromociones = [];
         $this->mostrarModalPago = false;
@@ -734,26 +721,40 @@ class PantallaPrincipal extends Component
         $this->glosa = '';
         $this->cliente = '';
         $this->paraLlevar = false;
-        $this->ventaParaImprimirId = $venta->id;
-        $this->ventaParaImprimirNumero = $venta->numeroTicket();
+
+        if ($negocio->mostrarModalImpresion()) {
+            $this->ventaParaImprimirId = $venta->id;
+            $this->ventaParaImprimirNumero = $venta->numeroTicket();
+        } else {
+            $this->ventaParaImprimirId = null;
+            $this->ventaParaImprimirNumero = null;
+        }
+
         $this->resetErrorBag('carrito');
         $this->resetValidation(['metodoPago', 'montoRecibido', 'glosa', 'cliente']);
 
-        $mensaje = 'Venta #'.$venta->numeroTicket().' registrada por Bs '.number_format($totalEnCentavos / 100, 2)
-            .' ('.$metodoPago->etiqueta().').';
-
-        if ($metodoPago === MetodoPago::Efectivo) {
-            $mensaje .= ' Recibido: Bs '.number_format($montoRecibidoEnCentavos / 100, 2)
-                .' · Cambio: Bs '.number_format($cambioEnCentavos / 100, 2).'.';
-        }
+        $mensaje = $this->descripcionCortaVenta(
+            $lineas,
+            $lineasPromociones,
+            $totalEnCentavos,
+            $venta->numeroTicket(),
+        );
+        $tipoToast = 'success';
 
         if ($advertenciasStock !== []) {
-            $mensaje .= ' Atención: sin stock en '.implode(', ', $advertenciasStock).'.';
+            $primero = array_slice($advertenciasStock, 0, 2);
+            $mensaje .= ' · Sin stock: '.implode(', ', $primero);
+
+            if (count($advertenciasStock) > count($primero)) {
+                $mensaje .= ' y '.(count($advertenciasStock) - count($primero)).' más';
+            }
+
+            $tipoToast = 'warning';
         }
 
         $this->sincronizarCarritoConCatalogo();
         $this->dispatch('stockActualizado');
-        session()->flash('status', $mensaje);
+        $this->dispatch('toast', message: $mensaje, type: $tipoToast, destacado: true);
     }
 
     /**
@@ -1139,19 +1140,66 @@ class PantallaPrincipal extends Component
         );
     }
 
+    /**
+     * Build the short toast shown after saving a sale: item names and total.
+     */
+    private function descripcionCortaVenta(
+        Collection $lineas,
+        Collection $lineasPromociones,
+        int $totalEnCentavos,
+        int $numeroTicket,
+    ): string {
+        $nombres = $lineas
+            ->map(fn (array $linea): string => $this->nombreConCantidad(
+                $linea['producto']->nombre,
+                (int) $linea['cantidad'],
+            ))
+            ->concat($lineasPromociones->map(fn (array $linea): string => $this->nombreConCantidad(
+                $linea['promocion']->nombre,
+                (int) $linea['cantidad'],
+            )))
+            ->values();
+
+        $detalle = $nombres->take(2)->implode(', ');
+
+        if ($nombres->count() > 2) {
+            $detalle .= ' y '.($nombres->count() - 2).' más';
+        }
+
+        return 'Venta #'.$numeroTicket.': '.$detalle.' · Bs '.number_format($totalEnCentavos / 100, 2);
+    }
+
+    private function nombreConCantidad(string $nombre, int $cantidad): string
+    {
+        return $cantidad > 1 ? $nombre.' x'.$cantidad : $nombre;
+    }
+
     private function hayCajaParaVenta(): bool
     {
         if ($this->cajaAbierta() !== null) {
             return true;
         }
 
-        $this->dispatch(
-            'toast',
-            message: 'Abre tu caja antes de agregar ítems a la venta.',
-            type: 'warning',
-        );
+        $this->mostrarModalSinCaja = true;
 
         return false;
+    }
+
+    /**
+     * Dismiss the prompt and reveal the cash status popover in the header.
+     */
+    public function abrirNotificacionesCaja(): void
+    {
+        $this->mostrarModalSinCaja = false;
+        $this->dispatch('abrir-notificaciones-caja');
+    }
+
+    /**
+     * Dismiss the prompt without opening the cash status popover.
+     */
+    public function cerrarModalSinCaja(): void
+    {
+        $this->mostrarModalSinCaja = false;
     }
 
     private function negocioPermiteStockNegativo(): bool

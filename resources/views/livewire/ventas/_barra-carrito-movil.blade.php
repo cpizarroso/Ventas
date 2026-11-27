@@ -23,13 +23,6 @@
                     </div>
                     <button
                         type="button"
-                        data-abrir-terminos="#modal-terminos"
-                        class="shrink-0 rounded-xl border border-stone-300 px-3 py-2.5 text-xs font-semibold text-stone-600 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700"
-                    >
-                        Términos
-                    </button>
-                    <button
-                        type="button"
                         x-on:click="carritoAbierto = true"
                         class="shrink-0 rounded-xl bg-amber-500 px-6 py-2.5 text-sm font-bold uppercase tracking-wide text-stone-900 hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-stone-800"
                     >

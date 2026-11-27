@@ -62,10 +62,6 @@
             </p>
         </div>
     @else
-        <div class="mb-4">
-            <x-resumen-caja :caja="$cajaAbierta" />
-        </div>
-
         <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6">
             <livewire:ventas.catalogo
                 :cantidades-por-producto="$cantidadesPorProducto"
@@ -107,4 +103,6 @@
     @include('livewire.ventas._modal-pago')
 
         @include('livewire.ventas._cancelar-venta')
+
+        @include('livewire.ventas._modal-sin-caja')
 </div>

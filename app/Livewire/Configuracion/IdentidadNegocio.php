@@ -28,7 +28,9 @@ class IdentidadNegocio extends Component
 
     public bool $imprimir_ticket_predeterminado = false;
 
-    public int $stock_min = 5;
+    public bool $mostrar_modal_impresion = true;
+
+    public int $stock_min = 10;
 
     public bool $permitir_stock_negativo = false;
 
@@ -57,6 +59,7 @@ class IdentidadNegocio extends Component
         $this->eslogan = $negocio->eslogan;
         $this->metodo_pago_predeterminado = $negocio->metodoPagoPredeterminado()->value;
         $this->imprimir_ticket_predeterminado = $negocio->imprimirTicketPorDefecto();
+        $this->mostrar_modal_impresion = $negocio->mostrarModalImpresion();
         $this->stock_min = $negocio->stockMinimo();
         $this->permitir_stock_negativo = $negocio->permitirStockNegativo();
         $this->logo_actual = $negocio->logo;
@@ -77,6 +80,7 @@ class IdentidadNegocio extends Component
             'eslogan' => ['nullable', 'string', 'max:160'],
             'metodo_pago_predeterminado' => ['required', Rule::enum(MetodoPago::class)],
             'imprimir_ticket_predeterminado' => ['boolean'],
+            'mostrar_modal_impresion' => ['boolean'],
             'stock_min' => ['required', 'integer', 'min:0', 'max:999999'],
             'permitir_stock_negativo' => ['boolean'],
             'logo_nuevo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
@@ -86,6 +90,7 @@ class IdentidadNegocio extends Component
             'eslogan' => 'eslogan',
             'metodo_pago_predeterminado' => 'método de pago por defecto',
             'imprimir_ticket_predeterminado' => 'imprimir ticket por defecto',
+            'mostrar_modal_impresion' => 'mostrar modal de impresión',
             'stock_min' => 'stock mínimo',
             'permitir_stock_negativo' => 'permitir venta con stock negativo',
             'logo_nuevo' => 'logo',
@@ -117,6 +122,7 @@ class IdentidadNegocio extends Component
             : null;
         $negocio->metodo_pago_predeterminado = $this->metodo_pago_predeterminado;
         $negocio->imprimir_ticket_predeterminado = $this->imprimir_ticket_predeterminado;
+        $negocio->mostrar_modal_impresion = $this->mostrar_modal_impresion;
         $negocio->stock_min = $this->stock_min;
         $negocio->permitir_stock_negativo = $this->permitir_stock_negativo;
         $negocio->save();
@@ -275,6 +281,7 @@ class IdentidadNegocio extends Component
             'eslogan' => $this->eslogan,
             'metodo_pago_predeterminado' => $this->metodo_pago_predeterminado,
             'imprimir_ticket_predeterminado' => $this->imprimir_ticket_predeterminado,
+            'mostrar_modal_impresion' => $this->mostrar_modal_impresion,
             'stock_min' => $this->stock_min,
             'permitir_stock_negativo' => $this->permitir_stock_negativo,
             'logo_nuevo' => $this->logo_nuevo,

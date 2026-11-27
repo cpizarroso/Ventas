@@ -9,9 +9,9 @@ use Illuminate\Support\Facades\Schema;
 
 class DatabaseSeeder extends Seeder
 {
-    public const NOMBRE_COMERCIAL = 'JOTAPE';
+    public const NOMBRE_COMERCIAL = 'CAPIGUARA';
 
-    public const ESLOGAN = 'Jibas frescas, sabor de siempre';
+    public const ESLOGAN = 'Sistema de venta para restaurantes de pollos y comida rápida';
 
     /**
      * Prepara el escenario base de forma idempotente.
@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             SuperadminSeeder::class,
             RestaurantePollosSeeder::class,
+            GaseosaSeeder::class,
         ]);
     }
 
