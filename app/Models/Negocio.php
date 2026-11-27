@@ -116,7 +116,7 @@ class Negocio extends Model
      */
     public function permitirStockNegativo(): bool
     {
-        return (bool) $this->permitir_stock_negativo;
+        return (bool) ($this->permitir_stock_negativo ?? config('productos.permitir_stock_negativo', true));
     }
 
     /**

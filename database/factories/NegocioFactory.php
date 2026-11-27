@@ -26,7 +26,7 @@ class NegocioFactory extends Factory
             'imprimir_ticket_predeterminado' => false,
             'mostrar_modal_impresion' => true,
             'stock_min' => 10,
-            'permitir_stock_negativo' => false,
+            'permitir_stock_negativo' => true,
         ];
     }
 }

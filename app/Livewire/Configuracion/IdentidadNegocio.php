@@ -32,7 +32,7 @@ class IdentidadNegocio extends Component
 
     public int $stock_min = 10;
 
-    public bool $permitir_stock_negativo = false;
+    public bool $permitir_stock_negativo = true;
 
     /** @var TemporaryUploadedFile|null */
     public $logo_nuevo = null;

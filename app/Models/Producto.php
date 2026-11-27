@@ -62,6 +62,22 @@ class Producto extends Model
     }
 
     /**
+     * Whether the product is out of stock or already in negative stock.
+     */
+    public function sinStock(): bool
+    {
+        return $this->stock !== null && $this->stock <= 0;
+    }
+
+    /**
+     * Whether stock is still available but at or below the configured minimum.
+     */
+    public function stockBajo(): bool
+    {
+        return $this->stock !== null && $this->stock > 0 && $this->stock <= $this->stockMinimo();
+    }
+
+    /**
      * Scope the query to products that can be shown on the sales screen.
      */
     #[Scope]

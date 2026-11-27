@@ -18,4 +18,7 @@ return [
 
     /** Umbral de stock bajo cuando el negocio no define uno. */
     'stock_min_defecto' => 10,
+
+    /** Permitir cobrar ventas que dejan stock negativo cuando no hay preferencia guardada. */
+    'permitir_stock_negativo' => true,
 ];

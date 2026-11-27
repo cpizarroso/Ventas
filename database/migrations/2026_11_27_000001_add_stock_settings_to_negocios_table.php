@@ -16,7 +16,7 @@ return new class extends Migration
                 ->default(10)
                 ->after('imprimir_ticket_predeterminado');
             $table->boolean('permitir_stock_negativo')
-                ->default(false)
+                ->default(true)
                 ->after('stock_min');
         });
     }

@@ -129,9 +129,9 @@
                                             <p class="truncate text-sm font-bold text-stone-900 dark:text-stone-50" title="{{ $promocion->nombre }}">
                                                 {{ $promocion->nombre }}
                                                 @if ($promocion->sinStock())
-                                                    <span class="ml-1 inline-block rounded-full bg-red-100 px-1.5 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide text-red-700 dark:bg-red-900/50 dark:text-red-300">Sin stock</span>
+                                                    <span class="ml-1 inline-block rounded-full bg-red-100 px-1.5 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide text-red-700 tabular-nums dark:bg-red-900/50 dark:text-red-300">Stock: {{ $promocion->stock }}</span>
                                                 @elseif ($promocion->stock !== null)
-                                                    <span class="ml-1 inline-block rounded-full bg-amber-100 px-1.5 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">Stock: {{ $promocion->stock }}</span>
+                                                    <span class="ml-1 inline-block rounded-full bg-amber-100 px-1.5 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide text-amber-800 tabular-nums dark:bg-amber-900/50 dark:text-amber-300">Stock: {{ $promocion->stock }}</span>
                                                 @endif
                                             </p>
                                             @if (filled($promocion->descripcion))
@@ -198,17 +198,54 @@
                         @foreach ($productos as $producto)
                             @php
                                 $enCarrito = $cantidadesPorProducto[$producto->id] ?? 0;
-                                $stockBajo = $producto->stock !== null && $producto->stock <= $producto->stockMinimo();
+                                $sinStock = $producto->sinStock();
+                                $stockBajo = $producto->stockBajo();
                             @endphp
 
+                            <div
+                                wire:key="producto-{{ $producto->id }}"
+                                class="relative"
+                                x-data="{
+                                    popoverAbierto: false,
+                                    hojaAbierta: false,
+                                    verificarDesborde() {
+                                        const boton = this.$refs.botonProducto;
+                                        const referencias = [
+                                            this.$refs.nombreProducto,
+                                            this.$refs.stockProducto,
+                                            ...(boton ? boton.querySelectorAll('.truncate, .line-clamp-2') : []),
+                                        ];
+
+                                        return referencias.some((texto) => texto
+                                            && (texto.scrollHeight > texto.clientHeight + 1
+                                                || texto.scrollWidth > texto.clientWidth + 1));
+                                    },
+                                    punteroTactil: false,
+                                    abrirPopover(evento) {
+                                        if (evento?.pointerType === 'touch' || this.punteroTactil) {
+                                            return;
+                                        }
+
+                                        this.popoverAbierto = this.verificarDesborde();
+                                    },
+                                }"
+                            >
                             <button
                                 type="button"
-                                wire:key="producto-{{ $producto->id }}"
                                 wire:click="agregarProducto({{ $producto->id }})"
+                                x-ref="botonProducto"
                                 aria-label="Agregar {{ $producto->nombre }} al detalle"
-                                class="group relative flex flex-col overflow-hidden rounded-xl border border-stone-200 bg-white text-left shadow-sm transition duration-150 hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 active:translate-y-0 dark:border-stone-700 dark:bg-stone-800 dark:hover:border-amber-500/60 dark:focus:ring-offset-stone-900"
+                                x-on:pointerdown="punteroTactil = $event.pointerType === 'touch'"
+                                x-on:pointerup="punteroTactil = false"
+                                x-on:pointerenter="abrirPopover($event)"
+                                x-on:pointerleave="popoverAbierto = false"
+                                x-on:focus="abrirPopover($event)"
+                                x-on:blur="popoverAbierto = false"
+                                x-on:keydown.escape="popoverAbierto = false"
+                                x-bind:aria-describedby="popoverAbierto ? 'popover-producto-{{ $producto->id }}' : null"
+                                class="group relative flex h-full w-full flex-col rounded-xl border border-stone-200 bg-white text-left shadow-sm transition duration-150 hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 active:translate-y-0 dark:border-stone-700 dark:bg-stone-800 dark:hover:border-amber-500/60 dark:focus:ring-offset-stone-900"
                             >
-                                <div class="relative aspect-square shrink-0 overflow-hidden bg-stone-100 dark:bg-stone-700">
+                                <div class="relative aspect-square shrink-0 overflow-hidden rounded-t-xl bg-stone-100 dark:bg-stone-700">
                                     @if ($producto->imagenUrl())
                                         <img src="{{ $producto->imagenUrl() }}" alt="{{ $producto->nombre }}" class="size-full object-contain transition duration-200 group-hover:scale-105" loading="lazy" decoding="async">
                                     @else
@@ -232,47 +269,98 @@
                                             {{ $producto->categoria->nombre }}
                                         </p>
                                     @endif
-                                    <p class="line-clamp-2 break-words text-xs font-bold leading-tight tracking-tight text-stone-900 dark:text-stone-50" title="{{ $producto->nombre }}">
+                                    <p x-ref="nombreProducto" class="line-clamp-2 break-words text-xs font-bold leading-tight tracking-tight text-stone-900 dark:text-stone-50">
                                         {{ $producto->nombre }}
                                     </p>
 
-                                    <div class="mt-0.5 flex items-center justify-between gap-1.5">
+                                    <div class="mt-0.5 flex flex-wrap items-center justify-between gap-x-1.5 gap-y-0.5">
                                         <span class="shrink-0 text-sm font-bold text-stone-900 tabular-nums dark:text-stone-100">
                                             Bs {{ number_format((float) $producto->precio, 2) }}
                                         </span>
-                                        <span @class([
-                                            'truncate text-right text-[10px] font-medium leading-tight',
-                                            'text-emerald-600 dark:text-emerald-400' => ! $stockBajo,
-                                            'text-red-600 dark:text-red-400' => $stockBajo,
+                                        <span x-ref="stockProducto" @class([
+                                            'whitespace-nowrap text-right text-[10px] font-medium leading-tight tabular-nums',
+                                            'text-emerald-600 dark:text-emerald-400' => $producto->stock === null || (! $sinStock && ! $stockBajo),
+                                            'text-amber-700 dark:text-amber-300' => $stockBajo,
+                                            'text-red-600 dark:text-red-400' => $sinStock,
                                         ])>
                                             @if ($producto->stock === null)
                                                 Ilimitado
-                                            @elseif ($producto->stock <= 0)
-                                                Agotado
-                                            @elseif ($stockBajo)
-                                                Bajo stock
                                             @else
-                                                Stock {{ $producto->stock }}
+                                                Stock: {{ $producto->stock }}
                                             @endif
                                         </span>
                                     </div>
                                 </div>
                             </button>
+
+                            <button
+                                type="button"
+                                x-on:click.stop="hojaAbierta = true; $nextTick(() => $refs.cerrarHoja?.focus())"
+                                aria-label="Ver detalle de {{ $producto->nombre }}"
+                                class="absolute left-1.5 top-1.5 z-10 inline-flex size-6 items-center justify-center rounded-full bg-white/90 text-stone-600 shadow-sm ring-1 ring-stone-200 hover:bg-amber-50 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:bg-stone-800/90 dark:text-stone-300 dark:ring-stone-600 md:hidden"
+                            >
+                                <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="9" />
+                                    <path d="M12 11v5" />
+                                    <path d="M12 8h.01" />
+                                </svg>
+                            </button>
+
+                            @include('livewire.ventas._popover-producto', ['producto' => $producto])
+                            @include('livewire.ventas._hoja-producto', ['producto' => $producto])
+                            </div>
                         @endforeach
                     </div>
                 @else
-                    <ul class="mt-4 divide-y divide-stone-100 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm dark:divide-stone-700/60 dark:border-stone-700 dark:bg-stone-800" role="list">
+                    <ul class="mt-4 divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white shadow-sm dark:divide-stone-700/60 dark:border-stone-700 dark:bg-stone-800" role="list">
                         @foreach ($productos as $producto)
                             @php
                                 $enCarrito = $cantidadesPorProducto[$producto->id] ?? 0;
-                                $stockBajo = $producto->stock !== null && $producto->stock <= $producto->stockMinimo();
+                                $sinStock = $producto->sinStock();
+                                $stockBajo = $producto->stockBajo();
                             @endphp
 
-                            <li wire:key="producto-lista-{{ $producto->id }}">
+                            <li
+                                wire:key="producto-lista-{{ $producto->id }}"
+                                class="relative"
+                                x-data="{
+                                    popoverAbierto: false,
+                                    hojaAbierta: false,
+                                    verificarDesborde() {
+                                        const boton = this.$refs.botonProducto;
+                                        const referencias = [
+                                            this.$refs.nombreProducto,
+                                            this.$refs.stockProducto,
+                                            ...(boton ? boton.querySelectorAll('.truncate, .line-clamp-2') : []),
+                                        ];
+
+                                        return referencias.some((texto) => texto
+                                            && (texto.scrollHeight > texto.clientHeight + 1
+                                                || texto.scrollWidth > texto.clientWidth + 1));
+                                    },
+                                    punteroTactil: false,
+                                    abrirPopover(evento) {
+                                        if (evento?.pointerType === 'touch' || this.punteroTactil) {
+                                            return;
+                                        }
+
+                                        this.popoverAbierto = this.verificarDesborde();
+                                    },
+                                }"
+                            >
                                 <button
                                     type="button"
                                     wire:click="agregarProducto({{ $producto->id }})"
-                                    class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-amber-500 dark:hover:bg-stone-700/40"
+                                    x-ref="botonProducto"
+                                    x-on:pointerdown="punteroTactil = $event.pointerType === 'touch'"
+                                    x-on:pointerup="punteroTactil = false"
+                                    x-on:pointerenter="abrirPopover($event)"
+                                    x-on:pointerleave="popoverAbierto = false"
+                                    x-on:focus="abrirPopover($event)"
+                                    x-on:blur="popoverAbierto = false"
+                                    x-on:keydown.escape="popoverAbierto = false"
+                                    x-bind:aria-describedby="popoverAbierto ? 'popover-producto-{{ $producto->id }}' : null"
+                                    class="flex w-full items-center justify-between gap-3 px-4 py-3 pr-12 text-left transition hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-amber-500 dark:hover:bg-stone-700/40"
                                 >
                                     <div class="flex min-w-0 flex-1 items-center gap-3">
                                         <div class="relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-stone-100 text-stone-400 dark:bg-stone-700 dark:text-stone-500">
@@ -285,16 +373,17 @@
                                             @endif
                                         </div>
                                         <div class="min-w-0">
-                                            <p class="truncate text-sm font-bold text-stone-900 dark:text-white">
+                                            <p x-ref="nombreProducto" class="truncate text-sm font-bold text-stone-900 dark:text-white">
                                                 {{ $producto->nombre }}
                                             </p>
                                             <p class="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
                                                 {{ $producto->categoria?->nombre }}
                                                 <span aria-hidden="true">·</span>
-                                                <span @class([
-                                                    'font-medium',
-                                                    'text-emerald-600 dark:text-emerald-400' => ! $stockBajo,
-                                                    'text-red-600 dark:text-red-400' => $stockBajo,
+                                                <span x-ref="stockProducto" @class([
+                                                    'font-medium tabular-nums',
+                                                    'text-emerald-600 dark:text-emerald-400' => $producto->stock === null || (! $sinStock && ! $stockBajo),
+                                                    'text-amber-700 dark:text-amber-300' => $stockBajo,
+                                                    'text-red-600 dark:text-red-400' => $sinStock,
                                                 ])>
                                                     @if ($producto->stock === null)
                                                         Stock: ilimitado
@@ -302,11 +391,6 @@
                                                         Stock: {{ $producto->stock }}
                                                     @endif
                                                 </span>
-                                                @if ($producto->stock !== null && $producto->stock <= 0)
-                                                    <span class="ml-1 font-semibold text-red-600 dark:text-red-400">Agotado</span>
-                                                @elseif ($stockBajo)
-                                                    <span class="ml-1 font-semibold text-red-600 dark:text-red-400">Bajo stock</span>
-                                                @endif
                                             </p>
                                         </div>
                                     </div>
@@ -322,6 +406,22 @@
                                         </span>
                                     </div>
                                 </button>
+
+                                <button
+                                    type="button"
+                                    x-on:click.stop="hojaAbierta = true; $nextTick(() => $refs.cerrarHoja?.focus())"
+                                    aria-label="Ver detalle de {{ $producto->nombre }}"
+                                    class="absolute right-3 top-1/2 z-10 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-lg border border-stone-300 bg-white text-stone-600 shadow-sm hover:bg-amber-50 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-300 md:hidden"
+                                >
+                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <circle cx="12" cy="12" r="9" />
+                                        <path d="M12 11v5" />
+                                        <path d="M12 8h.01" />
+                                    </svg>
+                                </button>
+
+                                @include('livewire.ventas._popover-producto', ['producto' => $producto])
+                                @include('livewire.ventas._hoja-producto', ['producto' => $producto])
                             </li>
                         @endforeach
                     </ul>

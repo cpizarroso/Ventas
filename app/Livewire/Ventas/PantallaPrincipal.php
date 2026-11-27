@@ -798,7 +798,7 @@ class PantallaPrincipal extends Component
         $totalCarritoEnCentavos = $lineasCarrito->sum('subtotal_centavos')
             + $lineasPromociones->sum('subtotal_centavos');
         $hayAdvertenciasStock = $this->hayAdvertenciasStock($lineasCarrito, $lineasPromociones);
-        $permitirStockNegativo = $negocio?->permitirStockNegativo() ?? false;
+        $permitirStockNegativo = $negocio?->permitirStockNegativo() ?? true;
         $hayExcesoStock = ! $permitirStockNegativo && $hayAdvertenciasStock;
 
         $montoRecibidoEnCentavos = $this->montoRecibido !== null && $this->montoRecibido !== ''
@@ -1204,7 +1204,7 @@ class PantallaPrincipal extends Component
 
     private function negocioPermiteStockNegativo(): bool
     {
-        return (bool) Auth::user()?->negocio?->permitirStockNegativo();
+        return (bool) (Auth::user()?->negocio?->permitirStockNegativo() ?? true);
     }
 
     private function cajaAbierta(): ?Caja
